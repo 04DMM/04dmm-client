@@ -77,9 +77,6 @@ export class Client extends GameShell {
     static lowMemory: boolean = false;
     static serverAddress: string = '';
     static httpAddress: string = '';
-    static showDebug: boolean = false;
-    static chatEra: number = 2; // 0 - early beta, 1 - late beta, 2 - launch
-    static cameraEditor: boolean = false;
 
     // original keys:
     static readonly exponent: bigint = 58778699976184461502525193738213253649000149147835990136706041084440742975821n;
@@ -2784,11 +2781,7 @@ export class Client extends GameShell {
             }
 
             if (this.sceneState === 2) {
-                if (Client.cameraEditor) {
-                    this.updateCameraEditor();
-                } else {
-                    this.updateOrbitCamera();
-                }
+                this.updateOrbitCamera();
             }
             if (this.sceneState === 2 && this.cutscene) {
                 this.applyCutscene();
@@ -3269,10 +3262,6 @@ export class Client extends GameShell {
         this.scene?.draw(this.cameraX, this.cameraY, this.cameraZ, level, this.cameraYaw, this.cameraPitch, this.loopCycle);
         this.scene?.clearTemporaryLocs();
         this.draw2DEntityElements();
-        this.drawTileHint();
-        if (Client.showDebug) {
-            this.drawDebug();
-        }
         this.updateTextures(jitter);
         this.draw3DEntityElements();
         this.areaViewport?.draw(8, 11);
@@ -3431,139 +3420,6 @@ export class Client extends GameShell {
                     this.fontPlain11?.drawStringCenter(this.projectX - 1, this.projectY + 3, entity.damage.toString(), Colors.WHITE);
                 }
             }
-
-            if (Client.showDebug) {
-                // true tile overlay
-                if (entity.pathLength > 0 || entity.forceMoveEndCycle >= this.loopCycle || entity.forceMoveStartCycle > this.loopCycle) {
-                    const halfUnit: number = 64 * entity.size;
-                    this.debugDrawTileOverlay(entity.pathTileX[0] * 128 + halfUnit, entity.pathTileZ[0] * 128 + halfUnit, this.currentLevel, entity.size, 0x00ffff, false);
-                }
-
-                // local tile overlay
-                this.debugDrawTileOverlay(entity.x, entity.z, this.currentLevel, entity.size, 0x666666, false);
-
-                let offsetY: number = 0;
-                this.projectFromEntity(entity, entity.height + 30);
-
-                if (index < this.playerCount) {
-                    const player: PlayerEntity = entity as PlayerEntity;
-
-                    this.fontPlain11?.drawStringCenter(this.projectX, this.projectY + offsetY, player.name, Colors.WHITE);
-                    offsetY -= 15;
-
-                    if (player.lastMask !== -1 && this.loopCycle - player.lastMaskCycle < 30) {
-                        if ((player.lastMask & PlayerEntity.APPEARANCE) === PlayerEntity.APPEARANCE) {
-                            this.fontPlain11?.drawStringCenter(this.projectX, this.projectY + offsetY, 'Appearance Update', Colors.WHITE);
-                            offsetY -= 15;
-                        }
-
-                        if ((player.lastMask & PlayerEntity.ANIM) === PlayerEntity.ANIM) {
-                            this.fontPlain11?.drawStringCenter(this.projectX, this.projectY + offsetY, 'Play Seq: ' + player.primarySeqId, Colors.WHITE);
-                            offsetY -= 15;
-                        }
-
-                        if ((player.lastMask & PlayerEntity.FACE_ENTITY) === PlayerEntity.FACE_ENTITY) {
-                            let target: number = player.targetId;
-                            if (target > 32767) {
-                                target -= 32768;
-                            }
-                            this.fontPlain11?.drawStringCenter(this.projectX, this.projectY + offsetY, 'Face Entity: ' + target, Colors.WHITE);
-                            offsetY -= 15;
-                        }
-
-                        if ((player.lastMask & PlayerEntity.SAY) === PlayerEntity.SAY) {
-                            this.fontPlain11?.drawStringCenter(this.projectX, this.projectY + offsetY, 'Say', Colors.WHITE);
-                            offsetY -= 15;
-                        }
-
-                        if ((player.lastMask & PlayerEntity.DAMAGE) === PlayerEntity.DAMAGE) {
-                            this.fontPlain11?.drawStringCenter(this.projectX, this.projectY + offsetY, 'Hit: Type ' + player.damageType + ' Amount ' + player.damage + ' HP ' + player.health + '/' + player.totalHealth, Colors.WHITE);
-                            offsetY -= 15;
-                        }
-
-                        if ((player.lastMask & PlayerEntity.FACE_COORD) === PlayerEntity.FACE_COORD) {
-                            this.fontPlain11?.drawStringCenter(this.projectX, this.projectY + offsetY, 'Face Coord: ' + player.lastFaceX / 2 + ' ' + player.lastFaceZ / 2, Colors.WHITE);
-                            offsetY -= 15;
-                        }
-
-                        if ((player.lastMask & PlayerEntity.CHAT) === PlayerEntity.CHAT) {
-                            this.fontPlain11?.drawStringCenter(this.projectX, this.projectY + offsetY, 'Chat', Colors.WHITE);
-                            offsetY -= 15;
-                        }
-
-                        if ((player.lastMask & PlayerEntity.SPOTANIM) === PlayerEntity.SPOTANIM) {
-                            this.fontPlain11?.drawStringCenter(this.projectX, this.projectY + offsetY, 'Play Spotanim: ' + player.spotanimId, Colors.WHITE);
-                            offsetY -= 15;
-                        }
-
-                        if ((player.lastMask & PlayerEntity.EXACT_MOVE) === PlayerEntity.EXACT_MOVE) {
-                            this.fontPlain11?.drawStringCenter(this.projectX, this.projectY + offsetY, 'Exact Move', Colors.WHITE);
-                            offsetY -= 15;
-                        }
-                    }
-                } else {
-                    // npc
-                    const npc: NpcEntity = entity as NpcEntity;
-
-                    let offsetY: number = 0;
-                    this.projectFromEntity(entity, entity.height + 30);
-
-                    this.fontPlain11?.drawStringCenter(this.projectX, this.projectY + offsetY, npc.type?.name ?? null, Colors.WHITE);
-                    offsetY -= 15;
-
-                    if (npc.lastMask !== -1 && this.loopCycle - npc.lastMaskCycle < 30) {
-                        if ((npc.lastMask & NpcEntity.ANIM) === NpcEntity.ANIM) {
-                            this.fontPlain11?.drawStringCenter(this.projectX, this.projectY + offsetY, 'Play Seq: ' + npc.primarySeqId, Colors.WHITE);
-                            offsetY -= 15;
-                        }
-
-                        if ((npc.lastMask & NpcEntity.FACE_ENTITY) === NpcEntity.FACE_ENTITY) {
-                            let target: number = npc.targetId;
-                            if (target > 32767) {
-                                target -= 32768;
-                            }
-                            this.fontPlain11?.drawStringCenter(this.projectX, this.projectY + offsetY, 'Face Entity: ' + target, Colors.WHITE);
-                            offsetY -= 15;
-                        }
-
-                        if ((npc.lastMask & NpcEntity.SAY) === NpcEntity.SAY) {
-                            this.fontPlain11?.drawStringCenter(this.projectX, this.projectY + offsetY, 'Say', Colors.WHITE);
-                            offsetY -= 15;
-                        }
-
-                        if ((npc.lastMask & NpcEntity.DAMAGE) === NpcEntity.DAMAGE) {
-                            this.fontPlain11?.drawStringCenter(this.projectX, this.projectY + offsetY, 'Hit: Type ' + npc.damageType + ' Amount ' + npc.damage + ' HP ' + npc.health + '/' + npc.totalHealth, Colors.WHITE);
-                            offsetY -= 15;
-                        }
-
-                        if ((npc.lastMask & NpcEntity.CHANGE_TYPE) === NpcEntity.CHANGE_TYPE) {
-                            this.fontPlain11?.drawStringCenter(this.projectX, this.projectY + offsetY, 'Change Type: ' + (npc.type?.id ?? null), Colors.WHITE);
-                            offsetY -= 15;
-                        }
-
-                        if ((npc.lastMask & NpcEntity.SPOTANIM) === NpcEntity.SPOTANIM) {
-                            this.fontPlain11?.drawStringCenter(this.projectX, this.projectY + offsetY, 'Play Spotanim: ' + npc.spotanimId, Colors.WHITE);
-                            offsetY -= 15;
-                        }
-
-                        if ((npc.lastMask & NpcEntity.FACE_COORD) === NpcEntity.FACE_COORD) {
-                            this.fontPlain11?.drawStringCenter(this.projectX, this.projectY + offsetY, 'Face Coord: ' + npc.lastFaceX / 2 + ' ' + npc.lastFaceZ / 2, Colors.WHITE);
-                            offsetY -= 15;
-                        }
-                    }
-                }
-            }
-        }
-
-        if (Client.showDebug) {
-            for (let i: number = 0; i < this.userTileMarkers.length; i++) {
-                const marker: Tile | null = this.userTileMarkers[i];
-                if (!marker || marker.level !== this.currentLevel || marker.x < 0 || marker.z < 0 || marker.x >= 104 || marker.z >= 104) {
-                    continue;
-                }
-
-                this.debugDrawTileOverlay(marker.x * 128 + 64, marker.z * 128 + 64, marker.level, 1, 0xffff00, false);
-            }
         }
 
         for (let i: number = 0; i < this.chatCount; i++) {
@@ -3650,208 +3506,6 @@ export class Client extends GameShell {
             }
         }
     };
-
-    private drawTileHint = (): void => {
-        if (this.hintType !== 2 || !this.imageHeadicons[2]) {
-            return;
-        }
-
-        this.projectFromGround(((this.hintTileX - this.sceneBaseTileX) << 7) + this.hintOffsetX, this.hintHeight * 2, ((this.hintTileZ - this.sceneBaseTileZ) << 7) + this.hintOffsetZ);
-
-        if (this.projectX > -1 && this.loopCycle % 20 < 10) {
-            this.imageHeadicons[2].draw(this.projectX - 12, this.projectY - 28);
-        }
-    };
-
-    private drawDebug = (): void => {
-        // all of this is basically custom code
-        const x: number = 507;
-        let y: number = 13;
-        if (this.lastTickFlag) {
-            this.fontPlain11?.drawStringRight(x, y, 'tock', Colors.YELLOW, true);
-        } else {
-            this.fontBold12?.drawStringRight(x, y, 'tick', Colors.YELLOW, true);
-        }
-        y += 13;
-        this.fontPlain11?.drawStringRight(x, y, `Fps: ${this.fps}, ${this.deltime} ms`, Colors.YELLOW, true);
-        y += 13;
-        this.fontPlain11?.drawStringRight(x, y, `Draw: ${this.ms.toFixed(1)}, Avg: ${this.msAvg.toFixed(1)}, Slow: ${this.slowestMS.toFixed(1)} ms`, Colors.YELLOW, true);
-        y += 13;
-        this.fontPlain11?.drawStringRight(x, y, `Occluders: ${World3D.levelOccluderCount[World3D.topLevel]} Active: ${World3D.activeOccluderCount}`, Colors.YELLOW, true);
-        y += 13;
-        this.fontPlain11?.drawStringRight(x, y, 'Local Pos: ' + (this.localPlayer?.x ?? -1) + ', ' + (this.localPlayer?.z ?? -1) + ', ' + (this.localPlayer?.y ?? -1), Colors.YELLOW, true);
-        y += 13;
-        this.fontPlain11?.drawStringRight(x, y, 'Camera Pos: ' + this.cameraX + ', ' + this.cameraZ + ', ' + this.cameraY, Colors.YELLOW, true);
-        y += 13;
-        this.fontPlain11?.drawStringRight(x, y, 'Camera Angle: ' + this.cameraYaw + ', ' + this.cameraPitch, Colors.YELLOW, true);
-        y += 13;
-        this.fontPlain11?.drawStringRight(
-            x,
-            y,
-            'Cutscene Source: ' + this.cutsceneSrcLocalTileX + ', ' + this.cutsceneSrcLocalTileZ + ' ' + this.cutsceneSrcHeight + '; ' + this.cutsceneMoveSpeed + ', ' + this.cutsceneMoveAcceleration,
-            Colors.YELLOW,
-            true
-        );
-        y += 13;
-        this.fontPlain11?.drawStringRight(
-            x,
-            y,
-            'Cutscene Destination: ' + this.cutsceneDstLocalTileX + ', ' + this.cutsceneDstLocalTileZ + ' ' + this.cutsceneDstHeight + '; ' + this.cutsceneRotateSpeed + ', ' + this.cutsceneRotateAcceleration,
-            Colors.YELLOW,
-            true
-        );
-        if (Client.cameraEditor) {
-            y += 13;
-            this.fontPlain11?.drawStringRight(x, y, 'Instructions:', Colors.YELLOW, true);
-            y += 13;
-            this.fontPlain11?.drawStringRight(x, y, '- Arrows to move Camera', Colors.YELLOW, true);
-            y += 13;
-            this.fontPlain11?.drawStringRight(x, y, '- Shift to control Source or Dest', Colors.YELLOW, true);
-            y += 13;
-            this.fontPlain11?.drawStringRight(x, y, '- Alt to control Height', Colors.YELLOW, true);
-            y += 13;
-            this.fontPlain11?.drawStringRight(x, y, '- Ctrl to control Modifier', Colors.YELLOW, true);
-        }
-    };
-
-    private debugDrawTileOverlay = (x: number, z: number, level: number, size: number, color: number, crossed: boolean): void => {
-        const height: number = this.getHeightmapY(level, x, z);
-
-        // x/z should be the center of a tile which is 128 client-units large, so +/- 64 puts us at the edges
-        const halfUnit: number = 64 * size;
-        this.project(x - halfUnit, height, z - halfUnit);
-        const x0: number = this.projectX;
-        const y0: number = this.projectY;
-        this.project(x + halfUnit, height, z - halfUnit);
-        const x1: number = this.projectX;
-        const y1: number = this.projectY;
-        this.project(x - halfUnit, height, z + halfUnit);
-        const x2: number = this.projectX;
-        const y2: number = this.projectY;
-        this.project(x + halfUnit, height, z + halfUnit);
-        const x3: number = this.projectX;
-        const y3: number = this.projectY;
-
-        // one of our points failed to project
-        if (x0 === -1 || x1 === -1 || x2 === -1 || x3 === -1) {
-            return;
-        }
-
-        if (crossed) {
-            Draw2D.drawLine(x0, y0, x3, y3, (color & 0xfefefe) >> 1);
-            Draw2D.drawLine(x1, y1, x2, y2, (color & 0xfefefe) >> 1);
-        }
-        Draw2D.drawLine(x0, y0, x1, y1, color);
-        Draw2D.drawLine(x0, y0, x2, y2, color);
-        Draw2D.drawLine(x1, y1, x3, y3, color);
-        Draw2D.drawLine(x2, y2, x3, y3, color);
-    };
-
-    updateCameraEditor(): void {
-        // holding ctrl
-        const modifier: number = this.actionKey[5] == 1 ? 2 : 1;
-
-        if (this.actionKey[6] == 1) {
-            // holding shift
-            if (this.actionKey[1] == 1) {
-                // left
-                this.cutsceneDstLocalTileX -= modifier;
-                if (this.cutsceneDstLocalTileX < 1) {
-                    this.cutsceneDstLocalTileX = 1;
-                }
-            } else if (this.actionKey[2] == 1) {
-                // right
-                this.cutsceneDstLocalTileX += modifier;
-                if (this.cutsceneDstLocalTileX > 102) {
-                    this.cutsceneDstLocalTileX = 102;
-                }
-            }
-
-            if (this.actionKey[3] == 1) {
-                // up
-                if (this.actionKey[7] == 1) {
-                    // holding alt
-                    this.cutsceneDstHeight += 2 * modifier;
-                } else {
-                    this.cutsceneDstLocalTileZ += 1;
-                    if (this.cutsceneDstLocalTileZ > 102) {
-                        this.cutsceneDstLocalTileZ = 102;
-                    }
-                }
-            } else if (this.actionKey[4] == 1) {
-                // down
-                if (this.actionKey[7] == 1) {
-                    // holding alt
-                    this.cutsceneDstHeight -= 2 * modifier;
-                } else {
-                    this.cutsceneDstLocalTileZ -= 1;
-                    if (this.cutsceneDstLocalTileZ < 1) {
-                        this.cutsceneDstLocalTileZ = 1;
-                    }
-                }
-            }
-        } else {
-            if (this.actionKey[1] == 1) {
-                // left
-                this.cutsceneSrcLocalTileX -= modifier;
-                if (this.cutsceneSrcLocalTileX < 1) {
-                    this.cutsceneSrcLocalTileX = 1;
-                }
-            } else if (this.actionKey[2] == 1) {
-                // right
-                this.cutsceneSrcLocalTileX += modifier;
-                if (this.cutsceneSrcLocalTileX > 102) {
-                    this.cutsceneSrcLocalTileX = 102;
-                }
-            }
-
-            if (this.actionKey[3] == 1) {
-                // up
-                if (this.actionKey[7] == 1) {
-                    // holding alt
-                    this.cutsceneSrcHeight += 2 * modifier;
-                } else {
-                    this.cutsceneSrcLocalTileZ += modifier;
-                    if (this.cutsceneSrcLocalTileZ > 102) {
-                        this.cutsceneSrcLocalTileZ = 102;
-                    }
-                }
-            } else if (this.actionKey[4] == 1) {
-                // down
-                if (this.actionKey[7] == 1) {
-                    // holding alt
-                    this.cutsceneSrcHeight -= 2 * modifier;
-                } else {
-                    this.cutsceneSrcLocalTileZ -= modifier;
-                    if (this.cutsceneSrcLocalTileZ < 1) {
-                        this.cutsceneSrcLocalTileZ = 1;
-                    }
-                }
-            }
-        }
-
-        this.cameraX = this.cutsceneSrcLocalTileX * 128 + 64;
-        this.cameraZ = this.cutsceneSrcLocalTileZ * 128 + 64;
-        this.cameraY = this.getHeightmapY(this.currentLevel, this.cutsceneSrcLocalTileX, this.cutsceneSrcLocalTileZ) - this.cutsceneSrcHeight;
-
-        const sceneX: number = this.cutsceneDstLocalTileX * 128 + 64;
-        const sceneZ: number = this.cutsceneDstLocalTileZ * 128 + 64;
-        const sceneY: number = this.getHeightmapY(this.currentLevel, this.cutsceneDstLocalTileX, this.cutsceneDstLocalTileZ) - this.cutsceneDstHeight;
-        const deltaX: number = sceneX - this.cameraX;
-        const deltaY: number = sceneY - this.cameraY;
-        const deltaZ: number = sceneZ - this.cameraZ;
-        const distance: number = Math.sqrt(deltaX * deltaX + deltaZ * deltaZ) | 0;
-
-        this.cameraPitch = ((Math.atan2(deltaY, distance) * 325.949) | 0) & 0x7ff;
-        this.cameraYaw = ((Math.atan2(deltaX, deltaZ) * -325.949) | 0) & 0x7ff;
-        if (this.cameraPitch < 128) {
-            this.cameraPitch = 128;
-        }
-
-        if (this.cameraPitch > 383) {
-            this.cameraPitch = 383;
-        }
-    }
 
     private draw3DEntityElements = (): void => {
         this.drawPrivateMessages();
@@ -4053,9 +3707,6 @@ export class Client extends GameShell {
             this.drawInterface(Component.instances[this.chatInterfaceId], 0, 0, 0);
         } else if (this.stickyChatInterfaceId === -1) {
             let font: PixFont | null = this.fontPlain12;
-            if (Client.chatEra === 0) {
-                font = this.fontQuill8;
-            }
             let line: number = 0;
             Draw2D.setBounds(0, 0, 463, 77);
             for (let i: number = 0; i < 100; i++) {
@@ -4124,17 +3775,8 @@ export class Client extends GameShell {
                 this.chatScrollHeight = 78;
             }
             this.drawScrollbar(463, 0, this.chatScrollHeight - this.chatScrollOffset - 77, this.chatScrollHeight, 77);
-            if (Client.chatEra == 0) {
-                // 186-194?
-                font?.drawString(3, 90, this.chatTyped + '*', Colors.BLACK);
-            } else if (Client.chatEra == 1) {
-                // <204
-                font?.drawString(3, 90, this.chatTyped + '*', Colors.BLUE);
-            } else {
-                // 204+
-                font?.drawString(4, 90, JString.formatName(this.username) + ':', Colors.BLACK);
-                font?.drawString(font.stringWidth(this.username + ': ') + 6, 90, this.chatTyped + '*', Colors.BLUE);
-            }
+            font?.drawString(4, 90, JString.formatName(this.username) + ':', Colors.BLACK);
+            font?.drawString(font.stringWidth(this.username + ': ') + 6, 90, this.chatTyped + '*', Colors.BLUE);
             Draw2D.drawHorizontalLine(0, 77, Colors.BLACK, 479);
         } else {
             this.drawInterface(Component.instances[this.stickyChatInterfaceId], 0, 0, 0);
@@ -5768,60 +5410,6 @@ export class Client extends GameShell {
                         }
 
                         if ((key === 13 || key === 10) && this.chatTyped.length > 0) {
-                            if (this.chatTyped === '::clientdrop' /* && super.frame*/) {
-                                await this.tryReconnect();
-                            } else if (this.rights && this.chatTyped === '::noclip') {
-                                for (let level: number = 0; level < CollisionMap.LEVELS; level++) {
-                                    for (let x: number = 1; x < CollisionMap.SIZE - 1; x++) {
-                                        for (let z: number = 1; z < CollisionMap.SIZE - 1; z++) {
-                                            const collisionMap: CollisionMap | null = this.levelCollisionMap[level];
-                                            if (collisionMap) {
-                                                collisionMap.flags[CollisionMap.index(x, z)] = 0;
-                                            }
-                                        }
-                                    }
-                                }
-                            } else if (this.chatTyped === '::debug') {
-                                Client.showDebug = !Client.showDebug;
-                            } else if (this.chatTyped === '::chat') {
-                                Client.chatEra = (Client.chatEra + 1) % 3;
-                            } else if (this.chatTyped.startsWith('::fps ')) {
-                                try {
-                                    this.setTargetedFramerate(parseInt(this.chatTyped.substring(6), 10));
-                                } catch (e) {
-                                    /* empty */
-                                }
-                            } else if (this.chatTyped.startsWith('::camera')) {
-                                Client.cameraEditor = !Client.cameraEditor;
-                                this.cutscene = Client.cameraEditor;
-                                this.cutsceneDstLocalTileX = 52;
-                                this.cutsceneDstLocalTileZ = 52;
-                                this.cutsceneSrcLocalTileX = 52;
-                                this.cutsceneSrcLocalTileZ = 52;
-                                this.cutsceneSrcHeight = 1000;
-                                this.cutsceneDstHeight = 1000;
-                            } else if (this.chatTyped.startsWith('::camsrc ')) {
-                                const args: string[] = this.chatTyped.split(' ');
-                                if (args.length === 3) {
-                                    this.cutsceneSrcLocalTileX = parseInt(args[1], 10);
-                                    this.cutsceneSrcLocalTileZ = parseInt(args[2], 10);
-                                } else if (args.length === 4) {
-                                    this.cutsceneSrcLocalTileX = parseInt(args[1], 10);
-                                    this.cutsceneSrcLocalTileZ = parseInt(args[2], 10);
-                                    this.cutsceneSrcHeight = parseInt(args[3], 10);
-                                }
-                            } else if (this.chatTyped.startsWith('::camdst ')) {
-                                const args: string[] = this.chatTyped.split(' ');
-                                if (args.length === 3) {
-                                    this.cutsceneDstLocalTileX = parseInt(args[1], 10);
-                                    this.cutsceneDstLocalTileZ = parseInt(args[2], 10);
-                                } else if (args.length === 4) {
-                                    this.cutsceneDstLocalTileX = parseInt(args[1], 10);
-                                    this.cutsceneDstLocalTileZ = parseInt(args[2], 10);
-                                    this.cutsceneDstHeight = parseInt(args[3], 10);
-                                }
-                            }
-
                             if (this.chatTyped.startsWith('::')) {
                                 // CLIENT_CHEAT
                                 this.out.p1isaac(ClientProt.CLIENT_CHEAT);
@@ -7680,9 +7268,6 @@ export class Client extends GameShell {
             this.messageSender[i] = this.messageSender[i - 1];
             this.messageText[i] = this.messageText[i - 1];
         }
-        if (Client.showDebug && type === 0) {
-            text = '[' + ((this.loopCycle / 30) | 0) + ']: ' + text;
-        }
         this.messageType[0] = type;
         this.messageSender[0] = sender;
         this.messageText[0] = text;
@@ -8057,9 +7642,6 @@ export class Client extends GameShell {
                             }
 
                             this.menuOption[this.menuSize] = 'Examine @lre@' + obj.name;
-                            if (Client.showDebug) {
-                                this.menuOption[this.menuSize] += '@whi@ (' + obj.id + ')';
-                            }
                             this.menuAction[this.menuSize] = 1773;
                             this.menuParamA[this.menuSize] = obj.id;
                             if (child.invSlotObjCount) {
@@ -8209,9 +7791,6 @@ export class Client extends GameShell {
                     }
 
                     this.menuOption[this.menuSize] = 'Examine @cya@' + loc.name;
-                    if (Client.showDebug) {
-                        this.menuOption[this.menuSize] += '@whi@ (' + loc.id + ')';
-                    }
                     this.menuAction[this.menuSize] = 1175;
                     this.menuParamA[this.menuSize] = bitset;
                     this.menuParamB[this.menuSize] = x;
@@ -8323,9 +7902,6 @@ export class Client extends GameShell {
                         }
 
                         this.menuOption[this.menuSize] = 'Examine @lre@' + type.name;
-                        if (Client.showDebug) {
-                            this.menuOption[this.menuSize] += '@whi@ (' + obj.index + ')';
-                        }
                         this.menuAction[this.menuSize] = 1102;
                         this.menuParamA[this.menuSize] = obj.index;
                         this.menuParamB[this.menuSize] = x;
@@ -8419,9 +7995,6 @@ export class Client extends GameShell {
             }
 
             this.menuOption[this.menuSize] = 'Examine @yel@' + tooltip;
-            if (Client.showDebug) {
-                this.menuOption[this.menuSize] += '@whi@ (' + npc.id + ')';
-            }
             this.menuAction[this.menuSize] = 1607;
             this.menuParamA[this.menuSize] = a;
             this.menuParamB[this.menuSize] = b;
@@ -8945,22 +8518,6 @@ export class Client extends GameShell {
 
             const startX: number = this.bfsStepX[length];
             const startZ: number = this.bfsStepZ[length];
-
-            if (Client.showDebug && this.actionKey[6] === 1 && this.actionKey[7] === 1) {
-                // check if tile is already added, if so remove it
-                for (let i: number = 0; i < this.userTileMarkers.length; i++) {
-                    const marker: Tile | null = this.userTileMarkers[i];
-                    if (marker && marker.x === World3D.clickTileX && marker.z === World3D.clickTileZ) {
-                        this.userTileMarkers[i] = null;
-                        return false;
-                    }
-                }
-
-                // add new
-                this.userTileMarkers[this.userTileMarkerIndex] = new Tile(this.currentLevel, World3D.clickTileX, World3D.clickTileZ);
-                this.userTileMarkerIndex = (this.userTileMarkerIndex + 1) & (this.userTileMarkers.length - 1);
-                return false;
-            }
 
             if (type === 0) {
                 this.out.p1isaac(ClientProt.MOVE_GAMECLICK);

@@ -1,18 +1,26 @@
-import CollisionMap from './CollisionMap';
-import FloType from '../config/FloType';
-import Packet from '../io/Packet';
-import Draw3D from '../graphics/Draw3D';
-import World3D from './World3D';
-import LinkList from '../datastruct/LinkList';
-import LocType from '../config/LocType';
-import Model from '../graphics/Model';
-import LocEntity from './entity/LocEntity';
-import SeqType from '../config/SeqType';
-import LocShape from './LocShape';
-import LocAngle from './LocAngle';
-import Colors from '../graphics/Colors';
-import TileOverlayShape from './type/TileOverlayShape';
-import {Int32Array2d, Int32Array3d, Uint8Array3d} from '../util/Arrays';
+
+import FloType from '#/config/FloType.js';
+import LocType from '#/config/LocType.js';
+import SeqType from '#/config/SeqType.js';
+
+import LinkList from '#/datastruct/LinkList.js';
+
+import CollisionMap from '#/dash3d/CollisionMap.js';
+import LocAngle from '#/dash3d/LocAngle.js';
+import LocShape from '#/dash3d/LocShape.js';
+import World3D from '#/dash3d/World3D.js';
+
+import LocEntity from '#/dash3d/entity/LocEntity.js';
+
+import TileOverlayShape from '#/dash3d/type/TileOverlayShape.js';
+
+import Colors from '#/graphics/Colors.js';
+import Draw3D from '#/graphics/Draw3D.js';
+import Model from '#/graphics/Model.js';
+
+import Packet from '#/io/Packet.js';
+
+import { Int32Array2d, Int32Array3d, Uint8Array3d } from '#/util/Arrays.js';
 
 // noinspection JSSuspiciousNameCombination,DuplicatedCode
 export default class World {

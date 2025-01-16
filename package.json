@@ -1,11 +1,16 @@
 {
-  "name": "client2",
-  "module": "src/client/Client.ts",
-  "type": "module",
-  "devDependencies": {
-    "@types/bun": "latest"
-  },
-  "peerDependencies": {
-    "typescript": "^5.0.0"
-  }
+    "name": "client2",
+    "module": "src/client/Client.ts",
+    "type": "module",
+    "imports": {
+        "#3rdparty/*": "./src/3rdparty/*",
+        "#/*": "./src/*"
+    },
+    "devDependencies": {
+        "@types/bun": "latest",
+        "prettier": "^3.4.2"
+    },
+    "peerDependencies": {
+        "typescript": "^5.0.0"
+    }
 }

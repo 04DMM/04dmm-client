@@ -1,4 +1,4 @@
-import LocLayer from './LocLayer';
+import LocLayer from '#/dash3d/LocLayer.js';
 
 export default class LocShape {
     static readonly WALL_STRAIGHT: LocShape = new LocShape(0, LocLayer.WALL);

@@ -1,4 +1,4 @@
-import Hashable from './Hashable';
+import Hashable from '#/datastruct/Hashable.js';
 
 export default class Stack {
     readonly head: Hashable;

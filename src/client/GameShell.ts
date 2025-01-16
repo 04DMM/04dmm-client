@@ -1,10 +1,11 @@
-import PixMap from '../graphics/PixMap';
-import Draw3D from '../graphics/Draw3D';
+import { CanvasEnabledKeys, KeyCodes } from '#/client/KeyCodes.js';
+import InputTracking from '#/client/InputTracking.js';
 
-import {sleep} from '../util/JsUtil';
-import {CanvasEnabledKeys, KeyCodes} from './KeyCodes';
-import InputTracking from './InputTracking';
-import {canvas, canvas2d} from '../graphics/Canvas';
+import { canvas, canvas2d } from '#/graphics/Canvas.js';
+import Draw3D from '#/graphics/Draw3D.js';
+import PixMap from '#/graphics/PixMap.js';
+
+import { sleep } from '#/util/JsUtil.js';
 
 export default abstract class GameShell {
     protected slowestMS: number = 0.0; // custom
@@ -219,7 +220,7 @@ export default abstract class GameShell {
         if (this.state === -1) {
             this.shutdown();
         }
-    };
+    }
 
     protected shutdown = (): void => {
         this.state = -2;
@@ -249,17 +250,13 @@ export default abstract class GameShell {
         this.state = -1;
     };
 
-    protected async load() {
-    }
+    protected async load() {}
 
-    protected async update() {
-    }
+    protected async update() {}
 
-    protected async draw() {
-    }
+    protected async draw() {}
 
-    protected async refresh() {
-    }
+    protected async refresh() {}
 
     protected async showProgress(progress: number, message: string): Promise<void> {
         const width: number = this.width;
@@ -326,7 +323,7 @@ export default abstract class GameShell {
 
         this.idleCycles = Date.now();
 
-        const keyCode: {code: number; ch: number} = KeyCodes[key];
+        const keyCode: { code: number; ch: number } = KeyCodes[key];
         if (!keyCode || (e.code.length === 0 && !e.isTrusted)) {
             console.warn(`Unhandled key: ${key}`);
             return;
@@ -404,7 +401,7 @@ export default abstract class GameShell {
 
         this.idleCycles = Date.now();
 
-        const keyCode: {code: number; ch: number} = KeyCodes[key];
+        const keyCode: { code: number; ch: number } = KeyCodes[key];
         if (!keyCode || (e.code.length === 0 && !e.isTrusted)) {
             console.warn(`Unhandled key: ${key}`);
             return;
@@ -563,8 +560,8 @@ export default abstract class GameShell {
 
         // CUSTOM: taken from later versions, releases all keys
         for (let i = 0; i < 128; i++) {
-			this.actionKey[i] = 0;
-		}
+            this.actionKey[i] = 0;
+        }
 
         if (InputTracking.enabled) {
             InputTracking.focusLost();
@@ -585,7 +582,7 @@ export default abstract class GameShell {
         const touch: Touch = e.changedTouches[0];
         const clientX: number = touch.clientX | 0;
         const clientY: number = touch.clientY | 0;
-        this.onmousemove(new MouseEvent('mousemove', {clientX: clientX, clientY: clientY}));
+        this.onmousemove(new MouseEvent('mousemove', { clientX: clientX, clientY: clientY }));
 
         this.sx = this.nx = this.mx = touch.screenX | 0;
         this.sy = this.ny = this.my = touch.screenY | 0;
@@ -603,15 +600,15 @@ export default abstract class GameShell {
         const touch: Touch = e.changedTouches[0];
         const clientX: number = touch.clientX | 0;
         const clientY: number = touch.clientY | 0;
-        this.onmousemove(new MouseEvent('mousemove', {clientX: clientX, clientY: clientY}));
+        this.onmousemove(new MouseEvent('mousemove', { clientX: clientX, clientY: clientY }));
 
         this.nx = touch.screenX | 0;
         this.ny = touch.screenY | 0;
 
-        this.onkeyup(new KeyboardEvent('keyup', {key: 'ArrowLeft', code: 'ArrowLeft'}));
-        this.onkeyup(new KeyboardEvent('keyup', {key: 'ArrowUp', code: 'ArrowUp'}));
-        this.onkeyup(new KeyboardEvent('keyup', {key: 'ArrowRight', code: 'ArrowRight'}));
-        this.onkeyup(new KeyboardEvent('keyup', {key: 'ArrowDown', code: 'ArrowDown'}));
+        this.onkeyup(new KeyboardEvent('keyup', { key: 'ArrowLeft', code: 'ArrowLeft' }));
+        this.onkeyup(new KeyboardEvent('keyup', { key: 'ArrowUp', code: 'ArrowUp' }));
+        this.onkeyup(new KeyboardEvent('keyup', { key: 'ArrowRight', code: 'ArrowRight' }));
+        this.onkeyup(new KeyboardEvent('keyup', { key: 'ArrowDown', code: 'ArrowDown' }));
 
         if (this.startedInViewport && !this.insideViewportArea()) {
             this.touching = false;
@@ -672,28 +669,28 @@ export default abstract class GameShell {
                         return;
                     }
 
-                    this.onkeydown(new KeyboardEvent('keydown', {key: data, code: data}));
+                    this.onkeydown(new KeyboardEvent('keydown', { key: data, code: data }));
                 };
             }
 
             input.onkeydown = (e: KeyboardEvent): void => {
                 if (this.isAndroid) {
                     if (e.key === 'Enter' || e.key === 'Backspace') {
-                        this.onkeydown(new KeyboardEvent('keydown', {key: e.key, code: e.key}));
+                        this.onkeydown(new KeyboardEvent('keydown', { key: e.key, code: e.key }));
                     }
                     return;
                 }
-                this.onkeydown(new KeyboardEvent('keydown', {key: e.key, code: e.key}));
+                this.onkeydown(new KeyboardEvent('keydown', { key: e.key, code: e.key }));
             };
 
             input.onkeyup = (e: KeyboardEvent): void => {
                 if (this.isAndroid) {
                     if (e.key === 'Enter' || e.key === 'Backspace') {
-                        this.onkeyup(new KeyboardEvent('keyup', {key: e.key, code: e.key}));
+                        this.onkeyup(new KeyboardEvent('keyup', { key: e.key, code: e.key }));
                     }
                     return;
                 }
-                this.onkeyup(new KeyboardEvent('keyup', {key: e.key, code: e.key}));
+                this.onkeyup(new KeyboardEvent('keyup', { key: e.key, code: e.key }));
             };
 
             input.onfocus = (e: FocusEvent): void => {
@@ -713,7 +710,7 @@ export default abstract class GameShell {
 
         if (longPress && !moved) {
             this.touching = true;
-            this.onmousedown(new MouseEvent('mousedown', {buttons: 2}));
+            this.onmousedown(new MouseEvent('mousedown', { buttons: 2 }));
         } else {
             this.mouseButton = 0;
             this.touching = false;
@@ -728,7 +725,7 @@ export default abstract class GameShell {
         const touch: Touch = e.changedTouches[0];
         const clientX: number = touch.clientX | 0;
         const clientY: number = touch.clientY | 0;
-        this.onmousemove(new MouseEvent('mousemove', {clientX: clientX, clientY: clientY}));
+        this.onmousemove(new MouseEvent('mousemove', { clientX: clientX, clientY: clientY }));
 
         this.nx = touch.screenX | 0;
         this.ny = touch.screenY | 0;
@@ -748,7 +745,7 @@ export default abstract class GameShell {
             }
         } else if (this.startedInTabArea || this.getViewportInterfaceId() !== -1) {
             // Drag and drop
-            this.onmousedown(new MouseEvent('mousedown', {buttons: 1}));
+            this.onmousedown(new MouseEvent('mousedown', { buttons: 1 }));
         }
 
         this.mx = this.nx;
@@ -835,17 +832,17 @@ export default abstract class GameShell {
 
     private rotate = (direction: number): void => {
         if (direction === 0) {
-            this.onkeyup(new KeyboardEvent('keyup', {key: 'ArrowRight', code: 'ArrowRight'}));
-            this.onkeydown(new KeyboardEvent('keydown', {key: 'ArrowLeft', code: 'ArrowLeft'}));
+            this.onkeyup(new KeyboardEvent('keyup', { key: 'ArrowRight', code: 'ArrowRight' }));
+            this.onkeydown(new KeyboardEvent('keydown', { key: 'ArrowLeft', code: 'ArrowLeft' }));
         } else if (direction === 1) {
-            this.onkeyup(new KeyboardEvent('keyup', {key: 'ArrowDown', code: 'ArrowDown'}));
-            this.onkeydown(new KeyboardEvent('keydown', {key: 'ArrowUp', code: 'ArrowUp'}));
+            this.onkeyup(new KeyboardEvent('keyup', { key: 'ArrowDown', code: 'ArrowDown' }));
+            this.onkeydown(new KeyboardEvent('keydown', { key: 'ArrowUp', code: 'ArrowUp' }));
         } else if (direction === 2) {
-            this.onkeyup(new KeyboardEvent('keyup', {key: 'ArrowLeft', code: 'ArrowLeft'}));
-            this.onkeydown(new KeyboardEvent('keydown', {key: 'ArrowRight', code: 'ArrowRight'}));
+            this.onkeyup(new KeyboardEvent('keyup', { key: 'ArrowLeft', code: 'ArrowLeft' }));
+            this.onkeydown(new KeyboardEvent('keydown', { key: 'ArrowRight', code: 'ArrowRight' }));
         } else if (direction === 3) {
-            this.onkeyup(new KeyboardEvent('keyup', {key: 'ArrowUp', code: 'ArrowUp'}));
-            this.onkeydown(new KeyboardEvent('keydown', {key: 'ArrowDown', code: 'ArrowDown'}));
+            this.onkeyup(new KeyboardEvent('keyup', { key: 'ArrowUp', code: 'ArrowUp' }));
+            this.onkeydown(new KeyboardEvent('keydown', { key: 'ArrowDown', code: 'ArrowDown' }));
         }
     };
 

@@ -1,5 +1,5 @@
-import Jagfile from '../io/Jagfile';
-import Packet from '../io/Packet';
+import Jagfile from '#/io/Jagfile.js';
+import Packet from '#/io/Packet.js';
 
 export default class WordFilter {
     private static readonly PERIOD: Uint16Array = new Uint16Array(
@@ -264,7 +264,7 @@ export default class WordFilter {
         const domainLength: number = domain.length;
         const charsLength: number = chars.length;
         for (let index: number = 0; index <= charsLength - domainLength; index++) {
-            const {matched, currentIndex} = this.findMatchingDomain(index, domain, chars);
+            const { matched, currentIndex } = this.findMatchingDomain(index, domain, chars);
             if (!matched) {
                 continue;
             }
@@ -312,7 +312,7 @@ export default class WordFilter {
             }
         }
 
-        return {matched: domainIndex >= domainLength, currentIndex};
+        return { matched: domainIndex >= domainLength, currentIndex };
     };
 
     private static filterBadCombinations = (combos: number[][] | null, chars: string[], bads: Uint16Array): void => {
@@ -321,7 +321,7 @@ export default class WordFilter {
         }
         for (let startIndex: number = 0; startIndex <= chars.length - bads.length; startIndex++) {
             let currentIndex: number = startIndex;
-            const {currentIndex: updatedCurrentIndex, badIndex, hasSymbol, hasNumber, hasDigit} = this.processBadCharacters(chars, bads, currentIndex);
+            const { currentIndex: updatedCurrentIndex, badIndex, hasSymbol, hasNumber, hasDigit } = this.processBadCharacters(chars, bads, currentIndex);
             currentIndex = updatedCurrentIndex;
             let currentChar: string = chars[currentIndex];
             let nextChar: string = currentIndex + 1 < chars.length ? chars[currentIndex + 1] : '\u0000';
@@ -466,7 +466,7 @@ export default class WordFilter {
                 }
             }
         }
-        return {currentIndex: index, badIndex, hasSymbol, hasNumber, hasDigit};
+        return { currentIndex: index, badIndex, hasSymbol, hasNumber, hasDigit };
     };
 
     private static getEmulatedBadCharLen = (nextChar: string, badChar: string, currentChar: string): number => {
@@ -678,7 +678,7 @@ export default class WordFilter {
             return;
         }
         for (let index: number = 0; index <= chars.length - tld.length; index++) {
-            const {currentIndex, tldIndex} = this.processTlds(chars, tld, index);
+            const { currentIndex, tldIndex } = this.processTlds(chars, tld, index);
             if (tldIndex < tld.length) {
                 continue;
             }
@@ -793,7 +793,7 @@ export default class WordFilter {
                 }
             }
         }
-        return {currentIndex, tldIndex};
+        return { currentIndex, tldIndex };
     };
 
     private static isSymbol = (char: string): boolean => !this.isAlpha(char) && !this.isNumerical(char);

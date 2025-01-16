@@ -57,34 +57,23 @@ class TinyMidiPCM {
 
     ensureInitialized() {
         if (!this.wasmModule) {
-            throw new Error(
-                `${this.constructor.name} not initalized. call .init()`
-            );
+            throw new Error(`${this.constructor.name} not initalized. call .init()`);
         }
     }
 
     setSoundfont(buffer) {
         this.ensureInitialized();
 
-        const { _malloc, _free, _tsf_load_memory, _tsf_set_output } =
-            this.wasmModule;
+        const { _malloc, _free, _tsf_load_memory, _tsf_set_output } = this.wasmModule;
 
         _free(this.soundfontBufferPtr);
 
         this.soundfontBufferPtr = _malloc(buffer.length);
         this.wasmModule.HEAPU8.set(buffer, this.soundfontBufferPtr);
 
-        this.soundfontPtr = _tsf_load_memory(
-            this.soundfontBufferPtr,
-            buffer.length
-        );
+        this.soundfontPtr = _tsf_load_memory(this.soundfontBufferPtr, buffer.length);
 
-        _tsf_set_output(
-            this.soundfontPtr,
-            this.channels === 2 ? 0 : 2,
-            this.sampleRate,
-            this.gain
-        );
+        _tsf_set_output(this.soundfontPtr, this.channels === 2 ? 0 : 2, this.sampleRate, this.gain);
     }
 
     getPCMBuffer() {
@@ -92,12 +81,7 @@ class TinyMidiPCM {
 
         const pcm = new Uint8Array(this.bufferSize);
 
-        pcm.set(
-            this.wasmModule.HEAPU8.subarray(
-                this.pcmBufferPtr,
-                this.pcmBufferPtr + this.bufferSize
-            )
-        );
+        pcm.set(this.wasmModule.HEAPU8.subarray(this.pcmBufferPtr, this.pcmBufferPtr + this.bufferSize));
 
         return pcm;
     }
@@ -116,15 +100,7 @@ class TinyMidiPCM {
     renderMIDIMessage(midiMessagePtr) {
         const { _midi_render } = this.wasmModule;
 
-        return _midi_render(
-            this.soundfontPtr,
-            midiMessagePtr,
-            this.channels,
-            this.sampleRate,
-            this.pcmBufferPtr,
-            this.bufferSize,
-            this.msecsPtr
-        );
+        return _midi_render(this.soundfontPtr, midiMessagePtr, this.channels, this.sampleRate, this.pcmBufferPtr, this.bufferSize, this.msecsPtr);
     }
 
     render(midiBuffer) {
@@ -136,8 +112,7 @@ class TinyMidiPCM {
 
         window.clearTimeout(this.renderTimer);
 
-        const { setValue, getValue, _tsf_reset, _tsf_channel_set_bank_preset } =
-            this.wasmModule;
+        const { setValue, getValue, _tsf_reset, _tsf_channel_set_bank_preset } = this.wasmModule;
 
         setValue(this.msecsPtr, 0, 'double');
 

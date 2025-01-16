@@ -1,7 +1,9 @@
-import Jagfile from '../io/Jagfile';
-import {ConfigType} from './ConfigType';
-import Packet from '../io/Packet';
-import AnimFrame from '../graphics/AnimFrame';
+import { ConfigType } from '#/config/ConfigType.js';
+
+import AnimFrame from '#/graphics/AnimFrame.js';
+
+import Jagfile from '#/io/Jagfile.js';
+import Packet from '#/io/Packet.js';
 
 export default class SeqType extends ConfigType {
     static count: number = 0;

@@ -1,6 +1,7 @@
-import Jagfile from '../io/Jagfile';
-import Packet from '../io/Packet';
-import {TypedArray1d} from '../util/Arrays';
+import Jagfile from '#/io/Jagfile.js';
+import Packet from '#/io/Packet.js';
+
+import { TypedArray1d } from '#/util/Arrays.js';
 
 export default class AnimBase {
     static instances: AnimBase[] = [];

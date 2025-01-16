@@ -42,7 +42,7 @@ export default class Database {
                 resolve(undefined);
             };
         });
-    };
+    }
 
     async cachesave(name: string, src: Uint8Array) {
         return await new Promise<void>((resolve, reject): void => {
@@ -58,13 +58,11 @@ export default class Database {
                 reject();
             };
         });
-    };
+    }
 
-    private onclose = (event: Event): void => {
-    };
+    private onclose = (event: Event): void => {};
 
-    private onerror = (event: Event): void => {
-    };
+    private onerror = (event: Event): void => {};
 
     private genHash = (str: string): number => {
         const trimmed: string = str.trim();

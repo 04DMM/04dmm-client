@@ -1,5 +1,6 @@
-import SoundEnvelope from './SoundEnvelope';
-import Packet from '../io/Packet';
+import Packet from '#/io/Packet.js';
+
+import SoundEnvelope from '#/sound/SoundEnvelope.js';
 
 export default class SoundTone {
     static buffer: Int32Array | null = null;

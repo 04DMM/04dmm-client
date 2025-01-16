@@ -1,13 +1,17 @@
-import Jagfile from '../io/Jagfile';
-import {ConfigType} from './ConfigType';
-import Packet from '../io/Packet';
-import Pix24 from '../graphics/Pix24';
-import LruCache from '../datastruct/LruCache';
-import Model from '../graphics/Model';
-import Draw3D from '../graphics/Draw3D';
-import Draw2D from '../graphics/Draw2D';
-import Colors from '../graphics/Colors';
-import {TypedArray1d} from '../util/Arrays';
+import { ConfigType } from '#/config/ConfigType.js';
+
+import LruCache from '#/datastruct/LruCache.js';
+
+import Jagfile from '#/io/Jagfile.js';
+import Packet from '#/io/Packet.js';
+
+import Colors from '#/graphics/Colors.js';
+import Draw2D from '#/graphics/Draw2D.js';
+import Draw3D from '#/graphics/Draw3D.js';
+import Model from '#/graphics/Model.js';
+import Pix24 from '#/graphics/Pix24.js';
+
+import { TypedArray1d } from '#/util/Arrays.js';
 
 export default class ObjType extends ConfigType {
     static count: number = 0;

@@ -1,4 +1,4 @@
-import TinyMidiPCM from '../3rdparty/tinymidipcm.js';
+import TinyMidiPCM from '#/3rdparty/tinymidipcm.js';
 
 // Fix iOS Audio Context by Blake Kus https://gist.github.com/kus/3f01d60569eeadefe3a1
 // MIT license

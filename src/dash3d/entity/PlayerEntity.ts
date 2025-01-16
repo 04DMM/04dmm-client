@@ -1,14 +1,19 @@
-import PathingEntity from './PathingEntity';
-import Model from '../../graphics/Model';
-import LruCache from '../../datastruct/LruCache';
-import SpotAnimType from '../../config/SpotAnimType';
-import SeqType from '../../config/SeqType';
-import IdkType from '../../config/IdkType';
-import ObjType from '../../config/ObjType';
-import Packet from '../../io/Packet';
-import JString from '../../datastruct/JString';
-import {TypedArray1d} from '../../util/Arrays';
-import Colors from '../../graphics/Colors';
+import IdkType from '#/config/IdkType.js';
+import ObjType from '#/config/ObjType.js';
+import SpotAnimType from '#/config/SpotAnimType.js';
+import SeqType from '#/config/SeqType.js';
+
+import LruCache from '#/datastruct/LruCache.js';
+import JString from '#/datastruct/JString.js';
+
+import PathingEntity from '#/dash3d/entity/PathingEntity.js';
+
+import Colors from '#/graphics/Colors.js';
+import Model from '#/graphics/Model.js';
+
+import Packet from '#/io/Packet.js';
+
+import { TypedArray1d } from '#/util/Arrays.js';
 
 export default class PlayerEntity extends PathingEntity {
     static readonly APPEARANCE: number = 0x1;

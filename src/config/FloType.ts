@@ -1,6 +1,7 @@
-import Jagfile from '../io/Jagfile';
-import Packet from '../io/Packet';
-import {ConfigType} from './ConfigType';
+import { ConfigType } from '#/config/ConfigType.js';
+
+import Jagfile from '#/io/Jagfile.js';
+import Packet from '#/io/Packet.js';
 
 export default class FloType extends ConfigType {
     static count: number = 0;

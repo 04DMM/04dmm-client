@@ -1,4 +1,4 @@
-import Linkable from '../../datastruct/Linkable';
+import Linkable from '#/datastruct/Linkable.js';
 
 export default class LocSpawned extends Linkable {
     readonly plane: number;

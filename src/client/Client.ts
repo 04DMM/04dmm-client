@@ -1,73 +1,73 @@
-import '../3rdparty/tinymidipcm/tinymidipcm.mjs';
+import '#3rdparty/tinymidipcm/tinymidipcm.mjs';
 
-import GameShell from './GameShell';
+import GameShell from '#/client/GameShell.js';
+import InputTracking from '#/client/InputTracking.js';
 
-import LinkList from '../datastruct/LinkList';
+import FloType from '#/config/FloType.js';
+import SeqType from '#/config/SeqType.js';
+import LocType from '#/config/LocType.js';
+import ObjType from '#/config/ObjType.js';
+import NpcType from '#/config/NpcType.js';
+import IdkType from '#/config/IdkType.js';
+import SpotAnimType from '#/config/SpotAnimType.js';
+import VarpType from '#/config/VarpType.js';
+import Component from '#/config/Component.js';
 
-import World3D from '../dash3d/World3D';
-import World from '../dash3d/World';
-import CollisionMap from '../dash3d/CollisionMap';
-import PlayerEntity from '../dash3d/entity/PlayerEntity';
-import NpcEntity from '../dash3d/entity/NpcEntity';
-import {Int32Array2d, TypedArray1d, TypedArray3d} from '../util/Arrays';
-import {canvas2d} from '../graphics/Canvas';
-import JString from '../datastruct/JString';
-import {downloadUrl, sleep} from '../util/JsUtil';
-import {playMidi, stopMidi, playWave, setMidiVolume, setWaveVolume} from '../util/AudioUtil';
-import FloType from '../config/FloType';
-import AnimBase from '../graphics/AnimBase';
-import AnimFrame from '../graphics/AnimFrame';
-import Tile from '../dash3d/type/Tile';
-import ClientWorkerStream from '../io/ClientWorkerStream';
+import CollisionMap from '#/dash3d/CollisionMap.js';
+import CollisionFlag from '#/dash3d/CollisionFlag.js';
+import DirectionFlag from '#/dash3d/DirectionFlag.js';
+import LocAngle from '#/dash3d/LocAngle.js';
+import LocLayer from '#/dash3d/LocLayer.js';
+import LocShape from '#/dash3d/LocShape.js';
+import World from '#/dash3d/World.js';
+import World3D from '#/dash3d/World3D.js';
 
-import SeqType from '../config/SeqType';
-import LocType from '../config/LocType';
-import ObjType from '../config/ObjType';
-import NpcType from '../config/NpcType';
-import IdkType from '../config/IdkType';
-import SpotAnimType from '../config/SpotAnimType';
-import VarpType from '../config/VarpType';
-import Component from '../config/Component';
+import NpcEntity from '#/dash3d/entity/NpcEntity.js';
+import PlayerEntity from '#/dash3d/entity/PlayerEntity.js';
 
-import PixMap from '../graphics/PixMap';
-import Draw2D from '../graphics/Draw2D';
-import Draw3D from '../graphics/Draw3D';
-import Pix8 from '../graphics/Pix8';
-import Pix24 from '../graphics/Pix24';
-import PixFont from '../graphics/PixFont';
-import Model from '../graphics/Model';
-import Colors from '../graphics/Colors';
+import LocSpawned from '#/dash3d/type/LocSpawned.js';
+import LocTemporary from '#/dash3d/type/LocTemporary.js';
+import Tile from '#/dash3d/type/Tile.js';
 
-import Jagfile from '../io/Jagfile';
-import Packet from '../io/Packet';
-import ClientStream from '../io/ClientStream';
-import Protocol from '../io/Protocol';
-import Isaac from '../io/Isaac';
-import Database from '../io/Database';
-import ServerProt from '../io/ServerProt';
-import ClientProt from '../io/ClientProt';
+import LocEntity from '#/dash3d/entity/LocEntity.js';
+import ObjStackEntity from '#/dash3d/entity/ObjStackEntity.js';
+import PathingEntity from '#/dash3d/entity/PathingEntity.js';
+import ProjectileEntity from '#/dash3d/entity/ProjectileEntity.js';
+import SpotAnimEntity from '#/dash3d/entity/SpotAnimEntity.js';
 
-import WordFilter from '../wordenc/WordFilter';
-import WordPack from '../wordenc/WordPack';
+import JString from '#/datastruct/JString.js';
+import LinkList from '#/datastruct/LinkList.js';
 
-import Wave from '../sound/Wave';
-import InputTracking from '../client/InputTracking';
-import LocLayer from '../dash3d/LocLayer';
-import LocShape from '../dash3d/LocShape';
-import LocAngle from '../dash3d/LocAngle';
-import LocTemporary from '../dash3d/type/LocTemporary';
-import LocSpawned from '../dash3d/type/LocSpawned';
-import CollisionFlag from '../dash3d/CollisionFlag';
-import ObjStackEntity from '../dash3d/entity/ObjStackEntity';
-import LocEntity from '../dash3d/entity/LocEntity';
-import PathingEntity from '../dash3d/entity/PathingEntity';
-import ProjectileEntity from '../dash3d/entity/ProjectileEntity';
-import SpotAnimEntity from '../dash3d/entity/SpotAnimEntity';
+import { Int32Array2d, TypedArray1d, TypedArray3d, Int32Array3d, Uint8Array3d } from '#/util/Arrays.js';
+import { playMidi, stopMidi, playWave, setMidiVolume, setWaveVolume } from '#/util/AudioUtil.js';
+import { downloadUrl, sleep, arraycopy } from '#/util/JsUtil.js';
 
-import {arraycopy} from '../util/JsUtil';
-import {Int32Array3d, Uint8Array3d} from '../util/Arrays';
-import DirectionFlag from '../dash3d/DirectionFlag';
-import BZip2 from '../io/BZip2.js';
+import AnimBase from '#/graphics/AnimBase.js';
+import AnimFrame from '#/graphics/AnimFrame.js';
+import { canvas2d } from '#/graphics/Canvas.js';
+import Colors from '#/graphics/Colors.js';
+import Draw2D from '#/graphics/Draw2D.js';
+import Draw3D from '#/graphics/Draw3D.js';
+import Model from '#/graphics/Model.js';
+import Pix8 from '#/graphics/Pix8.js';
+import Pix24 from '#/graphics/Pix24.js';
+import PixFont from '#/graphics/PixFont.js';
+import PixMap from '#/graphics/PixMap.js';
+
+import BZip2 from '#/io/BZip2.js';
+import ClientStream from '#/io/ClientStream.js';
+import ClientProt from '#/io/ClientProt.js';
+import Database from '#/io/Database.js';
+import Isaac from '#/io/Isaac.js';
+import Jagfile from '#/io/Jagfile.js';
+import Packet from '#/io/Packet.js';
+import Protocol from '#/io/Protocol.js';
+import ServerProt from '#/io/ServerProt.js';
+
+import WordFilter from '#/wordenc/WordFilter.js';
+import WordPack from '#/wordenc/WordPack.js';
+
+import Wave from '#/sound/Wave.js';
 
 export class Client extends GameShell {
     static readonly clientversion: number = 225;
@@ -125,7 +125,7 @@ export class Client extends GameShell {
     protected db: Database | null = null;
     protected loopCycle: number = 0;
     protected archiveChecksums: number[] = [];
-    protected stream: ClientStream | ClientWorkerStream | null = null;
+    protected stream: ClientStream | null = null;
     protected in: Packet = Packet.alloc(1);
     protected out: Packet = Packet.alloc(1);
     protected loginout: Packet = Packet.alloc(1);
@@ -1678,7 +1678,7 @@ export class Client extends GameShell {
             console.error(err);
             this.errorLoading = true;
         }
-    };
+    }
 
     async update() {
         if (this.errorStarted || this.errorLoading || this.errorHost) {
@@ -1690,7 +1690,7 @@ export class Client extends GameShell {
         } else {
             await this.updateTitleScreen();
         }
-    };
+    }
 
     async draw() {
         if (this.errorStarted || this.errorLoading || this.errorHost) {
@@ -1703,11 +1703,11 @@ export class Client extends GameShell {
             await this.drawTitleScreen();
         }
         this.dragCycles = 0;
-    };
+    }
 
     async refresh() {
         this.redrawTitleBackground = true;
-    };
+    }
 
     showProgress = async (progress: number, str: string): Promise<void> => {
         console.log(`${progress}%: ${str}`);
@@ -2188,7 +2188,7 @@ export class Client extends GameShell {
                 this.loginMessage1 = 'Connecting to server...';
                 await this.drawTitleScreen();
             }
-            this.stream = new ClientStream(await ClientStream.openSocket({host: Client.serverAddress, port: 43594 + Client.portOffset}));
+            this.stream = new ClientStream(await ClientStream.openSocket({ host: Client.serverAddress, port: 43594 + Client.portOffset }));
             await this.stream.readBytes(this.in.data, 0, 8);
             this.in.pos = 0;
             this.serverSeed = this.in.g8;
@@ -5762,7 +5762,7 @@ export class Client extends GameShell {
                 await this.logout();
             }
         }
-    };
+    }
 
     private logout = async (): Promise<void> => {
         if (this.stream) {

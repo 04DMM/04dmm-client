@@ -1,6 +1,8 @@
-import Entity from './Entity';
-import SeqType from '../../config/SeqType';
-import {TypedArray1d} from '../../util/Arrays';
+import SeqType from '#/config/SeqType.js';
+
+import Entity from '#/dash3d/entity/Entity.js';
+
+import { TypedArray1d } from '#/util/Arrays.js';
 
 export default abstract class PathingEntity extends Entity {
     x: number = 0;

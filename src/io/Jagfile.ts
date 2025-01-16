@@ -1,5 +1,5 @@
-import BZip2 from './BZip2.ts';
-import Packet from './Packet';
+import BZip2 from '#/io/BZip2.js';
+import Packet from '#/io/Packet.js';
 
 export default class Jagfile {
     static genHash = (name: string): number => {

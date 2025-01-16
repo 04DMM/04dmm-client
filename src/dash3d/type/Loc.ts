@@ -1,5 +1,6 @@
-import Model from '../../graphics/Model';
-import Entity from '../entity/Entity';
+import Entity from '#/dash3d/entity/Entity.js';
+
+import Model from '#/graphics/Model.js';
 
 export default class Loc {
     // constructor

@@ -1,5 +1,6 @@
-import Linkable from '../../datastruct/Linkable';
-import SeqType from '../../config/SeqType';
+import SeqType from '#/config/SeqType.js';
+
+import Linkable from '#/datastruct/Linkable.js';
 
 export default class LocEntity extends Linkable {
     // constructor

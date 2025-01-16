@@ -1,8 +1,10 @@
-import PathingEntity from './PathingEntity';
-import NpcType from '../../config/NpcType';
-import Model from '../../graphics/Model';
-import SpotAnimType from '../../config/SpotAnimType';
-import SeqType from '../../config/SeqType';
+import NpcType from '#/config/NpcType.js';
+import SeqType from '#/config/SeqType.js';
+import SpotAnimType from '#/config/SpotAnimType.js';
+
+import PathingEntity from '#/dash3d/entity/PathingEntity.js';
+
+import Model from '#/graphics/Model.js';
 
 export default class NpcEntity extends PathingEntity {
     static readonly ANIM: number = 0x2;

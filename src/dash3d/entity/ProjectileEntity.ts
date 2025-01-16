@@ -1,6 +1,8 @@
-import SpotAnimType from '../../config/SpotAnimType';
-import Entity from './Entity';
-import Model from '../../graphics/Model';
+import SpotAnimType from '#/config/SpotAnimType.js';
+
+import Entity from '#/dash3d/entity/Entity.js';
+
+import Model from '#/graphics/Model.js';
 
 export default class ProjectileEntity extends Entity {
     // constructor

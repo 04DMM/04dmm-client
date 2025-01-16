@@ -1,5 +1,5 @@
-import Draw2D from './Draw2D';
-import {canvas2d} from './Canvas';
+import { canvas2d } from '#/graphics/Canvas.js';
+import Draw2D from '#/graphics/Draw2D.js';
 
 export default class PixMap {
     // constructor

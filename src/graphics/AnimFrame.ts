@@ -1,6 +1,7 @@
-import Jagfile from '../io/Jagfile';
-import AnimBase from './AnimBase';
-import Packet from '../io/Packet';
+import AnimBase from '#/graphics/AnimBase.js';
+
+import Jagfile from '#/io/Jagfile.js';
+import Packet from '#/io/Packet.js';
 
 export default class AnimFrame {
     static instances: AnimFrame[] = [];

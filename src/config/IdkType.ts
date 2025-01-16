@@ -1,8 +1,11 @@
-import Jagfile from '../io/Jagfile';
-import Packet from '../io/Packet';
-import {ConfigType} from './ConfigType';
-import Model from '../graphics/Model';
-import {TypedArray1d} from '../util/Arrays';
+import { ConfigType } from '#/config/ConfigType.js';
+
+import Model from '#/graphics/Model.js';
+
+import Jagfile from '#/io/Jagfile.js';
+import Packet from '#/io/Packet.js';
+
+import { TypedArray1d } from '#/util/Arrays.js';
 
 export default class IdkType extends ConfigType {
     static count: number = 0;

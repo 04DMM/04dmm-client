@@ -1,21 +1,26 @@
-import Draw3D from '../graphics/Draw3D';
-import Loc from './type/Loc';
-import Tile from './type/Tile';
-import Occluder from './type/Occluder';
-import CollisionMap from './CollisionMap';
-import Model, {VertexNormal} from '../graphics/Model';
-import GroundDecoration from './type/GroundDecoration';
-import Entity from './entity/Entity';
-import Wall from './type/Wall';
-import WallDecoration from './type/WallDecoration';
-import LinkList from '../datastruct/LinkList';
-import ObjStack from './type/ObjStack';
-import TileUnderlay from './type/TileUnderlay';
-import Draw2D from '../graphics/Draw2D';
-import TileOverlay from './type/TileOverlay';
-import TileOverlayShape from './type/TileOverlayShape';
-import LocAngle from './LocAngle';
-import {Int32Array3d, TypedArray1d, TypedArray2d, TypedArray3d, TypedArray4d} from '../util/Arrays';
+import CollisionMap from '#/dash3d/CollisionMap.js';
+import LocAngle from '#/dash3d/LocAngle.js';
+
+import Entity from '#/dash3d/entity/Entity.js';
+
+import GroundDecoration from '#/dash3d/type/GroundDecoration.js';
+import Loc from '#/dash3d/type/Loc.js';
+import ObjStack from '#/dash3d/type/ObjStack.js';
+import Occluder from '#/dash3d/type/Occluder.js';
+import Tile from '#/dash3d/type/Tile.js';
+import TileOverlay from '#/dash3d/type/TileOverlay.js';
+import TileOverlayShape from '#/dash3d/type/TileOverlayShape.js';
+import TileUnderlay from '#/dash3d/type/TileUnderlay.js';
+import Wall from '#/dash3d/type/Wall.js';
+import WallDecoration from '#/dash3d/type/WallDecoration.js';
+
+import LinkList from '#/datastruct/LinkList.js';
+
+import Draw2D from '#/graphics/Draw2D.js';
+import Draw3D from '#/graphics/Draw3D.js';
+import Model, { VertexNormal } from '#/graphics/Model.js';
+
+import { Int32Array3d, TypedArray1d, TypedArray2d, TypedArray3d, TypedArray4d } from '#/util/Arrays.js';
 
 export default class World3D {
     private static visibilityMatrix: boolean[][][][] = new TypedArray4d(8, 32, 51, 51, false);

@@ -1,4 +1,4 @@
-import Packet from '../io/Packet';
+import Packet from '#/io/Packet.js';
 
 export default class WordPack {
     // prettier-ignore

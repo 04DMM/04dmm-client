@@ -1,7 +1,9 @@
-import {bigIntModPow, bigIntToBytes, bytesToBigInt} from '../util/JsUtil';
-import Isaac from './Isaac';
-import LinkList from '../datastruct/LinkList';
-import Hashable from '../datastruct/Hashable';
+import Hashable from '#/datastruct/Hashable.js';
+import LinkList from '#/datastruct/LinkList.js';
+
+import Isaac from '#/io/Isaac.js';
+
+import { bigIntModPow, bigIntToBytes, bytesToBigInt } from '#/util/JsUtil.js';
 
 export default class Packet extends Hashable {
     private static readonly CRC32_POLYNOMIAL: number = 0xedb88320;

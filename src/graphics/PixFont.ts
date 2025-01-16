@@ -1,10 +1,12 @@
-import Draw2D from './Draw2D';
+import Hashable from '#/datastruct/Hashable.js';
 
-import Jagfile from '../io/Jagfile';
-import Packet from '../io/Packet';
-import Hashable from '../datastruct/Hashable';
-import JavaRandom from '../util/JavaRandom';
-import Colors from './Colors';
+import Colors from '#/graphics/Colors.js';
+import Draw2D from '#/graphics/Draw2D.js';
+
+import Jagfile from '#/io/Jagfile.js';
+import Packet from '#/io/Packet.js';
+
+import JavaRandom from '#/util/JavaRandom.js';
 
 export default class PixFont extends Hashable {
     static readonly CHARSET: string = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!"£$%^&*()-_=+[{]};:\'@#~,<.>/?\\| ';

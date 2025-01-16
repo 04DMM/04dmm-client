@@ -1,9 +1,12 @@
-import Jagfile from '../io/Jagfile';
-import {ConfigType} from './ConfigType';
-import Packet from '../io/Packet';
-import SeqType from './SeqType';
-import Model from '../graphics/Model';
-import LruCache from '../datastruct/LruCache';
+import { ConfigType } from '#/config/ConfigType.js';
+import SeqType from '#/config/SeqType.js';
+
+import LruCache from '#/datastruct/LruCache.js';
+
+import Model from '#/graphics/Model.js';
+
+import Jagfile from '#/io/Jagfile.js';
+import Packet from '#/io/Packet.js';
 
 export default class SpotAnimType extends ConfigType {
     static count: number = 0;

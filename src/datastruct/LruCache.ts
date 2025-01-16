@@ -1,6 +1,6 @@
-import Stack from './Stack';
-import HashTable from './HashTable';
-import Hashable from './Hashable';
+import Hashable from '#/datastruct/Hashable.js';
+import HashTable from '#/datastruct/HashTable.js';
+import Stack from '#/datastruct/Stack.js';
 
 export default class LruCache {
     // constructor

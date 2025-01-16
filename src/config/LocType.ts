@@ -1,11 +1,16 @@
-import Jagfile from '../io/Jagfile';
-import {ConfigType} from './ConfigType';
-import Packet from '../io/Packet';
-import LruCache from '../datastruct/LruCache';
-import Model from '../graphics/Model';
-import LocShape from '../dash3d/LocShape';
-import LocAngle from '../dash3d/LocAngle';
-import {TypedArray1d} from '../util/Arrays';
+import { ConfigType } from '#/config/ConfigType.js';
+
+import LruCache from '#/datastruct/LruCache.js';
+
+import LocShape from '#/dash3d/LocShape.js';
+import LocAngle from '#/dash3d/LocAngle.js';
+
+import Model from '#/graphics/Model.js';
+
+import Jagfile from '#/io/Jagfile.js';
+import Packet from '#/io/Packet.js';
+
+import { TypedArray1d } from '#/util/Arrays.js';
 
 export default class LocType extends ConfigType {
     static count: number = 0;

@@ -35,9 +35,7 @@ class BZ2Wasm {
 
     ensureInitialized() {
         if (!this.wasmModule) {
-            throw new Error(
-                `${this.constructor.name} not initalized. call .init()`
-            );
+            throw new Error(`${this.constructor.name} not initalized. call .init()`);
         }
     }
 
@@ -113,20 +111,9 @@ class BZ2Wasm {
 
         this.ensureInitialized();
 
-        const {
-            sourcePtr: compressedPtr,
-            destPtr: decompressedPtr,
-            destLengthPtr: decompressedLengthPtr
-        } = this.createWASMBuffers(compressed, decompressedLength);
+        const { sourcePtr: compressedPtr, destPtr: decompressedPtr, destLengthPtr: decompressedLengthPtr } = this.createWASMBuffers(compressed, decompressedLength);
 
-        const returnValue = this.wasmModule._BZ2_bzBuffToBuffDecompress(
-            decompressedPtr,
-            decompressedLengthPtr,
-            compressedPtr,
-            compressed.length,
-            0,
-            0
-        );
+        const returnValue = this.wasmModule._BZ2_bzBuffToBuffDecompress(decompressedPtr, decompressedLengthPtr, compressedPtr, compressed.length, 0, 0);
 
         this.wasmModule._free(compressedPtr);
 
@@ -150,21 +137,9 @@ class BZ2Wasm {
             throw new RangeError('blockSize should be between 1-9');
         }
 
-        const {
-            sourcePtr: decompressedPtr,
-            destPtr: compressedPtr,
-            destLengthPtr: compressedLengthPtr
-        } = this.createWASMBuffers(decompressed, compressedLength);
+        const { sourcePtr: decompressedPtr, destPtr: compressedPtr, destLengthPtr: compressedLengthPtr } = this.createWASMBuffers(decompressed, compressedLength);
 
-        const returnValue = this.wasmModule._BZ2_bzBuffToBuffCompress(
-            compressedPtr,
-            compressedLengthPtr,
-            decompressedPtr,
-            decompressed.length,
-            blockSize,
-            0,
-            30
-        );
+        const returnValue = this.wasmModule._BZ2_bzBuffToBuffCompress(compressedPtr, compressedLengthPtr, decompressedPtr, decompressed.length, blockSize, 0, 30);
 
         this.wasmModule._free(decompressedPtr);
 

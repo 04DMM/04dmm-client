@@ -1,12 +1,14 @@
-import Linkable from '../../datastruct/Linkable';
-import Loc from './Loc';
-import TileUnderlay from './TileUnderlay';
-import TileOverlay from './TileOverlay';
-import Wall from './Wall';
-import WallDecoration from './WallDecoration';
-import GroundDecoration from './GroundDecoration';
-import ObjStack from './ObjStack';
-import {TypedArray1d} from '../../util/Arrays';
+import Linkable from '#/datastruct/Linkable.js';
+
+import GroundDecoration from '#/dash3d/type/GroundDecoration.js';
+import Loc from '#/dash3d/type/Loc.js';
+import ObjStack from '#/dash3d/type/ObjStack.js';
+import TileOverlay from '#/dash3d/type/TileOverlay.js';
+import TileUnderlay from '#/dash3d/type/TileUnderlay.js';
+import Wall from '#/dash3d/type/Wall.js';
+import WallDecoration from '#/dash3d/type/WallDecoration.js';
+
+import { TypedArray1d } from '#/util/Arrays.js';
 
 export default class Tile extends Linkable {
     // constructor

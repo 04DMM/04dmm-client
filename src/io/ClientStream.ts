@@ -1,6 +1,7 @@
-import LinkList from '../datastruct/LinkList';
-import Linkable from '../datastruct/Linkable';
-import {sleep} from '../util/JsUtil';
+import LinkList from '#/datastruct/LinkList.js';
+import Linkable from '#/datastruct/Linkable.js';
+
+import { sleep } from '#/util/JsUtil.js';
 
 export type Socket = {
     host: string;
@@ -60,7 +61,7 @@ export default class ClientStream {
     }
 
     async read(): Promise<number> {
-        return this.closed ? 0 : this.wsin.fastByte() ?? (await this.wsin.slowByte());
+        return this.closed ? 0 : (this.wsin.fastByte() ?? (await this.wsin.slowByte()));
     }
 
     async readBytes(dst: Uint8Array, off: number, len: number): Promise<void> {

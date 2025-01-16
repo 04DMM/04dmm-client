@@ -1,7 +1,9 @@
-import Jagfile from '../io/Jagfile';
-import SoundTone from './SoundTone';
-import Packet from '../io/Packet';
-import {TypedArray1d} from '../util/Arrays';
+import Jagfile from '#/io/Jagfile.js';
+import Packet from '#/io/Packet.js';
+
+import SoundTone from '#/sound/SoundTone.js';
+
+import { TypedArray1d } from '#/util/Arrays.js';
 
 export default class Wave {
     static readonly delays: Int32Array = new Int32Array(1000);

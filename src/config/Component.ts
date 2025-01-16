@@ -1,12 +1,16 @@
-import Jagfile from '../io/Jagfile';
-import Packet from '../io/Packet';
-import PixFont from '../graphics/PixFont';
-import Model from '../graphics/Model';
-import LruCache from '../datastruct/LruCache';
-import Pix24 from '../graphics/Pix24';
-import JString from '../datastruct/JString';
-import {TypedArray1d} from '../util/Arrays';
-import Draw2D from '../graphics/Draw2D';
+import Jagfile from '#/io/Jagfile.js';
+import Packet from '#/io/Packet.js';
+
+import Model from '#/graphics/Model.js';
+import PixFont from '#/graphics/PixFont.js';
+
+import LruCache from '#/datastruct/LruCache.js';
+import JString from '#/datastruct/JString.js';
+
+import Draw2D from '#/graphics/Draw2D.js';
+import Pix24 from '#/graphics/Pix24.js';
+
+import { TypedArray1d } from '#/util/Arrays.js';
 
 export default class Component {
     static instances: Component[] = [];

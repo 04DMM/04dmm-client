@@ -1,12 +1,11 @@
-import Draw2D from './Draw2D';
+import Hashable from '#/datastruct/Hashable.js';
 
-import Jagfile from '../io/Jagfile';
-import Packet from '../io/Packet';
+import Draw2D from '#/graphics/Draw2D.js';
+import { decodeJpeg } from '#/graphics/Jpeg.js';
+import Pix8 from '#/graphics/Pix8.js';
 
-import Hashable from '../datastruct/Hashable';
-
-import {decodeJpeg} from './Jpeg';
-import Pix8 from './Pix8';
+import Jagfile from '#/io/Jagfile.js';
+import Packet from '#/io/Packet.js';
 
 export default class Pix24 extends Hashable {
     // constructor

@@ -1,13 +1,14 @@
-import Jagfile from '../io/Jagfile';
-import Packet from '../io/Packet';
+import AnimBase from '#/graphics/AnimBase.js';
+import AnimFrame from '#/graphics/AnimFrame.js';
+import Draw2D from '#/graphics/Draw2D.js';
+import Draw3D from '#/graphics/Draw3D.js';
 
-import Draw2D from './Draw2D';
-import Draw3D from './Draw3D';
-import AnimFrame from './AnimFrame';
-import AnimBase from './AnimBase';
+import Jagfile from '#/io/Jagfile.js';
+import Packet from '#/io/Packet.js';
 
-import Hashable from '../datastruct/Hashable';
-import {Int32Array2d, TypedArray1d} from '../util/Arrays';
+import Hashable from '#/datastruct/Hashable.js';
+
+import { Int32Array2d, TypedArray1d } from '#/util/Arrays.js';
 
 class Metadata {
     vertexCount: number = 0;
@@ -901,7 +902,7 @@ export default class Model extends Hashable {
                 identical = vertexCount++;
             }
 
-            return {vertex: identical, vertexCount};
+            return { vertex: identical, vertexCount };
         };
 
         for (let i: number = 0; i < count; i++) {
@@ -954,11 +955,11 @@ export default class Model extends Hashable {
                     if (model.faceColor) {
                         faceColor[faceCount] = model.faceColor[face];
                     }
-                    const a: {vertex: number; vertexCount: number} = addVertex(model, model.faceVertexA[face], vertexX, vertexY, vertexZ, vertexLabel, vertexCount);
+                    const a: { vertex: number; vertexCount: number } = addVertex(model, model.faceVertexA[face], vertexX, vertexY, vertexZ, vertexLabel, vertexCount);
                     vertexCount = a.vertexCount;
-                    const b: {vertex: number; vertexCount: number} = addVertex(model, model.faceVertexB[face], vertexX, vertexY, vertexZ, vertexLabel, vertexCount);
+                    const b: { vertex: number; vertexCount: number } = addVertex(model, model.faceVertexB[face], vertexX, vertexY, vertexZ, vertexLabel, vertexCount);
                     vertexCount = b.vertexCount;
-                    const c: {vertex: number; vertexCount: number} = addVertex(model, model.faceVertexC[face], vertexX, vertexY, vertexZ, vertexLabel, vertexCount);
+                    const c: { vertex: number; vertexCount: number } = addVertex(model, model.faceVertexC[face], vertexX, vertexY, vertexZ, vertexLabel, vertexCount);
                     vertexCount = c.vertexCount;
                     faceVertexA[faceCount] = a.vertex;
                     faceVertexB[faceCount] = b.vertex;
@@ -967,11 +968,11 @@ export default class Model extends Hashable {
                 }
 
                 for (let f: number = 0; f < model.texturedFaceCount; f++) {
-                    const a: {vertex: number; vertexCount: number} = addVertex(model, model.texturedVertexA[f], vertexX, vertexY, vertexZ, vertexLabel, vertexCount);
+                    const a: { vertex: number; vertexCount: number } = addVertex(model, model.texturedVertexA[f], vertexX, vertexY, vertexZ, vertexLabel, vertexCount);
                     vertexCount = a.vertexCount;
-                    const b: {vertex: number; vertexCount: number} = addVertex(model, model.texturedVertexB[f], vertexX, vertexY, vertexZ, vertexLabel, vertexCount);
+                    const b: { vertex: number; vertexCount: number } = addVertex(model, model.texturedVertexB[f], vertexX, vertexY, vertexZ, vertexLabel, vertexCount);
                     vertexCount = b.vertexCount;
-                    const c: {vertex: number; vertexCount: number} = addVertex(model, model.texturedVertexC[f], vertexX, vertexY, vertexZ, vertexLabel, vertexCount);
+                    const c: { vertex: number; vertexCount: number } = addVertex(model, model.texturedVertexC[f], vertexX, vertexY, vertexZ, vertexLabel, vertexCount);
                     vertexCount = c.vertexCount;
                     texturedVertexA[texturedFaceCount] = a.vertex;
                     texturedVertexB[texturedFaceCount] = b.vertex;

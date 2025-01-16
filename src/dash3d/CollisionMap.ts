@@ -1,7 +1,7 @@
-import CollisionFlag from './CollisionFlag';
-import LocAngle from './LocAngle';
-import LocShape from './LocShape';
-import DirectionFlag from './DirectionFlag';
+import CollisionFlag from '#/dash3d/CollisionFlag.js';
+import DirectionFlag from '#/dash3d/DirectionFlag.js';
+import LocAngle from '#/dash3d/LocAngle.js';
+import LocShape from '#/dash3d/LocShape.js';
 
 export default class CollisionMap {
     static readonly LEVELS: number = 4;

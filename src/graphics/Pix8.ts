@@ -1,8 +1,9 @@
-import Draw2D from './Draw2D';
+import Hashable from '#/datastruct/Hashable.js';
 
-import Jagfile from '../io/Jagfile';
-import Packet from '../io/Packet';
-import Hashable from '../datastruct/Hashable';
+import Draw2D from '#/graphics/Draw2D.js';
+
+import Jagfile from '#/io/Jagfile.js';
+import Packet from '#/io/Packet.js';
 
 // identical to Pix24 except the image is indexed by a palette
 export default class Pix8 extends Hashable {

@@ -1,4 +1,4 @@
-import './MidiUtil.js';
+import '#/util/MidiUtil.js';
 
 let waveGain;
 

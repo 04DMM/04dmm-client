@@ -1,4 +1,4 @@
-import Model from '../../graphics/Model';
+import Model from '#/graphics/Model.js';
 
 export default class Wall {
     // constructor

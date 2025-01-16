@@ -1,4 +1,4 @@
-import Hashable from '../datastruct/Hashable';
+import Hashable from '#/datastruct/Hashable.js';
 
 export default class Draw2D extends Hashable {
     static pixels: Int32Array = new Int32Array();

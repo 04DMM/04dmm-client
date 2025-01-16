@@ -1,0 +1,11 @@
+{
+  "name": "client2",
+  "module": "src/client/Client.ts",
+  "type": "module",
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5.0.0"
+  }
+}

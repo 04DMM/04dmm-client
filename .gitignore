@@ -1,0 +1,8 @@
+/node_modules/
+package-lock.json
+
+/out/
+
+bz2.d.ts
+bz2.js
+bz2.wasm

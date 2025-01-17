@@ -35,6 +35,13 @@ import TinyMidiPCM from '#/3rdparty/tinymidipcm.js';
     document.addEventListener('touchend', fixAudioContext);
     // Safari
     document.addEventListener('click', fixAudioContext);
+    document.addEventListener('visibilitychange', () => {
+        if (!document.hidden) {
+            if (window.audioContext) {
+                window.audioContext.resume();
+            }
+        }
+    });
 })();
 
 // controlling tinymidipcm:

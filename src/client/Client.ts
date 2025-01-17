@@ -71,6 +71,7 @@ import Wave from '#/sound/Wave.js';
 
 export class Client extends GameShell {
     static readonly clientversion: number = 225;
+
     static nodeId: number = 10;
     static portOffset: number = 0;
     static members: boolean = true;
@@ -502,12 +503,6 @@ export class Client extends GameShell {
     protected midiCrc: number = 0;
     protected midiSize: number = 0;
     protected midiVolume: number = 192;
-
-    // debug
-    // alt+shift click to add a tile overlay
-    protected userTileMarkers: (Ground | null)[] = new TypedArray1d(16, null);
-    protected userTileMarkerIndex: number = 0;
-    protected lastTickFlag: boolean = false;
 
     constructor(nodeid?: number, portoff?: number, lowmem?: boolean, members?: boolean) {
         super();
@@ -2192,6 +2187,7 @@ export class Client extends GameShell {
                 this.loginMessage1 = 'Connecting to server...';
                 await this.drawTitleScreen();
             }
+
             this.stream = new ClientStream(await ClientStream.openSocket({ host: Client.serverAddress, port: 43594 + Client.portOffset }));
             await this.stream.readBytes(this.in.data, 0, 8);
             this.in.pos = 0;
@@ -5761,7 +5757,9 @@ export class Client extends GameShell {
             this.flagSceneTileX = 0;
             this.stream?.close();
             this.ingame = false;
+
             await this.login(this.username, this.password, true);
+
             if (!this.ingame) {
                 await this.logout();
             }
@@ -6930,7 +6928,6 @@ export class Client extends GameShell {
                 return true;
             }
             if (this.packetType === ServerProt.PLAYER_INFO) {
-                this.lastTickFlag = !this.lastTickFlag; // custom
                 // PLAYER_INFO
                 this.readPlayerInfo(this.in, this.packetSize);
                 if (this.sceneState === 1) {
@@ -6953,112 +6950,110 @@ export class Client extends GameShell {
                 this.packetType = -1;
                 return true;
             }
+
             await this.logout();
         } catch (e) {
-            console.log(e);
+            console.error(e);
             await this.tryReconnect();
-            // TODO extra logic for logout??
         }
+
         return true;
     };
 
     private buildScene = (): void => {
-        try {
-            this.minimapLevel = -1;
-            this.temporaryLocs.clear();
-            this.locList.clear();
-            this.spotanims.clear();
-            this.projectiles.clear();
-            Pix3D.clearTexels();
-            this.clearCaches();
-            this.scene?.reset();
-            for (let level: number = 0; level < CollisionMap.LEVELS; level++) {
-                this.levelCollisionMap[level]?.reset();
-            }
+        this.minimapLevel = -1;
+        this.temporaryLocs.clear();
+        this.locList.clear();
+        this.spotanims.clear();
+        this.projectiles.clear();
+        Pix3D.clearTexels();
+        this.clearCaches();
+        this.scene?.reset();
 
-            const world: World = new World(CollisionMap.SIZE, CollisionMap.SIZE, this.levelHeightmap!, this.levelTileFlags!); // has try catch here
-            World.lowMemory = Client.lowMemory;
-
-            const maps: number = this.sceneMapLandData?.length ?? 0;
-
-            if (this.sceneMapIndex) {
-                for (let index: number = 0; index < maps; index++) {
-                    const mapsquareX: number = this.sceneMapIndex[index] >> 8;
-                    const mapsquareZ: number = this.sceneMapIndex[index] & 0xff;
-
-                    // underground pass check
-                    if (mapsquareX === 33 && mapsquareZ >= 71 && mapsquareZ <= 73) {
-                        World.lowMemory = false;
-                        break;
-                    }
-                }
-            }
-
-            if (Client.lowMemory) {
-                this.scene?.setMinLevel(this.currentLevel);
-            } else {
-                this.scene?.setMinLevel(0);
-            }
-
-            if (this.sceneMapIndex && this.sceneMapLandData) {
-                // NO_TIMEOUT
-                this.out.p1isaac(ClientProt.NO_TIMEOUT);
-                for (let i: number = 0; i < maps; i++) {
-                    const x: number = (this.sceneMapIndex[i] >> 8) * 64 - this.sceneBaseTileX;
-                    const z: number = (this.sceneMapIndex[i] & 0xff) * 64 - this.sceneBaseTileZ;
-                    const src: Uint8Array | null = this.sceneMapLandData[i];
-
-                    if (src) {
-                        const data = BZip2.decompress(src, -1, false, true);
-                        world.readLandscape((this.sceneCenterZoneX - 6) * 8, (this.sceneCenterZoneZ - 6) * 8, x, z, data);
-                    } else if (this.sceneCenterZoneZ < 800) {
-                        world.clearLandscape(z, x, 64, 64);
-                    }
-                }
-            }
-
-            if (this.sceneMapIndex && this.sceneMapLocData) {
-                // NO_TIMEOUT
-                this.out.p1isaac(ClientProt.NO_TIMEOUT);
-                for (let i: number = 0; i < maps; i++) {
-                    const src: Uint8Array | null = this.sceneMapLocData[i];
-                    if (src) {
-                        const data = BZip2.decompress(src, -1, false, true);
-                        const x: number = (this.sceneMapIndex[i] >> 8) * 64 - this.sceneBaseTileX;
-                        const z: number = (this.sceneMapIndex[i] & 0xff) * 64 - this.sceneBaseTileZ;
-                        world.readLocs(this.scene, this.locList, this.levelCollisionMap, data, x, z);
-                    }
-                }
-            }
-
-            // NO_TIMEOUT
-            this.out.p1isaac(ClientProt.NO_TIMEOUT);
-            world.build(this.scene, this.levelCollisionMap);
-            this.areaViewport?.bind();
-
-            // NO_TIMEOUT
-            this.out.p1isaac(ClientProt.NO_TIMEOUT);
-            for (let loc: LocEntity | null = this.locList.head() as LocEntity | null; loc; loc = this.locList.next() as LocEntity | null) {
-                if ((this.levelTileFlags && this.levelTileFlags[1][loc.heightmapNE][loc.heightmapNW] & 0x2) === 2) {
-                    loc.heightmapSW--;
-                    if (loc.heightmapSW < 0) {
-                        loc.unlink();
-                    }
-                }
-            }
-
-            for (let x: number = 0; x < CollisionMap.SIZE; x++) {
-                for (let z: number = 0; z < CollisionMap.SIZE; z++) {
-                    this.sortObjStacks(x, z);
-                }
-            }
-
-            for (let loc: LocTemporary | null = this.spawnedLocations.head() as LocTemporary | null; loc; loc = this.spawnedLocations.next() as LocTemporary | null) {
-                this.addLoc(loc.plane, loc.x, loc.z, loc.locIndex, loc.angle, loc.shape, loc.layer);
-            }
-        } catch (e) {
-            /* empty */
+        for (let level: number = 0; level < CollisionMap.LEVELS; level++) {
+            this.levelCollisionMap[level]?.reset();
         }
+
+        const world: World = new World(CollisionMap.SIZE, CollisionMap.SIZE, this.levelHeightmap!, this.levelTileFlags!);
+        World.lowMemory = Client.lowMemory;
+
+        const maps: number = this.sceneMapLandData?.length ?? 0;
+
+        if (this.sceneMapIndex) {
+            for (let index: number = 0; index < maps; index++) {
+                const mapsquareX: number = this.sceneMapIndex[index] >> 8;
+                const mapsquareZ: number = this.sceneMapIndex[index] & 0xff;
+
+                // underground pass check
+                if (mapsquareX === 33 && mapsquareZ >= 71 && mapsquareZ <= 73) {
+                    World.lowMemory = false;
+                    break;
+                }
+            }
+        }
+
+        if (Client.lowMemory) {
+            this.scene?.setMinLevel(this.currentLevel);
+        } else {
+            this.scene?.setMinLevel(0);
+        }
+
+        if (this.sceneMapIndex && this.sceneMapLandData) {
+            this.out.p1isaac(ClientProt.NO_TIMEOUT);
+
+            for (let i: number = 0; i < maps; i++) {
+                const x: number = (this.sceneMapIndex[i] >> 8) * 64 - this.sceneBaseTileX;
+                const z: number = (this.sceneMapIndex[i] & 0xff) * 64 - this.sceneBaseTileZ;
+                const src: Uint8Array | null = this.sceneMapLandData[i];
+
+                if (src) {
+                    const data = BZip2.decompress(src, -1, false, true);
+                    world.readLandscape((this.sceneCenterZoneX - 6) * 8, (this.sceneCenterZoneZ - 6) * 8, x, z, data);
+                } else if (this.sceneCenterZoneZ < 800) {
+                    world.clearLandscape(z, x, 64, 64);
+                }
+            }
+        }
+
+        if (this.sceneMapIndex && this.sceneMapLocData) {
+            this.out.p1isaac(ClientProt.NO_TIMEOUT);
+
+            for (let i: number = 0; i < maps; i++) {
+                const x: number = (this.sceneMapIndex[i] >> 8) * 64 - this.sceneBaseTileX;
+                const z: number = (this.sceneMapIndex[i] & 0xff) * 64 - this.sceneBaseTileZ;
+                const src: Uint8Array | null = this.sceneMapLocData[i];
+
+                if (src) {
+                    const data = BZip2.decompress(src, -1, false, true);
+                    world.readLocs(this.scene, this.locList, this.levelCollisionMap, data, x, z);
+                }
+            }
+        }
+
+        this.out.p1isaac(ClientProt.NO_TIMEOUT);
+        world.build(this.scene, this.levelCollisionMap);
+        this.areaViewport?.bind();
+
+        this.out.p1isaac(ClientProt.NO_TIMEOUT);
+        for (let loc: LocEntity | null = this.locList.head() as LocEntity | null; loc; loc = this.locList.next() as LocEntity | null) {
+            if ((this.levelTileFlags && this.levelTileFlags[1][loc.heightmapNE][loc.heightmapNW] & 0x2) === 2) {
+                loc.heightmapSW--;
+                if (loc.heightmapSW < 0) {
+                    loc.unlink();
+                }
+            }
+        }
+
+        for (let x: number = 0; x < CollisionMap.SIZE; x++) {
+            for (let z: number = 0; z < CollisionMap.SIZE; z++) {
+                this.sortObjStacks(x, z);
+            }
+        }
+
+        for (let loc: LocTemporary | null = this.spawnedLocations.head() as LocTemporary | null; loc; loc = this.spawnedLocations.next() as LocTemporary | null) {
+            this.addLoc(loc.plane, loc.x, loc.z, loc.locIndex, loc.angle, loc.shape, loc.layer);
+        }
+
         LocType.modelCacheStatic?.clear();
         Pix3D.initPool(20);
     };

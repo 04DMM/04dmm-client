@@ -111,7 +111,7 @@ class BZ2Wasm {
 
         this.ensureInitialized();
 
-        const { sourcePtr: compressedPtr, destPtr: decompressedPtr, destLengthPtr: decompressedLengthPtr } = this.createWASMBuffers(compressed, decompressedLength);
+        const { sourcePtr: compressedPtr, destPtr: decompressedPtr, destLengthPtr: decompressedLengthPtr } = this.createWASMBuffers(new Uint8Array(compressed), decompressedLength);
 
         const returnValue = this.wasmModule._BZ2_bzBuffToBuffDecompress(decompressedPtr, decompressedLengthPtr, compressedPtr, compressed.length, 0, 0);
 

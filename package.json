@@ -6,6 +6,10 @@
         "#3rdparty/*": "./src/3rdparty/*",
         "#/*": "./src/*"
     },
+    "scripts": {
+        "build:prod": "bun run bundle.js prod",
+        "build:dev": "bun run bundle.js dev"
+    },
     "devDependencies": {
         "@types/bun": "latest",
         "prettier": "^3.4.2"

@@ -6,13 +6,13 @@ export async function playWave(data, vol) {
     setWaveVolume(vol);
 
     try {
-        const audioBuffer = await window.audioContext.decodeAudioData(Uint8Array.from(data).buffer);
+        const audioBuffer = await window.audioContext.decodeAudioData(new Uint8Array(data).buffer);
         let bufferSource = window.audioContext.createBufferSource();
         bufferSource.buffer = audioBuffer;
         bufferSource.connect(waveGain);
         bufferSource.start();
     } catch (err) {
-        console.log(err);
+        console.error(err);
     }
 }
 

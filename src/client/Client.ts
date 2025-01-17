@@ -2400,7 +2400,8 @@ export class Client extends GameShell {
                 this.loginMessage1 = 'To play on this world move to a free area first';
             }
         } catch (err) {
-            console.log(err);
+            console.error(err);
+
             this.loginMessage0 = '';
             this.loginMessage1 = 'Error connecting to server.';
         }
@@ -2717,9 +2718,9 @@ export class Client extends GameShell {
                     this.heartbeatTimer = 0;
                 }
             } catch (e) {
-                console.log(e);
+                console.error(e);
+
                 await this.tryReconnect();
-                // TODO extra logic for logout??
             }
         }
     };

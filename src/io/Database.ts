@@ -35,16 +35,16 @@ export default class Database {
             const request: IDBRequest<Uint8Array> = store.get(name);
 
             request.onsuccess = (): void => {
-                resolve(request.result);
+                resolve(new Uint8Array(request.result));
             };
 
-            request.onerror = (event: Event): void => {
+            request.onerror = (): void => {
                 resolve(undefined);
             };
         });
     }
 
-    async cachesave(name: string, src: Uint8Array) {
+    async cachesave(name: string, src: Int8Array) {
         return await new Promise<void>((resolve, reject): void => {
             const transaction: IDBTransaction = this.db.transaction('cache', 'readwrite');
             const store: IDBObjectStore = transaction.objectStore('cache');
@@ -54,7 +54,7 @@ export default class Database {
                 resolve();
             };
 
-            request.onerror = (event: Event): void => {
+            request.onerror = (): void => {
                 // not too worried if it doesn't save, it'll redownload later
                 resolve();
             };

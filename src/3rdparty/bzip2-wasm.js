@@ -89,7 +89,9 @@ class BZ2Wasm {
         return dest;
     }
 
-    decompress(compressed, decompressedLength, prependHeader = false, containsDecompressedLength = false) {
+    decompress(src, decompressedLength, prependHeader = false, containsDecompressedLength = false) {
+        let compressed = new Uint8Array(src);
+
         if (containsDecompressedLength) {
             decompressedLength = (compressed[0] << 24) | (compressed[1] << 16) | (compressed[2] << 8) | compressed[3];
             compressed[0] = 'B'.charCodeAt(0);
@@ -111,7 +113,7 @@ class BZ2Wasm {
 
         this.ensureInitialized();
 
-        const { sourcePtr: compressedPtr, destPtr: decompressedPtr, destLengthPtr: decompressedLengthPtr } = this.createWASMBuffers(new Uint8Array(compressed), decompressedLength);
+        const { sourcePtr: compressedPtr, destPtr: decompressedPtr, destLengthPtr: decompressedLengthPtr } = this.createWASMBuffers(compressed, decompressedLength);
 
         const returnValue = this.wasmModule._BZ2_bzBuffToBuffDecompress(decompressedPtr, decompressedLengthPtr, compressedPtr, compressed.length, 0, 0);
 

@@ -497,7 +497,7 @@ export default abstract class GameShell {
         }
 
         if (InputTracking.enabled) {
-            InputTracking.mousePressed(this.mouseClickX, this.mouseClickY, e.buttons);
+            InputTracking.mousePressed(this.mouseClickX, this.mouseClickY, e.button);
         }
     };
 
@@ -507,7 +507,7 @@ export default abstract class GameShell {
         this.mouseButton = 0;
 
         if (InputTracking.enabled) {
-            InputTracking.mouseReleased(e.buttons);
+            InputTracking.mouseReleased(e.button);
         }
     };
 
@@ -711,10 +711,7 @@ export default abstract class GameShell {
 
         if (longPress && !moved) {
             this.touching = true;
-            this.onmousedown(new MouseEvent('mousedown', { buttons: 2 }));
-        } else {
-            this.mouseButton = 0;
-            this.touching = false;
+            this.onmousedown(new MouseEvent('mousedown', { clientX, clientY, button: 2 }));
         }
     };
 
@@ -753,7 +750,7 @@ export default abstract class GameShell {
             }
         } else if (this.startedInTabArea || this.getViewportInterfaceId() !== -1) {
             // Drag and drop
-            this.onmousedown(new MouseEvent('mousedown', { buttons: 1 }));
+            this.onmousedown(new MouseEvent('mousedown', { clientX, clientY, button: 1 }));
         }
 
         this.mx = this.nx;
@@ -862,9 +859,8 @@ export default abstract class GameShell {
         const fixedWidth: number = 789;
         const fixedHeight: number = 532;
 
-        if (this.isFullScreen() && e.target) {
-            const element: HTMLElement = e.target as HTMLElement;
-            const br: DOMRect = element.getBoundingClientRect();
+        if (this.isFullScreen()) {
+            const br: DOMRect = canvas.getBoundingClientRect();
             const ratio: number = window.innerHeight / canvas.height;
             const offset: number = (window.innerWidth - canvas.width * ratio) / 2.0;
             this.mouseX = this.mapCoord(e.clientX - br.left - offset, 0, canvas.width * ratio, 0, fixedWidth) | 0;

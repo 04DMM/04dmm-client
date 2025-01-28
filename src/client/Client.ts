@@ -502,7 +502,7 @@ export class Client extends GameShell {
     protected currentMidi: string | null = null;
     protected midiCrc: number = 0;
     protected midiSize: number = 0;
-    protected midiVolume: number = 192;
+    protected midiVolume: number = 32;
 
     constructor(nodeid?: number, portoff?: number, lowmem?: boolean, members?: boolean) {
         super();
@@ -5800,9 +5800,6 @@ export class Client extends GameShell {
         stopMidi(false);
         this.currentMidi = null;
         this.nextMusicDelay = 0;
-        if (!Client.lowMemory) {
-            await this.setMidi('scape_main', 12345678, 40000, false);
-        }
     };
 
     private read = async (): Promise<boolean> => {
@@ -7137,23 +7134,23 @@ export class Client extends GameShell {
             if (clientcode === 3) {
                 const lastMidiActive: boolean = this.midiActive;
                 if (value === 0) {
-                    this.midiVolume = 256;
-                    setMidiVolume(256);
-                    this.midiActive = true;
-                }
-                if (value === 1) {
-                    this.midiVolume = 192;
-                    setMidiVolume(192);
-                    this.midiActive = true;
-                }
-                if (value === 2) {
                     this.midiVolume = 128;
                     setMidiVolume(128);
                     this.midiActive = true;
                 }
-                if (value === 3) {
+                if (value === 1) {
+                    this.midiVolume = 96;
+                    setMidiVolume(96);
+                    this.midiActive = true;
+                }
+                if (value === 2) {
                     this.midiVolume = 64;
                     setMidiVolume(64);
+                    this.midiActive = true;
+                }
+                if (value === 3) {
+                    this.midiVolume = 32;
+                    setMidiVolume(32);
                     this.midiActive = true;
                 }
                 if (value === 4) {
@@ -7170,23 +7167,23 @@ export class Client extends GameShell {
             }
             if (clientcode === 4) {
                 if (value === 0) {
-                    this.waveVolume = 256;
-                    setWaveVolume(256);
-                    this.waveEnabled = true;
-                }
-                if (value === 1) {
-                    this.waveVolume = 192;
-                    setWaveVolume(192);
-                    this.waveEnabled = true;
-                }
-                if (value === 2) {
                     this.waveVolume = 128;
                     setWaveVolume(128);
                     this.waveEnabled = true;
                 }
-                if (value === 3) {
+                if (value === 1) {
+                    this.waveVolume = 96;
+                    setWaveVolume(96);
+                    this.waveEnabled = true;
+                }
+                if (value === 2) {
                     this.waveVolume = 64;
                     setWaveVolume(64);
+                    this.waveEnabled = true;
+                }
+                if (value === 3) {
+                    this.waveVolume = 32;
+                    setWaveVolume(32);
                     this.waveEnabled = true;
                 }
                 if (value === 4) {

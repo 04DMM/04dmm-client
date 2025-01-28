@@ -189,7 +189,7 @@ export default class PixFont extends DoublyLinkable {
         x |= 0;
         y |= 0;
 
-        this.drawStringTaggable(x - this.stringWidth(str) / 2, y, str, color, shadowed);
+        this.drawStringTaggable(x - ((this.stringWidth(str) / 2) | 0), y, str, color, shadowed);
     }
 
     drawStringCenter(x: number, y: number, str: string | null, color: number): void {
@@ -200,7 +200,7 @@ export default class PixFont extends DoublyLinkable {
         x |= 0;
         y |= 0;
 
-        this.drawString(x - this.stringWidth(str) / 2, y, str, color);
+        this.drawString(x - ((this.stringWidth(str) / 2) | 0), y, str, color);
     }
 
     drawStringTooltip(x: number, y: number, str: string, color: number, shadowed: boolean, seed: number): void {

@@ -2188,7 +2188,7 @@ export class Client extends GameShell {
                 await this.drawTitleScreen();
             }
 
-            this.stream = new ClientStream(await ClientStream.openSocket({ host: Client.serverAddress, port: 43594 + Client.portOffset }));
+            this.stream = new ClientStream(await ClientStream.openSocket(Client.serverAddress));
             await this.stream.readBytes(this.in.data, 0, 8);
             this.in.pos = 0;
             this.serverSeed = this.in.g8;

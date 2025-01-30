@@ -1,4 +1,4 @@
-import '#3rdparty/tinymidipcm/tinymidipcm.mjs';
+import { playWave, setWaveVolume, BZip2, playMidi, stopMidi, setMidiVolume } from '#3rdparty/export.js';
 
 import GameShell from '#/client/GameShell.js';
 import InputTracking from '#/client/InputTracking.js';
@@ -39,7 +39,6 @@ import JString from '#/datastruct/JString.js';
 import LinkList from '#/datastruct/LinkList.js';
 
 import { Int32Array2d, TypedArray1d, TypedArray3d, Int32Array3d, Uint8Array3d } from '#/util/Arrays.js';
-import { playMidi, stopMidi, playWave, setMidiVolume, setWaveVolume } from '#/util/AudioUtil.js';
 import { downloadUrl, sleep, arraycopy } from '#/util/JsUtil.js';
 
 import AnimBase from '#/graphics/AnimBase.js';
@@ -54,7 +53,6 @@ import Pix24 from '#/graphics/Pix24.js';
 import PixFont from '#/graphics/PixFont.js';
 import PixMap from '#/graphics/PixMap.js';
 
-import BZip2 from '#/io/BZip2.js';
 import ClientStream from '#/io/ClientStream.js';
 import ClientProt from '#/io/ClientProt.js';
 import Database from '#/io/Database.js';

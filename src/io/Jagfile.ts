@@ -1,4 +1,5 @@
-import BZip2 from '#/io/BZip2.js';
+import { BZip2 } from '#3rdparty/export.js';
+
 import Packet from '#/io/Packet.js';
 
 export default class Jagfile {

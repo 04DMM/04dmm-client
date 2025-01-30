@@ -1,4 +1,4 @@
-import loadBZip2WASM from './bzip2-wasm/bzip2.mjs';
+import loadBZip2WASM from '#3rdparty/bzip2-wasm/bzip2.mjs';
 
 const ERROR_MESSAGES = {
     '-2': 'BZ_PARAM_ERROR: incorrect parameters',
@@ -164,4 +164,7 @@ class BZ2Wasm {
     }
 }
 
-export default BZ2Wasm;
+const BZip2 = new BZ2Wasm();
+await BZip2.init();
+
+export default BZip2;

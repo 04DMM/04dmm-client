@@ -13,11 +13,9 @@ export default class ClientStream {
     private closed: boolean = false;
     private ioerror: boolean = false;
 
-    static openSocket = async (address: string): Promise<WebSocket> => {
+    static openSocket = async (host: string, secured: boolean): Promise<WebSocket> => {
         return await new Promise<WebSocket>((resolve, reject): void => {
-            const secured: boolean = address.startsWith('https');
             const protocol: string = secured ? 'wss' : 'ws';
-            const host: string = address.substring(address.indexOf('//') + 2);
             const ws: WebSocket = new WebSocket(`${protocol}://${host}`, 'binary');
 
             ws.addEventListener('open', (): void => {

@@ -69,19 +69,54 @@ import WordPack from '#/wordenc/WordPack.js';
 
 import Wave from '#/sound/Wave.js';
 
+async function uniqueDeviceId() {
+    function hashCode(str: string, hash = 0) {
+        let chr;
+
+        if (str.length === 0) {
+            return hash;
+        }
+
+        for (let i = 0; i < str.length; i++) {
+            chr = str.charCodeAt(i);
+            hash = ((hash << 5) - hash) + chr;
+            hash |= 0;
+        }
+
+        return hash;
+    }
+
+    let hash = 0;
+
+    hash = hashCode(navigator.platform, hash);
+    hash = hashCode(navigator.hardwareConcurrency.toString(), hash);
+
+    if (typeof navigator['gpu' as keyof Navigator] !== 'undefined') {
+        const gpu = navigator['gpu' as keyof Navigator] as any;
+        const adapter = await gpu.requestAdapter();
+
+        hash = hashCode(adapter.info.vendor, hash);
+        hash = hashCode(adapter.info.architecture, hash);
+        hash = hashCode(adapter.info.device, hash);
+        hash = hashCode(adapter.info.description, hash);
+
+        for (const index in adapter.limits) {
+            hash = hashCode(adapter.limits[index].toString(), hash);
+        }
+    }
+
+    return hash;
+}
+
 export class Client extends GameShell {
     static readonly clientversion: number = 225;
 
     static nodeId: number = 10;
-    static portOffset: number = 0;
     static members: boolean = true;
     static lowMemory: boolean = false;
-    static serverAddress: string = '';
-    static httpAddress: string = '';
 
-    // original keys:
-    static readonly exponent: bigint = 58778699976184461502525193738213253649000149147835990136706041084440742975821n;
-    static readonly modulus: bigint = 7162900525229798032761816791230527296329313291232324290237849263501208207972894053929065636522363163621000728841182238772712427862772219676577293600221789n;
+    static readonly loginExp: bigint = BigInt(process.env.LOGIN_RSAE!);
+    static readonly loginMod: bigint = BigInt(process.env.LOGIN_RSAN!);
 
     static cyclelogic1: number = 0;
     static cyclelogic2: number = 0;
@@ -506,34 +541,30 @@ export class Client extends GameShell {
 
     protected displayFps: boolean = true;
 
-    constructor(nodeid?: number, portoff?: number, lowmem?: boolean, members?: boolean) {
+    constructor(nodeid: number, lowmem: boolean, members: boolean) {
         super();
+
+        if (typeof nodeid === 'undefined' || typeof lowmem === 'undefined' || typeof members === 'undefined') {
+            return;
+        }
 
         console.log(`RS2 user client - release #${Client.clientversion}`);
 
-        if (typeof nodeid !== 'undefined') {
-            Client.nodeId = nodeid;
+        Client.nodeId = nodeid;
+        Client.members = members;
 
-            // this way so we dont keep the port if address has one
-            const url: URL = new URL(window.location.href);
-            Client.serverAddress = `${url.protocol}//${url.hostname}`;
-            Client.httpAddress = `${url.protocol}//${url.hostname}:${url.port}`;
+        if (lowmem) {
+            Client.setLowMemory();
+        } else {
+            Client.setHighMemory();
         }
 
-        if (typeof portoff !== 'undefined') {
-            Client.portOffset = portoff;
-        }
-
-        if (typeof members !== 'undefined') {
-            Client.members = members;
-        }
-
-        if (typeof lowmem !== 'undefined') {
-            if (lowmem) {
-                Client.setLowMemory();
-            } else {
-                Client.setHighMemory();
-            }
+        if (
+            typeof process.env.SECURE_ORIGIN !== 'undefined' &&
+            process.env.SECURE_ORIGIN !== "false" &&
+            window.location.hostname !== process.env.SECURE_ORIGIN
+        ) {
+            return;
         }
 
         this.run();
@@ -599,7 +630,7 @@ export class Client extends GameShell {
             await this.showProgress(progress, `Requesting ${displayName}`);
 
             try {
-                data = await downloadUrl(`${Client.httpAddress}/${filename}${crc}`);
+                data = await downloadUrl(`/${filename}${crc}`);
             } catch (e) {
                 data = undefined;
                 for (let i: number = retry; i > 0; i--) {
@@ -624,7 +655,7 @@ export class Client extends GameShell {
 
         if (!data) {
             try {
-                data = await downloadUrl(`${Client.httpAddress}/${name}_${crc}.mid`);
+                data = await downloadUrl(`/${name}_${crc}.mid`);
                 if (length !== data.length) {
                     data = data.slice(0, length);
                 }
@@ -1434,7 +1465,7 @@ export class Client extends GameShell {
                 this.db = null;
             }
 
-            const checksums: Packet = new Packet(new Uint8Array(await downloadUrl(`${Client.httpAddress}/crc`)));
+            const checksums: Packet = new Packet(await downloadUrl('/crc'));
             for (let i: number = 0; i < 9; i++) {
                 this.archiveChecksums[i] = checksums.g4;
             }
@@ -2190,7 +2221,7 @@ export class Client extends GameShell {
                 await this.drawTitleScreen();
             }
 
-            this.stream = new ClientStream(await ClientStream.openSocket(Client.httpAddress));
+            this.stream = new ClientStream(await ClientStream.openSocket(window.location.host, window.location.protocol === 'https:'));
             await this.stream.readBytes(this.in.data, 0, 8);
             this.in.pos = 0;
             this.serverSeed = this.in.g8;
@@ -2201,10 +2232,10 @@ export class Client extends GameShell {
             this.out.p4(seed[1]);
             this.out.p4(seed[2]);
             this.out.p4(seed[3]);
-            this.out.p4(0); // TODO signlink UUID
+            this.out.p4(await uniqueDeviceId());
             this.out.pjstr(username);
             this.out.pjstr(password);
-            this.out.rsaenc(Client.modulus, Client.exponent);
+            this.out.rsaenc(Client.loginMod, Client.loginExp);
             this.loginout.pos = 0;
             if (reconnect) {
                 this.loginout.p1(18);

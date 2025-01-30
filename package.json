@@ -12,7 +12,10 @@
     },
     "devDependencies": {
         "@types/bun": "latest",
-        "prettier": "^3.4.2"
+        "@types/uglify-js": "^3.17.5",
+        "javascript-obfuscator": "^4.1.1",
+        "prettier": "^3.4.2",
+        "uglify-js": "^3.19.3"
     },
     "peerDependencies": {
         "typescript": "^5.0.0"

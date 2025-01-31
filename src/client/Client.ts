@@ -27,7 +27,6 @@ import PlayerEntity from '#/dash3d/entity/PlayerEntity.js';
 
 import LocSpawned from '#/dash3d/type/LocSpawned.js';
 import LocTemporary from '#/dash3d/type/LocTemporary.js';
-import Ground from '#/dash3d/type/Ground.js';
 
 import LocEntity from '#/dash3d/entity/LocEntity.js';
 import ObjStackEntity from '#/dash3d/entity/ObjStackEntity.js';

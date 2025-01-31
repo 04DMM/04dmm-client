@@ -54,7 +54,6 @@ async function uglifyProdBuild(entry) {
         toplevel: true,
         compress: {
             module: true,
-            unsafe: true,
         },
         mangle: {
             reserved: [
@@ -62,11 +61,13 @@ async function uglifyProdBuild(entry) {
                 'Client'
             ],
             properties: true
-        },
-        output: {
-            beautify: true,
         }
     });
+
+    if (ugly.error) {
+        console.error(ugly.error.message);
+        process.exit(1);
+    }
 
     return {
         source: ugly.code,
@@ -94,7 +95,7 @@ async function obfuscatorProdBuild(entry) {
         sourceMapMode: 'separate',
         identifierNamesGenerator: 'mangled-shuffled',
         renameGlobals: true,
-        // renameProperties: true, // todo: would love to use this, but the wasm bindings are breaking when being bundled
+        renameProperties: true,
         transformObjectKeys: true,
         reservedNames: [
             '^Client$'
@@ -161,12 +162,22 @@ function replaceDepsUrl(source) {
     return source.replaceAll('#3rdparty', '.');
 }
 
-const args = process.argv.slice(2);
-const build = args[0] === 'prod' ? prodBuild : devBuild;
-
 const deps = await depsBuild('./src/3rdparty/export.js');
 fs.writeFileSync('out/export.js', deps.source);
 // fs.writeFileSync('out/export.js.map', deps.sourcemap);
+
+const args = process.argv.slice(2);
+
+let build = devBuild;
+if (args[0] === 'prod') {
+    if (args[1] === 'uglify') {
+        build = uglifyProdBuild;
+    } else if (args[1] === 'obfuscate') {
+        build = obfuscatorProdBuild;
+    } else {
+        build = prodBuild;
+    }
+}
 
 const client = await build('./src/client/Client.ts');
 fs.writeFileSync('out/Client.js', replaceDepsUrl(client.source));

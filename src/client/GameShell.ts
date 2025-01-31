@@ -78,7 +78,7 @@ export default abstract class GameShell {
         return canvas.height;
     }
 
-    protected resize = (width: number, height: number): void => {
+    protected resize(width: number, height: number) {
         canvas.width = width;
         canvas.height = height;
         this.drawArea = new PixMap(width, height);
@@ -96,22 +96,22 @@ export default abstract class GameShell {
             false
         );
 
-        canvas.onfocus = this.onfocus;
-        canvas.onblur = this.onblur;
+        canvas.onfocus = this.onfocus.bind(this);
+        canvas.onblur = this.onblur.bind(this);
 
         // pc
-        canvas.onmousedown = this.onmousedown;
-        canvas.onmouseup = this.onmouseup;
-        canvas.onmouseenter = this.onmouseenter;
-        canvas.onmouseleave = this.onmouseleave;
-        canvas.onmousemove = this.onmousemove;
-        canvas.onkeydown = this.onkeydown;
-        canvas.onkeyup = this.onkeyup;
+        canvas.onmousedown = this.onmousedown.bind(this);
+        canvas.onmouseup = this.onmouseup.bind(this);
+        canvas.onmouseenter = this.onmouseenter.bind(this);
+        canvas.onmouseleave = this.onmouseleave.bind(this);
+        canvas.onmousemove = this.onmousemove.bind(this);
+        canvas.onkeydown = this.onkeydown.bind(this);
+        canvas.onkeyup = this.onkeyup.bind(this);
 
         if (this.isMobile) {
-            canvas.ontouchstart = this.ontouchstart;
-            canvas.ontouchend = this.ontouchend;
-            canvas.ontouchmove = this.ontouchmove;
+            canvas.ontouchstart = this.ontouchstart.bind(this);
+            canvas.ontouchend = this.ontouchend.bind(this);
+            canvas.ontouchmove = this.ontouchmove.bind(this);
         }
 
         // Preventing mouse events from bubbling up to the context menu in the browser for our canvas.
@@ -219,31 +219,31 @@ export default abstract class GameShell {
         }
     }
 
-    protected shutdown = (): void => {
+    protected shutdown() {
         this.state = -2;
     };
 
-    protected setFramerate = (rate: number): void => {
+    protected setFramerate(rate: number) {
         this.deltime = (1000 / rate) | 0;
     };
 
-    protected setTargetedFramerate = (rate: number): void => {
+    protected setTargetedFramerate(rate: number) {
         this.tfps = Math.max(Math.min(50, rate | 0), 0);
     };
 
-    protected start = (): void => {
+    protected start() {
         if (this.state >= 0) {
             this.state = 0;
         }
     };
 
-    protected stop = (): void => {
+    protected stop() {
         if (this.state >= 0) {
             this.state = (4000 / this.deltime) | 0;
         }
     };
 
-    protected destroy = (): void => {
+    protected destroy() {
         this.state = -1;
     };
 
@@ -285,7 +285,7 @@ export default abstract class GameShell {
         await sleep(5); // return a slice of time to the main loop so it can update the progress bar
     }
 
-    protected pollKey = (): number => {
+    protected pollKey() {
         let key: number = -1;
         if (this.keyQueueWritePos !== this.keyQueueReadPos) {
             key = this.keyQueue[this.keyQueueReadPos];
@@ -315,18 +315,14 @@ export default abstract class GameShell {
 
     // ----
 
-    private onkeydown = (e: KeyboardEvent): void => {
-        const key: string = e.key;
-
+    private onkeydown(e: KeyboardEvent) {
         this.idleCycles = Date.now();
 
-        const keyCode: { code: number; ch: number } = KeyCodes[key];
+        const keyCode = KeyCodes.get(e.key);
         if (!keyCode || (e.code.length === 0 && !e.isTrusted)) {
-            console.warn(`Unhandled key: ${key}`);
             return;
         }
 
-        const code: number = keyCode.code;
         let ch: number = keyCode.ch;
 
         if (e.ctrlKey) {
@@ -335,44 +331,6 @@ export default abstract class GameShell {
             } else if (ch >= 'a'.charCodeAt(0) && ch <= 'z'.charCodeAt(0)) {
                 ch -= 'a'.charCodeAt(0) - 1;
             }
-        }
-
-        if (ch < 30) {
-            ch = 0;
-        }
-
-        if (code === KeyCodes['ArrowLeft'].code) {
-            ch = 1;
-        } else if (code === KeyCodes['ArrowRight'].code) {
-            ch = 2;
-        } else if (code === KeyCodes['ArrowUp'].code) {
-            ch = 3;
-        } else if (code === KeyCodes['ArrowDown'].code) {
-            ch = 4;
-        } else if (code === KeyCodes['Control'].code) {
-            ch = 5;
-        } else if (code === KeyCodes['Shift'].code) {
-            ch = 6; // (custom)
-        } else if (code === KeyCodes['Alt'].code) {
-            ch = 7; // (custom)
-        } else if (code === KeyCodes['Backspace'].code) {
-            ch = 8;
-        } else if (code === KeyCodes['Delete'].code) {
-            ch = 8;
-        } else if (code === KeyCodes['Tab'].code) {
-            ch = 9;
-        } else if (code === KeyCodes['Enter'].code) {
-            ch = 10;
-        } else if (code >= KeyCodes['F1'].code && code <= KeyCodes['F12'].code) {
-            ch = code + 1008 - KeyCodes['F1'].code;
-        } else if (code === KeyCodes['Home'].code) {
-            ch = 1000;
-        } else if (code === KeyCodes['End'].code) {
-            ch = 1001;
-        } else if (code === KeyCodes['PageUp'].code) {
-            ch = 1002;
-        } else if (code === KeyCodes['PageDown'].code) {
-            ch = 1003;
         }
 
         if (ch > 0 && ch < 128) {
@@ -388,61 +346,27 @@ export default abstract class GameShell {
             InputTracking.keyPressed(ch);
         }
 
-        if (!CanvasEnabledKeys.includes(key)) {
+        if (!CanvasEnabledKeys.includes(e.key)) {
             e.preventDefault();
         }
     };
 
-    private onkeyup = (e: KeyboardEvent): void => {
-        const key: string = e.key;
-
+    private onkeyup(e: KeyboardEvent) {
         this.idleCycles = Date.now();
 
-        const keyCode: { code: number; ch: number } = KeyCodes[key];
+        const keyCode = KeyCodes.get(e.key);
         if (!keyCode || (e.code.length === 0 && !e.isTrusted)) {
-            console.warn(`Unhandled key: ${key}`);
             return;
         }
 
-        const code: number = keyCode.code;
         let ch: number = keyCode.ch;
 
-        if (ch < 30) {
-            ch = 0;
-        }
-
-        if (code === KeyCodes['ArrowLeft'].code) {
-            ch = 1;
-        } else if (code === KeyCodes['ArrowRight'].code) {
-            ch = 2;
-        } else if (code === KeyCodes['ArrowUp'].code) {
-            ch = 3;
-        } else if (code === KeyCodes['ArrowDown'].code) {
-            ch = 4;
-        } else if (code === KeyCodes['Control'].code) {
-            ch = 5;
-        } else if (code === KeyCodes['Shift'].code) {
-            ch = 6; // (custom)
-        } else if (code === KeyCodes['Alt'].code) {
-            ch = 7; // (custom)
-        } else if (code === KeyCodes['Backspace'].code) {
-            ch = 8;
-        } else if (code === KeyCodes['Delete'].code) {
-            ch = 8;
-        } else if (code === KeyCodes['Tab'].code) {
-            ch = 9;
-        } else if (code === KeyCodes['Enter'].code) {
-            ch = 10;
-        } else if (code >= KeyCodes['F1'].code && code <= KeyCodes['F12'].code) {
-            ch = code + 1008 - KeyCodes['F1'].code;
-        } else if (code === KeyCodes['Home'].code) {
-            ch = 1000;
-        } else if (code === KeyCodes['End'].code) {
-            ch = 1001;
-        } else if (code === KeyCodes['PageUp'].code) {
-            ch = 1002;
-        } else if (code === KeyCodes['PageDown'].code) {
-            ch = 1003;
+        if (e.ctrlKey) {
+            if ((ch >= 'A'.charCodeAt(0) && ch <= ']'.charCodeAt(0)) || ch == '_'.charCodeAt(0)) {
+                ch -= 'A'.charCodeAt(0) - 1;
+            } else if (ch >= 'a'.charCodeAt(0) && ch <= 'z'.charCodeAt(0)) {
+                ch -= 'a'.charCodeAt(0) - 1;
+            }
         }
 
         if (ch > 0 && ch < 128) {
@@ -453,13 +377,13 @@ export default abstract class GameShell {
             InputTracking.keyReleased(ch);
         }
 
-        if (!CanvasEnabledKeys.includes(key)) {
+        if (!CanvasEnabledKeys.includes(e.key)) {
             e.preventDefault();
         }
     };
 
     // todo: this.time prevents mice from working on mobile
-    private onmousedown = (e: MouseEvent): void => {
+    private onmousedown(e: MouseEvent) {
         this.touching = false;
         //Don't 'reset' position (This fixes right click in Android)
         if (e.clientX > 0 || e.clientY > 0) this.setMousePosition(e);
@@ -498,7 +422,7 @@ export default abstract class GameShell {
         }
     };
 
-    private onmouseup = (e: MouseEvent): void => {
+    private onmouseup(e: MouseEvent) {
         this.setMousePosition(e);
         this.idleCycles = Date.now();
         this.mouseButton = 0;
@@ -508,7 +432,7 @@ export default abstract class GameShell {
         }
     };
 
-    private onmouseenter = (e: MouseEvent): void => {
+    private onmouseenter(e: MouseEvent) {
         this.setMousePosition(e);
 
         if (InputTracking.enabled) {
@@ -516,7 +440,7 @@ export default abstract class GameShell {
         }
     };
 
-    private onmouseleave = (e: MouseEvent): void => {
+    private onmouseleave(e: MouseEvent) {
         this.setMousePosition(e);
 
         // mapview applet
@@ -534,7 +458,7 @@ export default abstract class GameShell {
         }
     };
 
-    private onmousemove = (e: MouseEvent): void => {
+    private onmousemove(e: MouseEvent) {
         this.setMousePosition(e);
         this.idleCycles = Date.now();
 
@@ -543,7 +467,7 @@ export default abstract class GameShell {
         }
     };
 
-    private onfocus = (e: FocusEvent): void => {
+    private onfocus(e: FocusEvent) {
         this.hasFocus = true;
         this.redrawScreen = true;
         this.refresh();
@@ -553,7 +477,7 @@ export default abstract class GameShell {
         }
     };
 
-    private onblur = (e: FocusEvent): void => {
+    private onblur(e: FocusEvent) {
         this.hasFocus = false;
 
         // CUSTOM: taken from later versions, releases all keys
@@ -566,7 +490,7 @@ export default abstract class GameShell {
         }
     };
 
-    private ontouchstart = (e: TouchEvent): void => {
+    private ontouchstart(e: TouchEvent) {
         if (!this.isMobile) {
             return;
         }
@@ -590,7 +514,7 @@ export default abstract class GameShell {
         this.startedInTabArea = this.insideTabArea();
     };
 
-    private ontouchend = (e: TouchEvent): void => {
+    private ontouchend(e: TouchEvent) {
         if (!this.isMobile || !this.touching) {
             return;
         }
@@ -712,7 +636,7 @@ export default abstract class GameShell {
         }
     };
 
-    private ontouchmove = (e: TouchEvent): void => {
+    private ontouchmove(e: TouchEvent) {
         if (!this.isMobile || !this.touching) {
             return;
         }
@@ -769,7 +693,7 @@ export default abstract class GameShell {
         return keywords.some((keyword: string): boolean => navigator.userAgent.includes(keyword));
     }
 
-    private insideViewportArea = (): boolean => {
+    private insideViewportArea() {
         // 512 x 334
         const viewportAreaX1: number = 8;
         const viewportAreaY1: number = 11;
@@ -778,7 +702,7 @@ export default abstract class GameShell {
         return this.ingame && this.mouseX >= viewportAreaX1 && this.mouseX <= viewportAreaX2 && this.mouseY >= viewportAreaY1 && this.mouseY <= viewportAreaY2;
     };
 
-    private insideChatInputArea = (): boolean => {
+    private insideChatInputArea() {
         // 495 x 33
         const chatInputAreaX1: number = 11;
         const chatInputAreaY1: number = 449;
@@ -796,7 +720,7 @@ export default abstract class GameShell {
         );
     };
 
-    private insideChatPopupArea = (): boolean => {
+    private insideChatPopupArea() {
         // 495 x 99
         const chatInputAreaX1: number = 11;
         const chatInputAreaY1: number = 383;
@@ -805,7 +729,7 @@ export default abstract class GameShell {
         return this.ingame && (this.isChatBackInputOpen() || this.isShowSocialInput()) && this.mouseX >= chatInputAreaX1 && this.mouseX <= chatInputAreaX2 && this.mouseY >= chatInputAreaY1 && this.mouseY <= chatInputAreaY2;
     };
 
-    private insideTabArea = (): boolean => {
+    private insideTabArea() {
         // 190 x 261
         const tabAreaX1: number = 562;
         const tabAreaY1: number = 231;
@@ -814,7 +738,7 @@ export default abstract class GameShell {
         return this.ingame && this.mouseX >= tabAreaX1 && this.mouseX <= tabAreaX2 && this.mouseY >= tabAreaY1 && this.mouseY <= tabAreaY2;
     };
 
-    private insideUsernameArea = (): boolean => {
+    private insideUsernameArea() {
         // 261 x 17
         const usernameAreaX1: number = 301;
         const usernameAreaY1: number = 262;
@@ -823,7 +747,7 @@ export default abstract class GameShell {
         return !this.ingame && this.getTitleScreenState() === 2 && this.mouseX >= usernameAreaX1 && this.mouseX <= usernameAreaX2 && this.mouseY >= usernameAreaY1 && this.mouseY <= usernameAreaY2;
     };
 
-    private inPasswordArea = (): boolean => {
+    private inPasswordArea() {
         // 261 x 17
         const passwordAreaX1: number = 301;
         const passwordAreaY1: number = 279;
@@ -832,7 +756,7 @@ export default abstract class GameShell {
         return !this.ingame && this.getTitleScreenState() === 2 && this.mouseX >= passwordAreaX1 && this.mouseX <= passwordAreaX2 && this.mouseY >= passwordAreaY1 && this.mouseY <= passwordAreaY2;
     };
 
-    private rotate = (direction: number): void => {
+    private rotate(direction: number) {
         if (direction === 0) {
             this.onkeyup(new KeyboardEvent('keyup', { key: 'ArrowRight', code: 'ArrowRight' }));
             this.onkeydown(new KeyboardEvent('keydown', { key: 'ArrowLeft', code: 'ArrowLeft' }));
@@ -848,11 +772,11 @@ export default abstract class GameShell {
         }
     };
 
-    private isFullScreen = (): boolean => {
+    private isFullScreen() {
         return document.fullscreenElement !== null;
     };
 
-    private setMousePosition = (e: MouseEvent): void => {
+    private setMousePosition(e: MouseEvent) {
         const fixedWidth: number = 789;
         const fixedHeight: number = 532;
 
@@ -887,7 +811,7 @@ export default abstract class GameShell {
         }
     };
 
-    private mapCoord = (v: number, n1: number, n2: number, m1: number, m2: number): number => {
+    private mapCoord(v: number, n1: number, n2: number, m1: number, m2: number) {
         return ((v - n1) * (m2 - m1)) / (n2 - n1) + m1;
     };
 }

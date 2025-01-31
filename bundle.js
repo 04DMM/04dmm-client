@@ -195,9 +195,9 @@ function replaceDepsUrl(source) {
     return source.replaceAll('#3rdparty', '.');
 }
 
-const deps = await depsBuild('./src/3rdparty/deps.js');
-fs.writeFileSync('out/deps.js', deps.source);
-// fs.writeFileSync('out/deps.js.map', deps.sourcemap);
+if (!fs.existsSync('out')) {
+    fs.mkdirSync('out');
+}
 
 const args = process.argv.slice(2);
 
@@ -211,6 +211,10 @@ if (args[0] === 'prod') {
         build = prodBuild;
     }
 }
+
+const deps = await depsBuild('./src/3rdparty/deps.js');
+fs.writeFileSync('out/deps.js', deps.source);
+// fs.writeFileSync('out/deps.js.map', deps.sourcemap);
 
 const client = await build('./src/client/Client.ts');
 fs.writeFileSync('out/client.js', replaceDepsUrl(client.source));

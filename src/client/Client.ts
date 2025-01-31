@@ -719,7 +719,7 @@ export class Client extends GameShell {
 
             canvas2d.fillText('Error - unable to load game!', 50, 50);
             canvas2d.fillText('To play RuneScape make sure you play from', 50, 100);
-            canvas2d.fillText('https://2004scape.org', 50, 150);
+            canvas2d.fillText('an approved domain', 50, 150);
         }
 
         if (this.errorStarted) {

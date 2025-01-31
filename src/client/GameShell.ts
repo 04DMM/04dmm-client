@@ -1,11 +1,11 @@
-import { CanvasEnabledKeys, KeyCodes } from '#/client/KeyCodes.js';
-import InputTracking from '#/client/InputTracking.js';
-
 import { canvas, canvas2d } from '#/graphics/Canvas.js';
 import Pix3D from '#/graphics/Pix3D.js';
 import PixMap from '#/graphics/PixMap.js';
 
 import { sleep } from '#/util/JsUtil.js';
+
+import { CanvasEnabledKeys, KeyCodes } from '#/client/KeyCodes.js';
+import InputTracking from '#/client/InputTracking.js';
 
 export default abstract class GameShell {
     protected slowestMS: number = 0.0; // custom

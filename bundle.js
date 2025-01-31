@@ -39,6 +39,7 @@ async function prodBuild(entry) {
 async function uglifyProdBuild(entry) {
     const build = await Bun.build({
         entrypoints: [entry],
+        sourcemap: 'external',
         drop: ['console'],
         define,
         external: ['#3rdparty/*']
@@ -50,18 +51,26 @@ async function uglifyProdBuild(entry) {
     }
 
     const source = await build.outputs[0].text();
+    const sourcemap = await build.outputs[0].sourcemap.text();
+
     const ugly = uglify.minify(source, {
-        toplevel: true,
         compress: {
             module: true,
+            unsafe: true,
+            toplevel: true
         },
         mangle: {
             reserved: [
                 // entry point
                 'Client'
             ],
-            properties: true
-        }
+            eval: true,
+            toplevel: true
+        },
+        sourceMap: {
+            content: sourcemap
+        },
+        toplevel: true
     });
 
     if (ugly.error) {
@@ -71,7 +80,7 @@ async function uglifyProdBuild(entry) {
 
     return {
         source: ugly.code,
-        sourcemap: '' // todo
+        sourcemap: ugly.map
     };
 }
 
@@ -160,9 +169,24 @@ async function depsBuild(entry) {
     const source = await build.outputs[0].text();
     const sourcemap = await build.outputs[0].sourcemap.text();
 
+    const ugly = uglify.minify(source, {
+        compress: {
+            module: true
+        },
+        sourceMap: {
+            content: sourcemap
+        },
+        toplevel: true
+    });
+
+    if (ugly.error) {
+        console.error(ugly.error.message);
+        process.exit(1);
+    }
+
     return {
-        source,
-        sourcemap
+        source: ugly.code,
+        sourcemap: ugly.map
     };
 }
 

@@ -546,7 +546,7 @@ export class Client extends GameShell {
     protected midiSize: number = 0;
     protected midiVolume: number = 32;
 
-    protected displayFps: boolean = true;
+    protected displayFps: boolean = false;
 
     constructor(nodeid: number, lowmem: boolean, members: boolean) {
         super();
@@ -5306,10 +5306,10 @@ export class Client extends GameShell {
                         if ((key === 13 || key === 10) && this.chatTyped.length > 0) {
                             if (this.chatTyped.startsWith('::')) {
                                 if (this.chatTyped === '::fpson') {
-                                    // authentic
+                                    // authentic in later revs
                                     this.displayFps = true;
                                 } else if (this.chatTyped === '::fpsoff') {
-                                    // authentic
+                                    // authentic in later revs
                                     this.displayFps = false;
                                 } else if (this.chatTyped.startsWith("::fps ")) {
                                     // custom ::fps command for setting a target framerate

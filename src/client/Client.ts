@@ -79,37 +79,44 @@ async function uniqueDeviceId(): str {
         return hash;
     }
 
-    let hash = 0;
+    let hash = 1337;
 
     // create a hash based on physical characteristics of the machine
 
-    // https://developer.mozilla.org/en-US/docs/Web/API/Navigator
-    hash = hashCode(navigator.platform, hash);
-    hash = hashCode(navigator.hardwareConcurrency.toString(), hash);
-    hash = hashCode(navigator.deviceMemory.toString(), hash);
-    hash = hashCode(navigator.language.toString(), hash);
-    // https://developer.mozilla.org/en-US/docs/Web/API/Screen
-    hash = hashCode(screen.width.toString(), hash);
-    hash = hashCode(screen.height.toString(), hash);
-
-    // try to include GPU based metrics; this may fail on some platforms
-    // https://developer.mozilla.org/en-US/docs/Web/API/Navigator/gpu
     try {
-        if (typeof navigator['gpu' as keyof Navigator] !== 'undefined') {
-            const gpu = navigator['gpu' as keyof Navigator] as any;
-            const adapter = await gpu.requestAdapter();
-
-            hash = hashCode(adapter.info.vendor, hash);
-            hash = hashCode(adapter.info.architecture, hash);
-            hash = hashCode(adapter.info.device, hash);
-            hash = hashCode(adapter.info.description, hash);
-
-            for (const index in adapter.limits) {
-                hash = hashCode(adapter.limits[index].toString(), hash);
-            }
+        // https://developer.mozilla.org/en-US/docs/Web/API/Navigator
+        hash = hashCode(navigator.platform, hash);
+        hash = hashCode(navigator.hardwareConcurrency.toString(), hash);
+        if (typeof navigator['deviceMemory' as keyof Navigator] !== 'undefined') {
+            const deviceMemory = navigator['deviceMemory' as keyof Navigator] as any;
+            hash = hashCode(deviceMemory.toString(), hash);
         }
-    } catch (error) {
-        // GPU hashing failed
+        hash = hashCode(navigator.language.toString(), hash);
+        // https://developer.mozilla.org/en-US/docs/Web/API/Screen
+        hash = hashCode(screen.width.toString(), hash);
+        hash = hashCode(screen.height.toString(), hash);
+
+        // try to include GPU based metrics; this may fail on some platforms
+        // https://developer.mozilla.org/en-US/docs/Web/API/Navigator/gpu
+        try {
+            if (typeof navigator['gpu' as keyof Navigator] !== 'undefined') {
+                const gpu = navigator['gpu' as keyof Navigator] as any;
+                const adapter = await gpu.requestAdapter();
+
+                hash = hashCode(adapter.info.vendor, hash);
+                hash = hashCode(adapter.info.architecture, hash);
+                hash = hashCode(adapter.info.device, hash);
+                hash = hashCode(adapter.info.description, hash);
+
+                for (const index in adapter.limits) {
+                    hash = hashCode(adapter.limits[index].toString(), hash);
+                }
+            }
+        } catch (error) {
+            // GPU hashing failed
+        }
+    } catch (err) {
+        console.error(err);
     }
 
     return hash;

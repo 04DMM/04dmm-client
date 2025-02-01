@@ -66,8 +66,8 @@ import WordPack from '#/wordenc/WordPack.js';
 
 import Wave from '#/sound/Wave.js';
 
-async function uniqueDeviceId(): str {
-    function hashCode(str: string, hash: number = 0): str {
+async function uniqueDeviceId() {
+    function hashCode(str: string, hash: number = 0) {
         let chr;
 
         for (let i = 0; i < str.length; i++) {
@@ -87,10 +87,6 @@ async function uniqueDeviceId(): str {
         // https://developer.mozilla.org/en-US/docs/Web/API/Navigator
         hash = hashCode(navigator.platform, hash);
         hash = hashCode(navigator.hardwareConcurrency.toString(), hash);
-        if (typeof navigator['deviceMemory' as keyof Navigator] !== 'undefined') {
-            const deviceMemory = navigator['deviceMemory' as keyof Navigator] as any;
-            hash = hashCode(deviceMemory.toString(), hash);
-        }
         hash = hashCode(navigator.language.toString(), hash);
         // https://developer.mozilla.org/en-US/docs/Web/API/Screen
         hash = hashCode(screen.width.toString(), hash);

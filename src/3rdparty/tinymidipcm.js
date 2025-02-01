@@ -302,13 +302,13 @@ class TinyMidiPCM {
 
 export function playMidi(data, vol, fade) {
     if (window._tinyMidiPlay) {
-        window._tinyMidiPlay(data, vol / 256, fade);
+        window._tinyMidiPlay(data, vol / 128, fade);
     }
 }
 
 export function setMidiVolume(vol) {
     if (window._tinyMidiVolume) {
-        window._tinyMidiVolume(vol / 256);
+        window._tinyMidiVolume(vol / 128);
     }
 }
 

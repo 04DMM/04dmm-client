@@ -65,7 +65,8 @@ async function uglifyProdBuild(entry) {
                 'Client'
             ],
             eval: true,
-            toplevel: true
+            toplevel: true,
+            properties: true
         },
         sourceMap: {
             content: sourcemap

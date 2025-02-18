@@ -212,7 +212,7 @@ class WebSocketReader {
                     } else {
                         reject(new Error('No data received within 2 seconds.'));
                     }
-                }, 2000);
+                }, 20000);
             }),
         ]);
     }

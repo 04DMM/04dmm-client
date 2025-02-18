@@ -52,7 +52,7 @@ export default class InputTracking {
         }
         this.lastTime = now;
         this.ensureCapacity(5);
-        if (button === 1) {
+        if (button === 2) {
             this.outBuffer?.p1(1);
         } else {
             this.outBuffer?.p1(2);
@@ -73,7 +73,7 @@ export default class InputTracking {
         }
         this.lastTime = now;
         this.ensureCapacity(2);
-        if (button === 1) {
+        if (button === 2) {
             this.outBuffer?.p1(3);
         } else {
             this.outBuffer?.p1(4);

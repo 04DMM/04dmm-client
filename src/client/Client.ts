@@ -2820,7 +2820,7 @@ export class Client extends GameShell {
                         loc.unlink();
                     }
                 }
-            } else if (loc.lastLocIndex < 0) {
+            } else {
                 this.addLoc(loc.plane, loc.x, loc.z, loc.lastLocIndex, loc.lastAngle, loc.lastShape, loc.layer);
                 loc.unlink();
             }

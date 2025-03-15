@@ -4,18 +4,18 @@ import Jagfile from '#/io/Jagfile.js';
 import Packet from '#/io/Packet.js';
 
 export default class FloType extends ConfigType {
-    static count: number = 0;
+    static totalCount: number = 0;
     static instances: FloType[] = [];
 
-    static unpack = (config: Jagfile): void => {
+    static unpack(config: Jagfile): void {
         const dat: Packet = new Packet(config.read('flo.dat'));
-        this.count = dat.g2;
-        for (let i: number = 0; i < this.count; i++) {
-            this.instances[i] = new FloType(i).decodeType(dat);
+        this.totalCount = dat.g2();
+        for (let i: number = 0; i < this.totalCount; i++) {
+            this.instances[i] = new FloType(i).unpackType(dat);
         }
-    };
+    }
 
-    static hsl24to16 = (hue: number, saturation: number, lightness: number): number => {
+    static hsl24to16(hue: number, saturation: number, lightness: number): number {
         if (lightness > 179) {
             saturation = (saturation / 2) | 0;
         }
@@ -29,9 +29,9 @@ export default class FloType extends ConfigType {
             saturation = (saturation / 2) | 0;
         }
         return (((hue / 4) | 0) << 10) + (((saturation / 32) | 0) << 7) + ((lightness / 2) | 0);
-    };
+    }
 
-    static mulHSL = (hsl: number, lightness: number): number => {
+    static mulHSL(hsl: number, lightness: number): number {
         if (hsl === -1) {
             return 12345678;
         }
@@ -42,9 +42,9 @@ export default class FloType extends ConfigType {
             lightness = 126;
         }
         return (hsl & 0xff80) + lightness;
-    };
+    }
 
-    static adjustLightness = (hsl: number, scalar: number): number => {
+    static adjustLightness(hsl: number, scalar: number): number {
         if (hsl === -2) {
             return 12345678;
         }
@@ -65,12 +65,11 @@ export default class FloType extends ConfigType {
             }
             return (hsl & 0xff80) + scalar;
         }
-    };
+    }
 
     // ----
-
     rgb: number = 0;
-    texture: number = -1;
+    overlayTexture: number = -1;
     opcode3: boolean = false;
     occlude: boolean = true;
 
@@ -82,18 +81,18 @@ export default class FloType extends ConfigType {
     chroma: number = 0;
     hsl: number = 0;
 
-    decode(code: number, dat: Packet): void {
+    unpack(code: number, dat: Packet): void {
         if (code === 1) {
-            this.rgb = dat.g3;
+            this.rgb = dat.g3();
             this.setColor(this.rgb);
         } else if (code === 2) {
-            this.texture = dat.g1;
+            this.overlayTexture = dat.g1();
         } else if (code === 3) {
             this.opcode3 = true;
         } else if (code === 5) {
             this.occlude = false;
         } else if (code === 6) {
-            this.debugname = dat.gjstr;
+            this.debugname = dat.gjstr();
         } else {
             console.log('Error unrecognised config code: ', code);
         }

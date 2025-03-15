@@ -13,12 +13,12 @@ export default class WordPack {
 
     private static charBuffer: string[] = [];
 
-    static unpack = (word: Packet, length: number): string => {
+    static unpack(word: Packet, length: number): string {
         let pos: number = 0;
         let carry: number = -1;
         let nibble: number;
         for (let index: number = 0; index < length && pos < 100; index++) {
-            const value: number = word.g1;
+            const value: number = word.g1();
             nibble = (value >> 4) & 0xf;
             if (carry !== -1) {
                 this.charBuffer[pos++] = this.TABLE[(carry << 4) + nibble - 195];
@@ -50,9 +50,9 @@ export default class WordPack {
             }
         }
         return this.charBuffer.slice(0, pos).join('');
-    };
+    }
 
-    static pack = (word: Packet, str: string): void => {
+    static pack(word: Packet, str: string): void {
         if (str.length > 80) {
             str = str.substring(0, 80);
         }
@@ -87,5 +87,5 @@ export default class WordPack {
         if (carry !== -1) {
             word.p1(carry << 4);
         }
-    };
+    }
 }

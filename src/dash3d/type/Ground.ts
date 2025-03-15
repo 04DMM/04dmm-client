@@ -12,7 +12,7 @@ import { TypedArray1d } from '#/util/Arrays.js';
 
 export default class Ground extends Linkable {
     // constructor
-    level: number;
+    groundLevel: number;
     readonly x: number;
     readonly z: number;
     readonly occludeLevel: number;
@@ -30,7 +30,7 @@ export default class Ground extends Linkable {
     locCount: number = 0;
     locSpans: number = 0;
     drawLevel: number = 0;
-    visible: boolean = false;
+    groundVisible: boolean = false;
     update: boolean = false;
     containsLocs: boolean = false;
     checkLocSpans: number = 0;
@@ -40,7 +40,7 @@ export default class Ground extends Linkable {
 
     constructor(level: number, x: number, z: number) {
         super();
-        this.occludeLevel = this.level = level;
+        this.occludeLevel = this.groundLevel = level;
         this.x = x;
         this.z = z;
         this.locs = new TypedArray1d(5, null);

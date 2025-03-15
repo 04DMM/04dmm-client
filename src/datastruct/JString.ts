@@ -7,7 +7,7 @@ export default class JString {
         '0', '1', '2', '3', '4', '5', '6', '7', '8', '9'
     ];
 
-    static toBase37 = (string: string): bigint => {
+    static toBase37(string: string): bigint {
         string = string.trim();
         let l: bigint = 0n;
 
@@ -28,9 +28,9 @@ export default class JString {
         }
 
         return l;
-    };
+    }
 
-    static fromBase37 = (value: bigint): string => {
+    static fromBase37(value: bigint): string {
         // >= 37 to the 12th power
         if (value < 0n || value >= 6582952005840035281n) {
             return 'invalid_name';
@@ -49,9 +49,9 @@ export default class JString {
         }
 
         return chars.slice(12 - len).join('');
-    };
+    }
 
-    static toSentenceCase = (input: string): string => {
+    static toSentenceCase(input: string): string {
         const chars: string[] = [...input.toLowerCase()];
         let punctuation: boolean = true;
         for (let index: number = 0; index < chars.length; index++) {
@@ -65,21 +65,21 @@ export default class JString {
             }
         }
         return chars.join('');
-    };
+    }
 
-    static toAsterisks = (str: string): string => {
+    static toAsterisks(str: string): string {
         let temp: string = '';
         for (let i: number = 0; i < str.length; i++) {
             temp = temp + '*';
         }
         return temp;
-    };
+    }
 
-    static formatIPv4 = (ip: number): string => {
+    static formatIPv4(ip: number): string {
         return ((ip >> 24) & 0xff) + '.' + ((ip >> 16) & 0xff) + '.' + ((ip >> 8) & 0xff) + '.' + (ip & 0xff);
-    };
+    }
 
-    static formatName = (str: string): string => {
+    static formatName(str: string): string {
         if (str.length === 0) {
             return str;
         }
@@ -100,9 +100,9 @@ export default class JString {
         }
 
         return chars.join('');
-    };
+    }
 
-    static hashCode = (str: string): bigint => {
+    static hashCode(str: string): bigint {
         const upper: string = str.toUpperCase();
         let hash: bigint = 0n;
 
@@ -112,5 +112,5 @@ export default class JString {
         }
 
         return hash;
-    };
+    }
 }

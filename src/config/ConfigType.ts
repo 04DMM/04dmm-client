@@ -8,16 +8,16 @@ export abstract class ConfigType {
         this.id = id;
     }
 
-    abstract decode(code: number, dat: Packet): void;
+    abstract unpack(code: number, dat: Packet): void;
 
-    decodeType(dat: Packet): this {
+    unpackType(dat: Packet): this {
         // eslint-disable-next-line no-constant-condition
         while (true) {
-            const opcode: number = dat.g1;
+            const opcode: number = dat.g1();
             if (opcode === 0) {
                 break;
             }
-            this.decode(opcode, dat);
+            this.unpack(opcode, dat);
         }
         return this;
     }

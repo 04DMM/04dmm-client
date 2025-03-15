@@ -1,6 +1,6 @@
 import { jpeg2d, jpegCanvas, jpegImg } from '#/graphics/Canvas.js';
 
-export const decodeJpeg = async (data: Uint8Array): Promise<ImageData> => {
+export async function decodeJpeg(data: Uint8Array): Promise<ImageData> {
     if (data[0] !== 0xff) {
         // fix invalid JPEG header
         data[0] = 0xff;
@@ -23,4 +23,4 @@ export const decodeJpeg = async (data: Uint8Array): Promise<ImageData> => {
     // Draw the image
     jpeg2d.drawImage(jpegImg, 0, 0);
     return jpeg2d.getImageData(0, 0, width, height);
-};
+}

@@ -5,7 +5,7 @@ import LruCache from '#/datastruct/LruCache.js';
 import Jagfile from '#/io/Jagfile.js';
 import Packet from '#/io/Packet.js';
 
-import Colors from '#/graphics/Colors.js';
+import { Colors } from '#/graphics/Colors.js';
 import Pix2D from '#/graphics/Pix2D.js';
 import Pix3D from '#/graphics/Pix3D.js';
 import Model from '#/graphics/Model.js';
@@ -14,8 +14,8 @@ import Pix24 from '#/graphics/Pix24.js';
 import { TypedArray1d } from '#/util/Arrays.js';
 
 export default class ObjType extends ConfigType {
-    static count: number = 0;
-    static cache: (ObjType | null)[] | null = null;
+    static totalCount: number = 0;
+    static typeCache: (ObjType | null)[] | null = null;
     static dat: Packet | null = null;
     static offsets: Int32Array | null = null;
     static cachePos: number = 0;
@@ -23,33 +23,33 @@ export default class ObjType extends ConfigType {
     static modelCache: LruCache | null = new LruCache(50);
     static iconCache: LruCache | null = new LruCache(200);
 
-    static unpack = (config: Jagfile, members: boolean): void => {
+    static unpack(config: Jagfile, members: boolean): void {
         this.membersWorld = members;
         this.dat = new Packet(config.read('obj.dat'));
         const idx: Packet = new Packet(config.read('obj.idx'));
 
-        this.count = idx.g2;
-        this.offsets = new Int32Array(this.count);
+        this.totalCount = idx.g2();
+        this.offsets = new Int32Array(this.totalCount);
 
         let offset: number = 2;
-        for (let id: number = 0; id < this.count; id++) {
+        for (let id: number = 0; id < this.totalCount; id++) {
             this.offsets[id] = offset;
-            offset += idx.g2;
+            offset += idx.g2();
         }
 
-        this.cache = new TypedArray1d(10, null);
+        this.typeCache = new TypedArray1d(10, null);
         for (let id: number = 0; id < 10; id++) {
-            this.cache[id] = new ObjType(-1);
+            this.typeCache[id] = new ObjType(-1);
         }
-    };
+    }
 
-    static get = (id: number): ObjType => {
-        if (!this.cache || !this.offsets || !this.dat) {
-            throw new Error('ObjType not loaded!!!');
+    static get(id: number): ObjType {
+        if (!this.typeCache || !this.offsets || !this.dat) {
+            throw new Error();
         }
 
         for (let i: number = 0; i < 10; i++) {
-            const type: ObjType | null = this.cache[i];
+            const type: ObjType | null = this.typeCache[i];
             if (!type) {
                 continue;
             }
@@ -59,11 +59,11 @@ export default class ObjType extends ConfigType {
         }
 
         this.cachePos = (this.cachePos + 1) % 10;
-        const obj: ObjType = this.cache[this.cachePos]!;
+        const obj: ObjType = this.typeCache[this.cachePos]!;
         this.dat.pos = this.offsets[id];
         obj.id = id;
         obj.reset();
-        obj.decodeType(this.dat);
+        obj.unpackType(this.dat);
 
         if (obj.certtemplate !== -1) {
             obj.toCertificate();
@@ -77,9 +77,9 @@ export default class ObjType extends ConfigType {
         }
 
         return obj;
-    };
+    }
 
-    static getIcon = (id: number, count: number): Pix24 => {
+    static getIcon(id: number, count: number): Pix24 {
         if (ObjType.iconCache) {
             let icon: Pix24 | null = ObjType.iconCache.get(BigInt(id)) as Pix24 | null;
             if (icon && icon.cropH !== count && icon.cropH !== -1) {
@@ -125,7 +125,7 @@ export default class ObjType extends ConfigType {
 
         Pix3D.jagged = false;
         Pix2D.bind(icon.pixels, 32, 32);
-        Pix2D.fillRect(0, 0, 32, 32, Colors.BLACK);
+        Pix2D.fillRect2d(0, 0, 32, 32, Colors.BLACK);
         Pix3D.init2D();
 
         const iModel: Model = obj.getInterfaceModel(1);
@@ -186,7 +186,7 @@ export default class ObjType extends ConfigType {
         }
         icon.cropH = count;
         return icon;
-    };
+    }
 
     // ----
 
@@ -225,55 +225,55 @@ export default class ObjType extends ConfigType {
     certlink: number = -1;
     certtemplate: number = -1;
 
-    decode(code: number, dat: Packet): void {
+    unpack(code: number, dat: Packet): void {
         if (code === 1) {
-            this.model = dat.g2;
+            this.model = dat.g2();
         } else if (code === 2) {
-            this.name = dat.gjstr;
+            this.name = dat.gjstr();
         } else if (code === 3) {
-            this.desc = dat.gjstr;
+            this.desc = dat.gjstr();
         } else if (code === 4) {
-            this.zoom2d = dat.g2;
+            this.zoom2d = dat.g2();
         } else if (code === 5) {
-            this.xan2d = dat.g2;
+            this.xan2d = dat.g2();
         } else if (code === 6) {
-            this.yan2d = dat.g2;
+            this.yan2d = dat.g2();
         } else if (code === 7) {
-            this.xof2d = dat.g2b;
+            this.xof2d = dat.g2b();
             if (this.xof2d > 32767) {
                 this.xof2d -= 65536;
             }
         } else if (code === 8) {
-            this.yof2d = dat.g2b;
+            this.yof2d = dat.g2b();
             if (this.yof2d > 32767) {
                 this.yof2d -= 65536;
             }
         } else if (code === 9) {
             this.code9 = true;
         } else if (code === 10) {
-            this.code10 = dat.g2;
+            this.code10 = dat.g2();
         } else if (code === 11) {
             this.stackable = true;
         } else if (code === 12) {
-            this.cost = dat.g4;
+            this.cost = dat.g4();
         } else if (code === 16) {
             this.members = true;
         } else if (code === 23) {
-            this.manwear = dat.g2;
-            this.manwearOffsetY = dat.g1b;
+            this.manwear = dat.g2();
+            this.manwearOffsetY = dat.g1b();
         } else if (code === 24) {
-            this.manwear2 = dat.g2;
+            this.manwear2 = dat.g2();
         } else if (code === 25) {
-            this.womanwear = dat.g2;
-            this.womanwearOffsetY = dat.g1b;
+            this.womanwear = dat.g2();
+            this.womanwearOffsetY = dat.g1b();
         } else if (code === 26) {
-            this.womanwear2 = dat.g2;
+            this.womanwear2 = dat.g2();
         } else if (code >= 30 && code < 35) {
             if (!this.op) {
                 this.op = new TypedArray1d(5, null);
             }
 
-            this.op[code - 30] = dat.gjstr;
+            this.op[code - 30] = dat.gjstr();
             if (this.op[code - 30]?.toLowerCase() === 'hidden') {
                 this.op[code - 30] = null;
             }
@@ -281,42 +281,42 @@ export default class ObjType extends ConfigType {
             if (!this.iop) {
                 this.iop = new TypedArray1d(5, null);
             }
-            this.iop[code - 35] = dat.gjstr;
+            this.iop[code - 35] = dat.gjstr();
         } else if (code === 40) {
-            const count: number = dat.g1;
+            const count: number = dat.g1();
             this.recol_s = new Uint16Array(count);
             this.recol_d = new Uint16Array(count);
 
             for (let i: number = 0; i < count; i++) {
-                this.recol_s[i] = dat.g2;
-                this.recol_d[i] = dat.g2;
+                this.recol_s[i] = dat.g2();
+                this.recol_d[i] = dat.g2();
             }
         } else if (code === 78) {
-            this.manwear3 = dat.g2;
+            this.manwear3 = dat.g2();
         } else if (code === 79) {
-            this.womanwear3 = dat.g2;
+            this.womanwear3 = dat.g2();
         } else if (code === 90) {
-            this.manhead = dat.g2;
+            this.manhead = dat.g2();
         } else if (code === 91) {
-            this.womanhead = dat.g2;
+            this.womanhead = dat.g2();
         } else if (code === 92) {
-            this.manhead2 = dat.g2;
+            this.manhead2 = dat.g2();
         } else if (code === 93) {
-            this.womanhead2 = dat.g2;
+            this.womanhead2 = dat.g2();
         } else if (code === 95) {
-            this.zan2d = dat.g2;
+            this.zan2d = dat.g2();
         } else if (code === 97) {
-            this.certlink = dat.g2;
+            this.certlink = dat.g2();
         } else if (code === 98) {
-            this.certtemplate = dat.g2;
+            this.certtemplate = dat.g2();
         } else if (code >= 100 && code < 110) {
             if (!this.countobj || !this.countco) {
                 this.countobj = new Uint16Array(10);
                 this.countco = new Uint16Array(10);
             }
 
-            this.countobj[code - 100] = dat.g2;
-            this.countco[code - 100] = dat.g2;
+            this.countobj[code - 100] = dat.g2();
+            this.countco[code - 100] = dat.g2();
         }
     }
 
@@ -352,11 +352,11 @@ export default class ObjType extends ConfigType {
         }
 
         if (gender === 0 && this.manwearOffsetY !== 0) {
-            model.translate(this.manwearOffsetY, 0, 0);
+            model.translateModel(this.manwearOffsetY, 0, 0);
         }
 
         if (gender === 1 && this.womanwearOffsetY !== 0) {
-            model.translate(this.womanwearOffsetY, 0, 0);
+            model.translateModel(this.womanwearOffsetY, 0, 0);
         }
 
         if (this.recol_s && this.recol_d) {

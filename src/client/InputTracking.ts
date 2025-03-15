@@ -1,7 +1,7 @@
 import Packet from '#/io/Packet.js';
 
 export default class InputTracking {
-    static enabled: boolean = false;
+    static trackingActive: boolean = false;
     static outBuffer: Packet | null = null;
     static oldBuffer: Packet | null = null;
     static lastTime: number = 0;
@@ -10,38 +10,38 @@ export default class InputTracking {
     static lastX: number = 0;
     static lastY: number = 0;
 
-    static setEnabled = (): void => {
+    static setEnabled(): void {
         this.outBuffer = Packet.alloc(1);
         this.oldBuffer = null;
         this.lastTime = performance.now();
-        this.enabled = true;
-    };
+        this.trackingActive = true;
+    }
 
-    static setDisabled = (): void => {
-        this.enabled = false;
+    static setDisabled(): void {
+        this.trackingActive = false;
         this.outBuffer = null;
-    };
+    }
 
-    static flush = (): Packet | null => {
+    static flush(): Packet | null {
         let buffer: Packet | null = null;
-        if (this.oldBuffer && this.enabled) {
+        if (this.oldBuffer && this.trackingActive) {
             buffer = this.oldBuffer;
         }
         this.oldBuffer = null;
         return buffer;
-    };
+    }
 
-    static stop = (): Packet | null => {
+    static stop(): Packet | null {
         let buffer: Packet | null = null;
-        if (this.outBuffer && this.outBuffer.pos > 0 && this.enabled) {
+        if (this.outBuffer && this.outBuffer.pos > 0 && this.trackingActive) {
             buffer = this.outBuffer;
         }
         this.setDisabled();
         return buffer;
-    };
+    }
 
-    static mousePressed = (x: number, y: number, button: number): void => {
-        if (!(this.enabled && x >= 0 && x < 789 && y >= 0 && y < 532)) {
+    static mousePressed(x: number, y: number, button: number): void {
+        if (!(this.trackingActive && x >= 0 && x < 789 && y >= 0 && y < 532)) {
             return;
         }
         this.trackedCount++;
@@ -59,10 +59,10 @@ export default class InputTracking {
         }
         this.outBuffer?.p1(delta);
         this.outBuffer?.p3(x + (y << 10));
-    };
+    }
 
-    static mouseReleased = (button: number): void => {
-        if (!this.enabled) {
+    static mouseReleased(button: number): void {
+        if (!this.trackingActive) {
             return;
         }
         this.trackedCount++;
@@ -79,10 +79,10 @@ export default class InputTracking {
             this.outBuffer?.p1(4);
         }
         this.outBuffer?.p1(delta);
-    };
+    }
 
-    static mouseMoved = (x: number, y: number): void => {
-        if (!(this.enabled && x >= 0 && x < 789 && y >= 0 && y < 532)) {
+    static mouseMoved(x: number, y: number): void {
+        if (!(this.trackingActive && x >= 0 && x < 789 && y >= 0 && y < 532)) {
             return;
         }
         const now: number = performance.now();
@@ -117,10 +117,10 @@ export default class InputTracking {
             this.lastX = x;
             this.lastY = y;
         }
-    };
+    }
 
-    static keyPressed = (key: number): void => {
-        if (!this.enabled) {
+    static keyPressed(key: number): void {
+        if (!this.trackingActive) {
             return;
         }
         this.trackedCount++;
@@ -145,10 +145,10 @@ export default class InputTracking {
         this.outBuffer?.p1(8);
         this.outBuffer?.p1(delta);
         this.outBuffer?.p1(key);
-    };
+    }
 
-    static keyReleased = (key: number): void => {
-        if (!this.enabled) {
+    static keyReleased(key: number): void {
+        if (!this.trackingActive) {
             return;
         }
         this.trackedCount++;
@@ -173,10 +173,10 @@ export default class InputTracking {
         this.outBuffer?.p1(9);
         this.outBuffer?.p1(delta);
         this.outBuffer?.p1(key);
-    };
+    }
 
-    static focusGained = (): void => {
-        if (!this.enabled) {
+    static focusGained(): void {
+        if (!this.trackingActive) {
             return;
         }
         this.trackedCount++;
@@ -189,10 +189,10 @@ export default class InputTracking {
         this.ensureCapacity(2);
         this.outBuffer?.p1(10);
         this.outBuffer?.p1(delta);
-    };
+    }
 
-    static focusLost = (): void => {
-        if (!this.enabled) {
+    static focusLost(): void {
+        if (!this.trackingActive) {
             return;
         }
         this.trackedCount++;
@@ -205,10 +205,10 @@ export default class InputTracking {
         this.ensureCapacity(2);
         this.outBuffer?.p1(11);
         this.outBuffer?.p1(delta);
-    };
+    }
 
-    static mouseEntered = (): void => {
-        if (!this.enabled) {
+    static mouseEntered(): void {
+        if (!this.trackingActive) {
             return;
         }
         this.trackedCount++;
@@ -221,10 +221,10 @@ export default class InputTracking {
         this.ensureCapacity(2);
         this.outBuffer?.p1(12);
         this.outBuffer?.p1(delta);
-    };
+    }
 
-    static mouseExited = (): void => {
-        if (!this.enabled) {
+    static mouseExited(): void {
+        if (!this.trackingActive) {
             return;
         }
         this.trackedCount++;
@@ -237,9 +237,9 @@ export default class InputTracking {
         this.ensureCapacity(2);
         this.outBuffer?.p1(13);
         this.outBuffer?.p1(delta);
-    };
+    }
 
-    private static ensureCapacity = (n: number): void => {
+    private static ensureCapacity(n: number): void {
         if (!this.outBuffer) {
             return;
         }
@@ -248,5 +248,5 @@ export default class InputTracking {
             this.outBuffer = Packet.alloc(1);
             this.oldBuffer = buffer;
         }
-    };
+    }
 }

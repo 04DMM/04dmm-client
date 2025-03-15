@@ -1,6 +1,6 @@
-export default class LocLayer {
-    static readonly WALL: number = 0;
-    static readonly WALL_DECOR: number = 1;
-    static readonly GROUND: number = 2;
-    static readonly GROUND_DECOR: number = 3;
+export const enum LocLayer {
+    WALL = 0,
+    WALL_DECOR = 1,
+    GROUND = 2,
+    GROUND_DECOR = 3
 }

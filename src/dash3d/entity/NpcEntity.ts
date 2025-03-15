@@ -6,19 +6,21 @@ import PathingEntity from '#/dash3d/entity/PathingEntity.js';
 
 import Model from '#/graphics/Model.js';
 
-export default class NpcEntity extends PathingEntity {
-    static readonly ANIM: number = 0x2;
-    static readonly FACE_ENTITY: number = 0x4;
-    static readonly SAY: number = 0x8;
-    static readonly DAMAGE: number = 0x10;
-    static readonly CHANGE_TYPE: number = 0x20;
-    static readonly SPOTANIM: number = 0x40;
-    static readonly FACE_COORD: number = 0x80;
+export const enum NpcUpdate {
+    ANIM = 0x2,
+    FACE_ENTITY = 0x4,
+    SAY = 0x8,
+    DAMAGE = 0x10,
+    CHANGE_TYPE = 0x20,
+    SPOTANIM = 0x40,
+    FACE_COORD = 0x80
+}
 
-    type: NpcType | null = null;
+export default class NpcEntity extends PathingEntity {
+    npcType: NpcType | null = null;
 
     draw(_loopCycle: number): Model | null {
-        if (!this.type) {
+        if (!this.npcType) {
             return null;
         }
 
@@ -33,10 +35,10 @@ export default class NpcEntity extends PathingEntity {
         const spotanim: SpotAnimType = SpotAnimType.instances[this.spotanimId];
 
         const model1: Model = Model.modelShareColored(spotanim.getModel(), true, !spotanim.disposeAlpha, false);
-        model1.translate(-this.spotanimOffset, 0, 0);
+        model1.translateModel(-this.spotanimOffset, 0, 0);
         model1.createLabelReferences();
-        if (spotanim.seq && spotanim.seq.frames) {
-            model1.applyTransform(spotanim.seq.frames[this.spotanimFrame]);
+        if (spotanim.seq && spotanim.seq.seqFrames) {
+            model1.applyTransform(spotanim.seq.seqFrames[this.spotanimFrame]);
         }
         model1.labelFaces = null;
         model1.labelVertices = null;
@@ -49,49 +51,49 @@ export default class NpcEntity extends PathingEntity {
         const models: Model[] = [model, model1];
 
         const tmp: Model = Model.modelFromModelsBounds(models, 2);
-        if (this.type.size === 1) {
+        if (this.npcType.size === 1) {
             tmp.pickable = true;
         }
 
         return tmp;
     }
 
-    isVisible(): boolean {
-        return this.type !== null;
+    isVisibleNow(): boolean {
+        return this.npcType !== null;
     }
 
     private getSequencedModel(): Model | null {
-        if (!this.type) {
+        if (!this.npcType) {
             return null;
         }
         if (this.primarySeqId >= 0 && this.primarySeqDelay === 0) {
-            const frames: Int16Array | null = SeqType.instances[this.primarySeqId].frames;
+            const frames: Int16Array | null = SeqType.instances[this.primarySeqId].seqFrames;
             if (frames) {
                 const primaryTransformId: number = frames[this.primarySeqFrame];
                 let secondaryTransformId: number = -1;
                 if (this.secondarySeqId >= 0 && this.secondarySeqId !== this.seqStandId) {
-                    const secondFrames: Int16Array | null = SeqType.instances[this.secondarySeqId].frames;
+                    const secondFrames: Int16Array | null = SeqType.instances[this.secondarySeqId].seqFrames;
                     if (secondFrames) {
                         secondaryTransformId = secondFrames[this.secondarySeqFrame];
                     }
                 }
-                return this.type.getSequencedModel(primaryTransformId, secondaryTransformId, SeqType.instances[this.primarySeqId].walkmerge);
+                return this.npcType.getSequencedModel(primaryTransformId, secondaryTransformId, SeqType.instances[this.primarySeqId].walkmerge);
             }
         }
 
         let transformId: number = -1;
         if (this.secondarySeqId >= 0) {
-            const secondFrames: Int16Array | null = SeqType.instances[this.secondarySeqId].frames;
+            const secondFrames: Int16Array | null = SeqType.instances[this.secondarySeqId].seqFrames;
             if (secondFrames) {
                 transformId = secondFrames[this.secondarySeqFrame];
             }
         }
 
-        const model: Model | null = this.type.getSequencedModel(transformId, -1, null);
+        const model: Model | null = this.npcType.getSequencedModel(transformId, -1, null);
         if (!model) {
             return null;
         }
-        this.height = model.maxY;
+        this.maxY = model.maxY;
         return model;
     }
 }

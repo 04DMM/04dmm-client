@@ -29,11 +29,11 @@ export default abstract class GameShell {
 
     protected idleCycles: number = Date.now();
     protected mouseButton: number = 0;
-    protected mouseX: number = 0;
-    protected mouseY: number = 0;
+    protected mouseX: number = -1;
+    protected mouseY: number = -1;
     protected mouseClickButton: number = 0;
-    protected mouseClickX: number = 0;
-    protected mouseClickY: number = 0;
+    protected mouseClickX: number = -1;
+    protected mouseClickY: number = -1;
     protected actionKey: number[] = [];
     protected keyQueue: number[] = [];
     protected keyQueueReadPos: number = 0;
@@ -52,6 +52,18 @@ export default abstract class GameShell {
     private nx: number = 0;
     private ny: number = 0;
 
+    abstract getTitleScreenState(): number;
+    abstract isChatBackInputOpen(): boolean;
+    abstract isShowSocialInput(): boolean;
+    abstract getChatInterfaceId(): number;
+    abstract getViewportInterfaceId(): number;
+    abstract getReportAbuseInterfaceId(): number; // custom: report abuse input on mobile
+
+    protected async load() {}
+    protected async update() {}
+    protected async draw() {}
+    protected async refresh() {}
+
     constructor(resizetoFit: boolean = false) {
         canvas.tabIndex = -1;
         canvas2d.fillStyle = 'black';
@@ -63,13 +75,6 @@ export default abstract class GameShell {
             this.resize(canvas.width, canvas.height);
         }
     }
-
-    abstract getTitleScreenState(): number;
-    abstract isChatBackInputOpen(): boolean;
-    abstract isShowSocialInput(): boolean;
-    abstract getChatInterfaceId(): number;
-    abstract getViewportInterfaceId(): number;
-    abstract getReportAbuseInterfaceId(): number;  // custom: report abuse input on mobile
 
     protected get width(): number {
         return canvas.width;
@@ -84,7 +89,7 @@ export default abstract class GameShell {
         canvas.height = height;
         this.drawArea = new PixMap(width, height);
         Pix3D.init2D();
-    };
+    }
 
     async run() {
         canvas.addEventListener(
@@ -222,39 +227,31 @@ export default abstract class GameShell {
 
     protected shutdown() {
         this.state = -2;
-    };
+    }
 
     protected setFramerate(rate: number) {
         this.deltime = (1000 / rate) | 0;
-    };
+    }
 
     protected setTargetedFramerate(rate: number) {
         this.tfps = Math.max(Math.min(50, rate | 0), 0);
-    };
+    }
 
     protected start() {
         if (this.state >= 0) {
             this.state = 0;
         }
-    };
+    }
 
     protected stop() {
         if (this.state >= 0) {
             this.state = (4000 / this.deltime) | 0;
         }
-    };
+    }
 
     protected destroy() {
         this.state = -1;
-    };
-
-    protected async load() {}
-
-    protected async update() {}
-
-    protected async draw() {}
-
-    protected async refresh() {}
+    }
 
     protected async showProgress(progress: number, message: string): Promise<void> {
         const width: number = this.width;
@@ -293,7 +290,7 @@ export default abstract class GameShell {
             this.keyQueueReadPos = (this.keyQueueReadPos + 1) & 0x7f;
         }
         return key;
-    };
+    }
 
     protected get ms(): number {
         const length: number = this.frameTime.length;
@@ -315,7 +312,6 @@ export default abstract class GameShell {
     }
 
     // ----
-
     private onkeydown(e: KeyboardEvent) {
         this.idleCycles = Date.now();
 
@@ -343,14 +339,14 @@ export default abstract class GameShell {
             this.keyQueueWritePos = (this.keyQueueWritePos + 1) & 0x7f;
         }
 
-        if (InputTracking.enabled) {
+        if (InputTracking.trackingActive) {
             InputTracking.keyPressed(ch);
         }
 
         if (!CanvasEnabledKeys.includes(e.key)) {
             e.preventDefault();
         }
-    };
+    }
 
     private onkeyup(e: KeyboardEvent) {
         this.idleCycles = Date.now();
@@ -374,14 +370,14 @@ export default abstract class GameShell {
             this.actionKey[ch] = 0;
         }
 
-        if (InputTracking.enabled) {
+        if (InputTracking.trackingActive) {
             InputTracking.keyReleased(ch);
         }
 
         if (!CanvasEnabledKeys.includes(e.key)) {
             e.preventDefault();
         }
-    };
+    }
 
     // todo: this.time prevents mice from working on mobile
     private onmousedown(e: MouseEvent) {
@@ -419,28 +415,28 @@ export default abstract class GameShell {
             }
         }
 
-        if (InputTracking.enabled) {
+        if (InputTracking.trackingActive) {
             InputTracking.mousePressed(this.mouseClickX, this.mouseClickY, e.button);
         }
-    };
+    }
 
     private onmouseup(e: MouseEvent) {
         this.setMousePosition(e);
         this.idleCycles = Date.now();
         this.mouseButton = 0;
 
-        if (InputTracking.enabled) {
+        if (InputTracking.trackingActive) {
             InputTracking.mouseReleased(e.button);
         }
-    };
+    }
 
     private onmouseenter(e: MouseEvent) {
         this.setMousePosition(e);
 
-        if (InputTracking.enabled) {
+        if (InputTracking.trackingActive) {
             InputTracking.mouseEntered();
         }
-    };
+    }
 
     private onmouseleave(e: MouseEvent) {
         this.setMousePosition(e);
@@ -455,30 +451,30 @@ export default abstract class GameShell {
         this.mouseClickX = -1;
         this.mouseClickY = -1;
 
-        if (InputTracking.enabled) {
+        if (InputTracking.trackingActive) {
             InputTracking.mouseExited();
         }
-    };
+    }
 
     private onmousemove(e: MouseEvent) {
         this.setMousePosition(e);
 
         this.idleCycles = Date.now();
 
-        if (InputTracking.enabled) {
+        if (InputTracking.trackingActive) {
             InputTracking.mouseMoved(this.mouseX, this.mouseY);
         }
-    };
+    }
 
     private onfocus(e: FocusEvent) {
         this.hasFocus = true;
         this.redrawScreen = true;
         this.refresh();
 
-        if (InputTracking.enabled) {
+        if (InputTracking.trackingActive) {
             InputTracking.focusGained();
         }
-    };
+    }
 
     private onblur(e: FocusEvent) {
         this.hasFocus = false;
@@ -488,10 +484,10 @@ export default abstract class GameShell {
             this.actionKey[i] = 0;
         }
 
-        if (InputTracking.enabled) {
+        if (InputTracking.trackingActive) {
             InputTracking.focusLost();
         }
-    };
+    }
 
     private ontouchstart(e: TouchEvent) {
         if (!this.isMobile) {
@@ -515,7 +511,7 @@ export default abstract class GameShell {
 
         this.startedInViewport = this.insideViewportArea();
         this.startedInTabArea = this.insideTabArea();
-    };
+    }
 
     private ontouchend(e: TouchEvent) {
         if (!this.isMobile || !this.touching) {
@@ -642,7 +638,7 @@ export default abstract class GameShell {
             this.onmousedown(new MouseEvent('mousedown', { clientX, clientY, button: 2 }));
             this.onmouseup(new MouseEvent('mouseup', { clientX, clientY, button: 2 }));
         }
-    };
+    }
 
     private ontouchmove(e: TouchEvent) {
         if (!this.isMobile || !this.touching) {
@@ -684,7 +680,7 @@ export default abstract class GameShell {
 
         this.mx = this.nx;
         this.my = this.ny;
-    };
+    }
 
     protected get isMobile(): boolean {
         const keywords: string[] = ['Android', 'webOS', 'iPhone', 'iPad', 'iPod', 'BlackBerry', 'Windows Phone'];
@@ -708,7 +704,7 @@ export default abstract class GameShell {
         const viewportAreaX2: number = viewportAreaX1 + 512;
         const viewportAreaY2: number = viewportAreaY1 + 334;
         return this.ingame && this.mouseX >= viewportAreaX1 && this.mouseX <= viewportAreaX2 && this.mouseY >= viewportAreaY1 && this.mouseY <= viewportAreaY2;
-    };
+    }
 
     private insideMobileInputArea() {
         // custom: for mobile keyboard input
@@ -731,7 +727,7 @@ export default abstract class GameShell {
             this.mouseY >= chatInputAreaY1 &&
             this.mouseY <= chatInputAreaY2
         );
-    };
+    }
 
     private insideChatPopupArea() {
         // 495 x 99
@@ -740,8 +736,7 @@ export default abstract class GameShell {
         const chatInputAreaX2: number = chatInputAreaX1 + 495;
         const chatInputAreaY2: number = chatInputAreaY1 + 99;
         return this.ingame && (this.isChatBackInputOpen() || this.isShowSocialInput()) && this.mouseX >= chatInputAreaX1 && this.mouseX <= chatInputAreaX2 && this.mouseY >= chatInputAreaY1 && this.mouseY <= chatInputAreaY2;
-    };
-
+    }
 
     private insideReportInterfaceTextArea() {
         // custom: for report abuse input on mobile
@@ -765,13 +760,8 @@ export default abstract class GameShell {
         const reportInputAreaY1: number = 137;
         const reportInputAreaX2: number = reportInputAreaX1 + 366;
         const reportInputAreaY2: number = reportInputAreaY1 + 26;
-        return (
-            this.mouseX >= reportInputAreaX1 &&
-            this.mouseX <= reportInputAreaX2 &&
-            this.mouseY >= reportInputAreaY1 &&
-            this.mouseY <= reportInputAreaY2
-        );
-    };
+        return this.mouseX >= reportInputAreaX1 && this.mouseX <= reportInputAreaX2 && this.mouseY >= reportInputAreaY1 && this.mouseY <= reportInputAreaY2;
+    }
 
     private insideTabArea() {
         // 190 x 261
@@ -780,7 +770,7 @@ export default abstract class GameShell {
         const tabAreaX2: number = tabAreaX1 + 190;
         const tabAreaY2: number = tabAreaY1 + 261;
         return this.ingame && this.mouseX >= tabAreaX1 && this.mouseX <= tabAreaX2 && this.mouseY >= tabAreaY1 && this.mouseY <= tabAreaY2;
-    };
+    }
 
     private insideUsernameArea() {
         // 261 x 17
@@ -789,7 +779,7 @@ export default abstract class GameShell {
         const usernameAreaX2: number = usernameAreaX1 + 261;
         const usernameAreaY2: number = usernameAreaY1 + 17;
         return !this.ingame && this.getTitleScreenState() === 2 && this.mouseX >= usernameAreaX1 && this.mouseX <= usernameAreaX2 && this.mouseY >= usernameAreaY1 && this.mouseY <= usernameAreaY2;
-    };
+    }
 
     private inPasswordArea() {
         // 261 x 17
@@ -798,7 +788,7 @@ export default abstract class GameShell {
         const passwordAreaX2: number = passwordAreaX1 + 261;
         const passwordAreaY2: number = passwordAreaY1 + 17;
         return !this.ingame && this.getTitleScreenState() === 2 && this.mouseX >= passwordAreaX1 && this.mouseX <= passwordAreaX2 && this.mouseY >= passwordAreaY1 && this.mouseY <= passwordAreaY2;
-    };
+    }
 
     private rotate(direction: number) {
         if (direction === 0) {
@@ -814,15 +804,15 @@ export default abstract class GameShell {
             this.onkeyup(new KeyboardEvent('keyup', { key: 'ArrowUp', code: 'ArrowUp' }));
             this.onkeydown(new KeyboardEvent('keydown', { key: 'ArrowDown', code: 'ArrowDown' }));
         }
-    };
+    }
 
     private isFullScreen() {
         return document.fullscreenElement !== null;
-    };
+    }
 
     private setMousePosition(e: MouseEvent) {
-        const fixedWidth: number = 789;
-        const fixedHeight: number = 532;
+        const fixedWidth: number = this.width;
+        const fixedHeight: number = this.height;
 
         const canvasBounds: DOMRect = canvas.getBoundingClientRect();
         const clickLocWithinCanvas = {
@@ -883,9 +873,5 @@ export default abstract class GameShell {
         if (this.mouseY > fixedHeight) {
             this.mouseY = fixedHeight;
         }
-    };
-
-    private mapCoord(v: number, n1: number, n2: number, m1: number, m2: number) {
-        return ((v - n1) * (m2 - m1)) / (n2 - n1) + m1;
-    };
+    }
 }

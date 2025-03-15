@@ -15,23 +15,23 @@ export default class Pix2D extends DoublyLinkable {
     static centerX2d: number = 0;
     static centerY2d: number = 0;
 
-    static bind = (pixels: Int32Array, width: number, height: number): void => {
+    static bind(pixels: Int32Array, width: number, height: number): void {
         this.pixels = pixels;
         this.width2d = width;
         this.height2d = height;
         this.setBounds(0, 0, width, height);
-    };
+    }
 
-    static resetBounds = (): void => {
+    static resetBounds(): void {
         this.left = 0;
         this.top = 0;
         this.right = this.width2d;
         this.bottom = this.height2d;
         this.boundX = this.right - 1;
         this.centerX2d = (this.right / 2) | 0;
-    };
+    }
 
-    static setBounds = (left: number, top: number, right: number, bottom: number): void => {
+    static setBounds(left: number, top: number, right: number, bottom: number): void {
         if (left < 0) {
             left = 0;
         }
@@ -55,24 +55,23 @@ export default class Pix2D extends DoublyLinkable {
         this.boundX = this.right - 1;
         this.centerX2d = (this.right / 2) | 0;
         this.centerY2d = (this.bottom / 2) | 0;
-    };
+    }
 
-    static clear = (): void => {
+    static clear(): void {
         const len: number = this.width2d * this.height2d;
         for (let i: number = 0; i < len; i++) {
             this.pixels[i] = 0;
         }
-    };
+    }
 
-    // draw a 1px border rectangle
-    static drawRect = (x: number, y: number, w: number, h: number, color: number): void => {
+    static drawRect(x: number, y: number, w: number, h: number, color: number): void {
         this.drawHorizontalLine(x, y, color, w);
         this.drawHorizontalLine(x, y + h - 1, color, w);
         this.drawVerticalLine(x, y, color, h);
         this.drawVerticalLine(x + w - 1, y, color, h);
-    };
+    }
 
-    static drawHorizontalLine = (x: number, y: number, color: number, width: number): void => {
+    static drawHorizontalLine(x: number, y: number, color: number, width: number): void {
         if (y < this.top || y >= this.bottom) {
             return;
         }
@@ -90,9 +89,9 @@ export default class Pix2D extends DoublyLinkable {
         for (let i: number = 0; i < width; i++) {
             this.pixels[off + i] = color;
         }
-    };
+    }
 
-    static drawVerticalLine = (x: number, y: number, color: number, width: number): void => {
+    static drawVerticalLine(x: number, y: number, color: number, width: number): void {
         if (x < this.left || x >= this.right) {
             return;
         }
@@ -110,9 +109,9 @@ export default class Pix2D extends DoublyLinkable {
         for (let i: number = 0; i < width; i++) {
             this.pixels[off + i * this.width2d] = color;
         }
-    };
+    }
 
-    static drawLine = (x1: number, y1: number, x2: number, y2: number, color: number): void => {
+    static drawLine(x1: number, y1: number, x2: number, y2: number, color: number): void {
         const dx: number = Math.abs(x2 - x1);
         const dy: number = Math.abs(y2 - y1);
 
@@ -143,10 +142,9 @@ export default class Pix2D extends DoublyLinkable {
                 y1 = y1 + sy;
             }
         }
-    };
+    }
 
-    // fill in a rectangle area
-    static fillRect = (x: number, y: number, width: number, height: number, color: number): void => {
+    static fillRect2d(x: number, y: number, width: number, height: number, color: number): void {
         if (x < this.left) {
             width -= this.left - x;
             x = this.left;
@@ -174,7 +172,7 @@ export default class Pix2D extends DoublyLinkable {
 
             offset += step;
         }
-    };
+    }
 
     static fillRectAlpha(x: number, y: number, width: number, height: number, rgb: number, alpha: number): void {
         if (x < this.left) {
@@ -254,11 +252,11 @@ export default class Pix2D extends DoublyLinkable {
         }
     }
 
-    static setPixel = (x: number, y: number, color: number): void => {
+    static setPixel(x: number, y: number, color: number): void {
         if (x < this.left || x >= this.right || y < this.top || y >= this.bottom) {
             return;
         }
 
         this.pixels[x + y * this.width2d] = color;
-    };
+    }
 }

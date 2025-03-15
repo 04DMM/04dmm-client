@@ -8,10 +8,9 @@ import Jagfile from '#/io/Jagfile.js';
 import Packet from '#/io/Packet.js';
 
 export default class Pix24 extends DoublyLinkable {
-    // constructor
     readonly pixels: Int32Array;
-    readonly width: number;
-    readonly height: number;
+    readonly width2d: number;
+    readonly height2d: number;
     cropX: number;
     cropY: number;
     cropW: number;
@@ -20,15 +19,15 @@ export default class Pix24 extends DoublyLinkable {
     constructor(width: number, height: number) {
         super();
         this.pixels = new Int32Array(width * height);
-        this.width = this.cropW = width;
-        this.height = this.cropH = height;
+        this.width2d = this.cropW = width;
+        this.height2d = this.cropH = height;
         this.cropX = this.cropY = 0;
     }
 
-    static fromJpeg = async (archive: Jagfile, name: string): Promise<Pix24> => {
+    static async fromJpeg(archive: Jagfile, name: string): Promise<Pix24> {
         const dat: Uint8Array | null = archive.read(name + '.dat');
         if (!dat) {
-            throw new Error(`${name} jpeg not found!`);
+            throw new Error();
         }
         const jpeg: ImageData = await decodeJpeg(dat);
         const image: Pix24 = new Pix24(jpeg.width, jpeg.height);
@@ -40,24 +39,24 @@ export default class Pix24 extends DoublyLinkable {
             pixels[i] = (((pixel >> 24) & 0xff) << 24) | ((pixel & 0xff) << 16) | (((pixel >> 8) & 0xff) << 8) | ((pixel >> 16) & 0xff);
         }
         return image;
-    };
+    }
 
-    static fromArchive = (archive: Jagfile, name: string, sprite: number = 0): Pix24 => {
+    static fromArchive(archive: Jagfile, name: string, sprite: number = 0): Pix24 {
         const dat: Packet = new Packet(archive.read(name + '.dat'));
         const index: Packet = new Packet(archive.read('index.dat'));
 
         // cropW/cropH are shared across all sprites in a single image
-        index.pos = dat.g2;
-        const cropW: number = index.g2;
-        const cropH: number = index.g2;
+        index.pos = dat.g2();
+        const cropW: number = index.g2();
+        const cropH: number = index.g2();
 
         // palette is shared across all images in a single archive
-        const paletteCount: number = index.g1;
+        const paletteCount: number = index.g1();
         const palette: number[] = [];
         const length: number = paletteCount - 1;
         for (let i: number = 0; i < length; i++) {
             // the first color (0) is reserved for transparency
-            palette[i + 1] = index.g3;
+            palette[i + 1] = index.g3();
 
             // black (0) will become transparent, make it black (1) so it's visible
             if (palette[i + 1] === 0) {
@@ -68,7 +67,7 @@ export default class Pix24 extends DoublyLinkable {
         // advance to sprite
         for (let i: number = 0; i < sprite; i++) {
             index.pos += 2;
-            dat.pos += index.g2 * index.g2;
+            dat.pos += index.g2() * index.g2();
             index.pos += 1;
         }
 
@@ -77,10 +76,10 @@ export default class Pix24 extends DoublyLinkable {
         }
 
         // read sprite
-        const cropX: number = index.g1;
-        const cropY: number = index.g1;
-        const width: number = index.g2;
-        const height: number = index.g2;
+        const cropX: number = index.g1();
+        const cropY: number = index.g1();
+        const width: number = index.g2();
+        const height: number = index.g2();
 
         const image: Pix24 = new Pix24(width, height);
         image.cropX = cropX;
@@ -88,27 +87,27 @@ export default class Pix24 extends DoublyLinkable {
         image.cropW = cropW;
         image.cropH = cropH;
 
-        const pixelOrder: number = index.g1;
+        const pixelOrder: number = index.g1();
         if (pixelOrder === 0) {
-            const length: number = image.width * image.height;
+            const length: number = image.width2d * image.height2d;
             for (let i: number = 0; i < length; i++) {
-                image.pixels[i] = palette[dat.g1];
+                image.pixels[i] = palette[dat.g1()];
             }
         } else if (pixelOrder === 1) {
-            const width: number = image.width;
+            const width: number = image.width2d;
             for (let x: number = 0; x < width; x++) {
-                const height: number = image.height;
+                const height: number = image.height2d;
                 for (let y: number = 0; y < height; y++) {
-                    image.pixels[x + y * width] = palette[dat.g1];
+                    image.pixels[x + y * width] = palette[dat.g1()];
                 }
             }
         }
 
         return image;
-    };
+    }
 
     bind(): void {
-        Pix2D.bind(this.pixels, this.width, this.height);
+        Pix2D.bind(this.pixels, this.width2d, this.height2d);
     }
 
     draw(x: number, y: number): void {
@@ -121,8 +120,8 @@ export default class Pix24 extends DoublyLinkable {
         let dstOff: number = x + y * Pix2D.width2d;
         let srcOff: number = 0;
 
-        let h: number = this.height;
-        let w: number = this.width;
+        let h: number = this.height2d;
+        let w: number = this.width2d;
 
         let dstStep: number = Pix2D.width2d - w;
         let srcStep: number = 0;
@@ -170,8 +169,8 @@ export default class Pix24 extends DoublyLinkable {
 
         let dstStep: number = x + y * Pix2D.width2d;
         let srcStep: number = 0;
-        let h: number = this.height;
-        let w: number = this.width;
+        let h: number = this.height2d;
+        let w: number = this.width2d;
         let dstOff: number = Pix2D.width2d - w;
         let srcOff: number = 0;
 
@@ -219,8 +218,8 @@ export default class Pix24 extends DoublyLinkable {
         let dstOff: number = x + y * Pix2D.width2d;
         let srcOff: number = 0;
 
-        let h: number = this.height;
-        let w: number = this.width;
+        let h: number = this.height2d;
+        let w: number = this.width2d;
 
         let dstStep: number = Pix2D.width2d - w;
         let srcStep: number = 0;
@@ -261,8 +260,8 @@ export default class Pix24 extends DoublyLinkable {
 
     flipHorizontally(): void {
         const pixels: Int32Array = this.pixels;
-        const width: number = this.width;
-        const height: number = this.height;
+        const width: number = this.width2d;
+        const height: number = this.height2d;
 
         for (let y: number = 0; y < height; y++) {
             const div: number = (width / 2) | 0;
@@ -279,8 +278,8 @@ export default class Pix24 extends DoublyLinkable {
 
     flipVertically(): void {
         const pixels: Int32Array = this.pixels;
-        const width: number = this.width;
-        const height: number = this.height;
+        const width: number = this.width2d;
+        const height: number = this.height2d;
 
         for (let y: number = 0; y < ((height / 2) | 0); y++) {
             for (let x: number = 0; x < width; x++) {
@@ -294,7 +293,7 @@ export default class Pix24 extends DoublyLinkable {
         }
     }
 
-    translate(r: number, g: number, b: number): void {
+    translate2d(r: number, g: number, b: number): void {
         for (let i: number = 0; i < this.pixels.length; i++) {
             const rgb: number = this.pixels[i];
 
@@ -335,7 +334,7 @@ export default class Pix24 extends DoublyLinkable {
         h |= 0;
 
         try {
-            const currentW: number = this.width;
+            const currentW: number = this.width2d;
             // const currentH: number = this.height; // dead code
 
             let offW: number = 0;
@@ -359,8 +358,8 @@ export default class Pix24 extends DoublyLinkable {
                 offH = (((ch - ((this.cropY * h) % ch)) << 16) / h) | 0;
             }
 
-            w = ((w * (this.width - (offW >> 16))) / cw) | 0;
-            h = ((h * (this.height - (offH >> 16))) / ch) | 0;
+            w = ((w * (this.width2d - (offW >> 16))) / cw) | 0;
+            h = ((h * (this.height2d - (offH >> 16))) / ch) | 0;
 
             let dstStep: number = x + y * Pix2D.width2d;
             let dstOff: number = Pix2D.width2d - w;
@@ -424,7 +423,7 @@ export default class Pix24 extends DoublyLinkable {
                 let srcX: number = leftX + cosZoom * dstOff;
                 let srcY: number = leftY - sinZoom * dstOff;
                 for (let j: number = -lineWidth[i]; j < 0; j++) {
-                    Pix2D.pixels[dstX++] = this.pixels[(srcX >> 16) + (srcY >> 16) * this.width];
+                    Pix2D.pixels[dstX++] = this.pixels[(srcX >> 16) + (srcY >> 16) * this.width2d];
                     srcX += cosZoom;
                     srcY -= sinZoom;
                 }
@@ -447,8 +446,8 @@ export default class Pix24 extends DoublyLinkable {
 
         let dstStep: number = x + y * Pix2D.width2d;
         let srcStep: number = 0;
-        let h: number = this.height;
-        let w: number = this.width;
+        let h: number = this.height2d;
+        let w: number = this.width2d;
         let dstOff: number = Pix2D.width2d - w;
         let srcOff: number = 0;
 

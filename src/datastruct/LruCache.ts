@@ -3,43 +3,42 @@ import HashTable from '#/datastruct/HashTable.js';
 import DoublyLinkList from '#/datastruct/DoublyLinkList.js';
 
 export default class LruCache {
-    // constructor
     readonly capacity: number;
     readonly hashtable: HashTable = new HashTable(1024);
-    readonly history: DoublyLinkList = new DoublyLinkList();
-    available: number;
+    readonly cacheHistory: DoublyLinkList = new DoublyLinkList();
+    cacheAvailable: number;
 
     constructor(size: number) {
         this.capacity = size;
-        this.available = size;
+        this.cacheAvailable = size;
     }
 
     get(key: bigint): DoublyLinkable | null {
         const node: DoublyLinkable | null = this.hashtable.get(key) as DoublyLinkable | null;
         if (node) {
-            this.history.push(node);
+            this.cacheHistory.push(node);
         }
         return node;
     }
 
     put(key: bigint, value: DoublyLinkable): void {
-        if (this.available === 0) {
-            const node: DoublyLinkable | null = this.history.pop();
+        if (this.cacheAvailable === 0) {
+            const node: DoublyLinkable | null = this.cacheHistory.pop();
             node?.unlink();
             node?.unlink2();
         } else {
-            this.available--;
+            this.cacheAvailable--;
         }
         this.hashtable.put(key, value);
-        this.history.push(value);
+        this.cacheHistory.push(value);
     }
 
     clear(): void {
         // eslint-disable-next-line no-constant-condition
         while (true) {
-            const node: DoublyLinkable | null = this.history.pop();
+            const node: DoublyLinkable | null = this.cacheHistory.pop();
             if (!node) {
-                this.available = this.capacity;
+                this.cacheAvailable = this.capacity;
                 return;
             }
             node.unlink();

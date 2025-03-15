@@ -3,7 +3,7 @@ import { ConfigType } from '#/config/ConfigType.js';
 import LruCache from '#/datastruct/LruCache.js';
 
 import LocShape from '#/dash3d/LocShape.js';
-import LocAngle from '#/dash3d/LocAngle.js';
+import { LocAngle } from '#/dash3d/LocAngle.js';
 
 import Model from '#/graphics/Model.js';
 
@@ -13,40 +13,40 @@ import Packet from '#/io/Packet.js';
 import { TypedArray1d } from '#/util/Arrays.js';
 
 export default class LocType extends ConfigType {
-    static count: number = 0;
-    static cache: (LocType | null)[] | null = null;
+    static totalCount: number = 0;
+    static typeCache: (LocType | null)[] | null = null;
     static dat: Packet | null = null;
     static offsets: Int32Array | null = null;
     static cachePos: number = 0;
     static modelCacheStatic: LruCache | null = new LruCache(500);
     static modelCacheDynamic: LruCache | null = new LruCache(30);
 
-    static unpack = (config: Jagfile): void => {
+    static unpack(config: Jagfile): void {
         this.dat = new Packet(config.read('loc.dat'));
         const idx: Packet = new Packet(config.read('loc.idx'));
 
-        this.count = idx.g2;
-        this.offsets = new Int32Array(this.count);
+        this.totalCount = idx.g2();
+        this.offsets = new Int32Array(this.totalCount);
 
         let offset: number = 2;
-        for (let id: number = 0; id < this.count; id++) {
+        for (let id: number = 0; id < this.totalCount; id++) {
             this.offsets[id] = offset;
-            offset += idx.g2;
+            offset += idx.g2();
         }
 
-        this.cache = new TypedArray1d(10, null);
+        this.typeCache = new TypedArray1d(10, null);
         for (let id: number = 0; id < 10; id++) {
-            this.cache[id] = new LocType(-1);
+            this.typeCache[id] = new LocType(-1);
         }
-    };
+    }
 
-    static get = (id: number): LocType => {
-        if (!this.cache || !this.offsets || !this.dat) {
-            throw new Error('LocType not loaded!!!');
+    static get(id: number): LocType {
+        if (!this.typeCache || !this.offsets || !this.dat) {
+            throw new Error();
         }
 
         for (let i: number = 0; i < 10; i++) {
-            const type: LocType | null = this.cache[i];
+            const type: LocType | null = this.typeCache[i];
             if (!type) {
                 continue;
             }
@@ -56,25 +56,25 @@ export default class LocType extends ConfigType {
         }
 
         this.cachePos = (this.cachePos + 1) % 10;
-        const loc: LocType = this.cache[this.cachePos]!;
+        const loc: LocType = this.typeCache[this.cachePos]!;
         this.dat.pos = this.offsets[id];
         loc.id = id;
         loc.reset();
-        loc.decodeType(this.dat);
+        loc.unpackType(this.dat);
 
         if (!loc.shapes) {
             loc.shapes = new Int32Array(1);
         }
 
         if (loc.active2 === -1 && loc.shapes) {
-            loc.active = loc.shapes.length > 0 && loc.shapes[0] === LocShape.CENTREPIECE_STRAIGHT.id;
+            loc.locActive = loc.shapes.length > 0 && loc.shapes[0] === LocShape.CENTREPIECE_STRAIGHT.id;
 
             if (loc.op) {
-                loc.active = true;
+                loc.locActive = true;
             }
         }
         return loc;
-    };
+    }
 
     // ----
 
@@ -88,7 +88,7 @@ export default class LocType extends ConfigType {
     length: number = 1;
     blockwalk: boolean = true;
     blockrange: boolean = true;
-    active: boolean = false;
+    locActive: boolean = false;
     active2: number = -1;
     hillskew: boolean = false;
     sharelight: boolean = false;
@@ -112,32 +112,32 @@ export default class LocType extends ConfigType {
     offsetz: number = 0;
     forcedecor: boolean = false;
 
-    decode(code: number, dat: Packet): void {
+    unpack(code: number, dat: Packet): void {
         if (code === 1) {
-            const count: number = dat.g1;
+            const count: number = dat.g1();
             this.models = new Int32Array(count);
             this.shapes = new Int32Array(count);
 
             for (let i: number = 0; i < count; i++) {
-                this.models[i] = dat.g2;
-                this.shapes[i] = dat.g1;
+                this.models[i] = dat.g2();
+                this.shapes[i] = dat.g1();
             }
         } else if (code === 2) {
-            this.name = dat.gjstr;
+            this.name = dat.gjstr();
         } else if (code === 3) {
-            this.desc = dat.gjstr;
+            this.desc = dat.gjstr();
         } else if (code === 14) {
-            this.width = dat.g1;
+            this.width = dat.g1();
         } else if (code === 15) {
-            this.length = dat.g1;
+            this.length = dat.g1();
         } else if (code === 17) {
             this.blockwalk = false;
         } else if (code === 18) {
             this.blockrange = false;
         } else if (code === 19) {
-            this.active2 = dat.g1;
+            this.active2 = dat.g1();
             if (this.active2 === 1) {
-                this.active = true;
+                this.locActive = true;
             }
         } else if (code === 21) {
             this.hillskew = true;
@@ -146,7 +146,7 @@ export default class LocType extends ConfigType {
         } else if (code === 23) {
             this.occlude = true;
         } else if (code === 24) {
-            this.anim = dat.g2;
+            this.anim = dat.g2();
 
             if (this.anim === 65535) {
                 this.anim = -1;
@@ -154,51 +154,51 @@ export default class LocType extends ConfigType {
         } else if (code === 25) {
             this.disposeAlpha = true;
         } else if (code === 28) {
-            this.wallwidth = dat.g1;
+            this.wallwidth = dat.g1();
         } else if (code === 29) {
-            this.ambient = dat.g1b;
+            this.ambient = dat.g1b();
         } else if (code === 39) {
-            this.contrast = dat.g1b;
+            this.contrast = dat.g1b();
         } else if (code >= 30 && code < 39) {
             if (!this.op) {
                 this.op = new TypedArray1d(5, null);
             }
 
-            this.op[code - 30] = dat.gjstr;
+            this.op[code - 30] = dat.gjstr();
             if (this.op[code - 30]?.toLowerCase() === 'hidden') {
                 this.op[code - 30] = null;
             }
         } else if (code === 40) {
-            const count: number = dat.g1;
+            const count: number = dat.g1();
             this.recol_s = new Uint16Array(count);
             this.recol_d = new Uint16Array(count);
 
             for (let i: number = 0; i < count; i++) {
-                this.recol_s[i] = dat.g2;
-                this.recol_d[i] = dat.g2;
+                this.recol_s[i] = dat.g2();
+                this.recol_d[i] = dat.g2();
             }
         } else if (code === 60) {
-            this.mapfunction = dat.g2;
+            this.mapfunction = dat.g2();
         } else if (code === 62) {
             this.mirror = true;
         } else if (code === 64) {
             this.shadow = false;
         } else if (code === 65) {
-            this.resizex = dat.g2;
+            this.resizex = dat.g2();
         } else if (code === 66) {
-            this.resizey = dat.g2;
+            this.resizey = dat.g2();
         } else if (code === 67) {
-            this.resizez = dat.g2;
+            this.resizez = dat.g2();
         } else if (code === 68) {
-            this.mapscene = dat.g2;
+            this.mapscene = dat.g2();
         } else if (code === 69) {
-            this.forceapproach = dat.g1;
+            this.forceapproach = dat.g1();
         } else if (code === 70) {
-            this.offsetx = dat.g2b;
+            this.offsetx = dat.g2b();
         } else if (code === 71) {
-            this.offsety = dat.g2b;
+            this.offsety = dat.g2b();
         } else if (code === 72) {
-            this.offsetz = dat.g2b;
+            this.offsetz = dat.g2b();
         } else if (code === 73) {
             this.forcedecor = true;
         }
@@ -221,12 +221,12 @@ export default class LocType extends ConfigType {
             return null;
         }
 
-        const bitset: bigint = BigInt(BigInt(this.id) << 6n) + BigInt(BigInt(shapeIndex) << 3n) + BigInt(angle) + BigInt((BigInt(transformId) + 1n) << 32n);
+        const typecode: bigint = BigInt(BigInt(this.id) << 6n) + BigInt(BigInt(shapeIndex) << 3n) + BigInt(angle) + BigInt((BigInt(transformId) + 1n) << 32n);
         /*if (reset) {
-            bitset = 0L;
+            typecode = 0L;
         }*/
 
-        let cached: Model | null = LocType.modelCacheDynamic?.get(bitset) as Model | null;
+        let cached: Model | null = LocType.modelCacheDynamic?.get(typecode) as Model | null;
         if (cached) {
             /*if (reset) {
                 return cached;
@@ -309,7 +309,7 @@ export default class LocType extends ConfigType {
         }
 
         if (translated) {
-            modified.translate(this.offsety, this.offsetx, this.offsetz);
+            modified.translateModel(this.offsety, this.offsetx, this.offsetz);
         }
 
         modified.calculateNormals((this.ambient & 0xff) + 64, (this.contrast & 0xff) * 5 + 768, -50, -10, -50, !this.sharelight);
@@ -318,7 +318,7 @@ export default class LocType extends ConfigType {
             modified.objRaise = modified.maxY;
         }
 
-        LocType.modelCacheDynamic?.put(bitset, modified);
+        LocType.modelCacheDynamic?.put(typecode, modified);
 
         if (this.hillskew || this.sharelight) {
             modified = Model.modelCopyFaces(modified, this.hillskew, this.sharelight);
@@ -355,7 +355,7 @@ export default class LocType extends ConfigType {
         this.length = 1;
         this.blockwalk = true;
         this.blockrange = true;
-        this.active = false;
+        this.locActive = false;
         this.active2 = -1;
         this.hillskew = false;
         this.sharelight = false;

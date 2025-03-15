@@ -3,7 +3,6 @@ import SeqType from '#/config/SeqType.js';
 import Linkable from '#/datastruct/Linkable.js';
 
 export default class LocEntity extends Linkable {
-    // constructor
     heightmapSW: number;
     readonly heightmapSE: number;
     readonly heightmapNE: number;
@@ -22,9 +21,9 @@ export default class LocEntity extends Linkable {
         this.index = index;
         this.seq = seq;
 
-        if (randomFrame && seq.replayoff !== -1 && this.seq.delay) {
-            this.seqFrame = (Math.random() * this.seq.frameCount) | 0;
-            this.seqCycle = (Math.random() * this.seq.delay[this.seqFrame]) | 0;
+        if (randomFrame && seq.replayoff !== -1 && this.seq.seqDelay) {
+            this.seqFrame = (Math.random() * this.seq.seqFrameCount) | 0;
+            this.seqCycle = (Math.random() * this.seq.seqDelay[this.seqFrame]) | 0;
         } else {
             this.seqFrame = -1;
             this.seqCycle = 0;

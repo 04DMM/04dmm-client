@@ -4,5 +4,6 @@ package-lock.json
 
 /out/
 private.pem
+public.pem
 
 .idea

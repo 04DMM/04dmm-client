@@ -5,9 +5,8 @@ import Entity from '#/dash3d/entity/Entity.js';
 import Model from '#/graphics/Model.js';
 
 export default class SpotAnimEntity extends Entity {
-    // constructor
-    readonly type: SpotAnimType;
-    readonly level: number;
+    readonly spotType: SpotAnimType;
+    readonly spotLevel: number;
     readonly x: number;
     readonly z: number;
     readonly y: number;
@@ -20,8 +19,8 @@ export default class SpotAnimEntity extends Entity {
 
     constructor(id: number, level: number, x: number, z: number, y: number, cycle: number, delay: number) {
         super();
-        this.type = SpotAnimType.instances[id];
-        this.level = level;
+        this.spotType = SpotAnimType.instances[id];
+        this.spotLevel = level;
         this.x = x;
         this.z = z;
         this.y = y;
@@ -29,14 +28,15 @@ export default class SpotAnimEntity extends Entity {
     }
 
     update(delta: number): void {
-        if (!this.type.seq || !this.type.seq.delay) {
+        if (!this.spotType.seq || !this.spotType.seq.seqDelay) {
             return;
         }
-        for (this.seqCycle += delta; this.seqCycle > this.type.seq.delay[this.seqFrame]; ) {
-            this.seqCycle -= this.type.seq.delay[this.seqFrame] + 1;
+
+        for (this.seqCycle += delta; this.seqCycle > this.spotType.seq.seqDelay[this.seqFrame]; ) {
+            this.seqCycle -= this.spotType.seq.seqDelay[this.seqFrame] + 1;
             this.seqFrame++;
 
-            if (this.seqFrame >= this.type.seq.frameCount) {
+            if (this.seqFrame >= this.spotType.seq.seqFrameCount) {
                 this.seqFrame = 0;
                 this.seqComplete = true;
             }
@@ -44,33 +44,33 @@ export default class SpotAnimEntity extends Entity {
     }
 
     draw(): Model {
-        const tmp: Model = this.type.getModel();
-        const model: Model = Model.modelShareColored(tmp, true, !this.type.disposeAlpha, false);
-        if (!this.seqComplete && this.type.seq && this.type.seq.frames) {
+        const tmp: Model = this.spotType.getModel();
+        const model: Model = Model.modelShareColored(tmp, true, !this.spotType.disposeAlpha, false);
+        if (!this.seqComplete && this.spotType.seq && this.spotType.seq.seqFrames) {
             model.createLabelReferences();
-            model.applyTransform(this.type.seq.frames[this.seqFrame]);
+            model.applyTransform(this.spotType.seq.seqFrames[this.seqFrame]);
             model.labelFaces = null;
             model.labelVertices = null;
         }
 
-        if (this.type.resizeh !== 128 || this.type.resizev !== 128) {
-            model.scale(this.type.resizeh, this.type.resizev, this.type.resizeh);
+        if (this.spotType.resizeh !== 128 || this.spotType.resizev !== 128) {
+            model.scale(this.spotType.resizeh, this.spotType.resizev, this.spotType.resizeh);
         }
 
-        if (this.type.orientation !== 0) {
-            if (this.type.orientation === 90) {
+        if (this.spotType.spotAngle !== 0) {
+            if (this.spotType.spotAngle === 90) {
                 model.rotateY90();
-            } else if (this.type.orientation === 180) {
+            } else if (this.spotType.spotAngle === 180) {
                 model.rotateY90();
                 model.rotateY90();
-            } else if (this.type.orientation === 270) {
+            } else if (this.spotType.spotAngle === 270) {
                 model.rotateY90();
                 model.rotateY90();
                 model.rotateY90();
             }
         }
 
-        model.calculateNormals(64 + this.type.ambient, 850 + this.type.contrast, -30, -50, -30, true);
+        model.calculateNormals(64 + this.spotType.ambient, 850 + this.spotType.contrast, -30, -50, -30, true);
         return model;
     }
 }

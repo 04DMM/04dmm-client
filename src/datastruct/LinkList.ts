@@ -1,11 +1,10 @@
 import Linkable from './Linkable';
 
 export default class LinkList {
-    // constructor
     private readonly sentinel: Linkable = new Linkable();
 
     // runtime
-    private cursor: Linkable | null = null;
+    private current: Linkable | null = null;
 
     constructor() {
         this.sentinel.next = this.sentinel;
@@ -48,40 +47,40 @@ export default class LinkList {
     head(): Linkable | null {
         const node: Linkable | null = this.sentinel.next;
         if (node === this.sentinel) {
-            this.cursor = null;
+            this.current = null;
             return null;
         }
-        this.cursor = node?.next || null;
+        this.current = node?.next || null;
         return node;
     }
 
     tail(): Linkable | null {
         const node: Linkable | null = this.sentinel.prev;
         if (node === this.sentinel) {
-            this.cursor = null;
+            this.current = null;
             return null;
         }
-        this.cursor = node?.prev || null;
+        this.current = node?.prev || null;
         return node;
     }
 
     next(): Linkable | null {
-        const node: Linkable | null = this.cursor;
+        const node: Linkable | null = this.current;
         if (node === this.sentinel) {
-            this.cursor = null;
+            this.current = null;
             return null;
         }
-        this.cursor = node?.next || null;
+        this.current = node?.next || null;
         return node;
     }
 
     prev(): Linkable | null {
-        const node: Linkable | null = this.cursor;
+        const node: Linkable | null = this.current;
         if (node === this.sentinel) {
-            this.cursor = null;
+            this.current = null;
             return null;
         }
-        this.cursor = node?.prev || null;
+        this.current = node?.prev || null;
         return node;
     }
 

@@ -50,12 +50,12 @@ export default abstract class PathingEntity extends Entity {
     forceMoveStartCycle: number = 0;
     forceMoveFaceDirection: number = 0;
     cycle: number = 0;
-    height: number = 0;
+    maxY: number = 0;
     dstYaw: number = 0;
-    pathLength: number = 0;
-    pathTileX: Int32Array = new Int32Array(10);
-    pathTileZ: Int32Array = new Int32Array(10);
-    pathRunning: boolean[] = new TypedArray1d(10, false);
+    routeLength: number = 0;
+    routeFlagX: Int32Array = new Int32Array(10);
+    routeFlagZ: Int32Array = new Int32Array(10);
+    routeRun: boolean[] = new TypedArray1d(10, false);
     seqTrigger: number = 0;
 
     lastMask: number = -1;
@@ -63,46 +63,46 @@ export default abstract class PathingEntity extends Entity {
     lastFaceX: number = -1;
     lastFaceZ: number = -1;
 
-    abstract isVisible(): boolean;
+    abstract isVisibleNow(): boolean;
 
     move(teleport: boolean, x: number, z: number): void {
-        if (this.primarySeqId !== -1 && SeqType.instances[this.primarySeqId].priority <= 1) {
+        if (this.primarySeqId !== -1 && SeqType.instances[this.primarySeqId].seqPriority <= 1) {
             this.primarySeqId = -1;
         }
 
         if (!teleport) {
-            const dx: number = x - this.pathTileX[0];
-            const dz: number = z - this.pathTileZ[0];
+            const dx: number = x - this.routeFlagX[0];
+            const dz: number = z - this.routeFlagZ[0];
 
             if (dx >= -8 && dx <= 8 && dz >= -8 && dz <= 8) {
-                if (this.pathLength < 9) {
-                    this.pathLength++;
+                if (this.routeLength < 9) {
+                    this.routeLength++;
                 }
 
-                for (let i: number = this.pathLength; i > 0; i--) {
-                    this.pathTileX[i] = this.pathTileX[i - 1];
-                    this.pathTileZ[i] = this.pathTileZ[i - 1];
-                    this.pathRunning[i] = this.pathRunning[i - 1];
+                for (let i: number = this.routeLength; i > 0; i--) {
+                    this.routeFlagX[i] = this.routeFlagX[i - 1];
+                    this.routeFlagZ[i] = this.routeFlagZ[i - 1];
+                    this.routeRun[i] = this.routeRun[i - 1];
                 }
 
-                this.pathTileX[0] = x;
-                this.pathTileZ[0] = z;
-                this.pathRunning[0] = false;
+                this.routeFlagX[0] = x;
+                this.routeFlagZ[0] = z;
+                this.routeRun[0] = false;
                 return;
             }
         }
 
-        this.pathLength = 0;
+        this.routeLength = 0;
         this.seqTrigger = 0;
-        this.pathTileX[0] = x;
-        this.pathTileZ[0] = z;
-        this.x = this.pathTileX[0] * 128 + this.size * 64;
-        this.z = this.pathTileZ[0] * 128 + this.size * 64;
+        this.routeFlagX[0] = x;
+        this.routeFlagZ[0] = z;
+        this.x = this.routeFlagX[0] * 128 + this.size * 64;
+        this.z = this.routeFlagZ[0] * 128 + this.size * 64;
     }
 
     step(running: boolean, direction: number): void {
-        let nextX: number = this.pathTileX[0];
-        let nextZ: number = this.pathTileZ[0];
+        let nextX: number = this.routeFlagX[0];
+        let nextZ: number = this.routeFlagZ[0];
 
         if (direction === 0) {
             nextX--;
@@ -126,22 +126,22 @@ export default abstract class PathingEntity extends Entity {
             nextZ--;
         }
 
-        if (this.primarySeqId !== -1 && SeqType.instances[this.primarySeqId].priority <= 1) {
+        if (this.primarySeqId !== -1 && SeqType.instances[this.primarySeqId].seqPriority <= 1) {
             this.primarySeqId = -1;
         }
 
-        if (this.pathLength < 9) {
-            this.pathLength++;
+        if (this.routeLength < 9) {
+            this.routeLength++;
         }
 
-        for (let i: number = this.pathLength; i > 0; i--) {
-            this.pathTileX[i] = this.pathTileX[i - 1];
-            this.pathTileZ[i] = this.pathTileZ[i - 1];
-            this.pathRunning[i] = this.pathRunning[i - 1];
+        for (let i: number = this.routeLength; i > 0; i--) {
+            this.routeFlagX[i] = this.routeFlagX[i - 1];
+            this.routeFlagZ[i] = this.routeFlagZ[i - 1];
+            this.routeRun[i] = this.routeRun[i - 1];
         }
 
-        this.pathTileX[0] = nextX;
-        this.pathTileZ[0] = nextZ;
-        this.pathRunning[0] = running;
+        this.routeFlagX[0] = nextX;
+        this.routeFlagZ[0] = nextZ;
+        this.routeRun[0] = running;
     }
 }

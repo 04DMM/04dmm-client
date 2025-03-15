@@ -1,14 +1,12 @@
 export default class ClientStream {
-    // constructor
     private readonly socket: WebSocket;
     private readonly wsin: WebSocketReader;
     private readonly wsout: WebSocketWriter;
 
-    // runtime
     private closed: boolean = false;
     private ioerror: boolean = false;
 
-    static openSocket = async (host: string, secured: boolean): Promise<WebSocket> => {
+    static async openSocket(host: string, secured: boolean): Promise<WebSocket> {
         return await new Promise<WebSocket>((resolve, reject): void => {
             const protocol: string = secured ? 'wss' : 'ws';
             const ws: WebSocket = new WebSocket(`${protocol}://${host}`, 'binary');
@@ -21,7 +19,7 @@ export default class ClientStream {
                 reject(ws);
             });
         });
-    };
+    }
 
     constructor(socket: WebSocket) {
         socket.onclose = this.onclose;
@@ -84,7 +82,6 @@ export default class ClientStream {
 }
 
 class WebSocketWriter {
-    // constructor
     private readonly socket: WebSocket;
     private readonly limit: number;
 
@@ -102,10 +99,10 @@ class WebSocketWriter {
         }
         if (this.ioerror) {
             this.ioerror = false;
-            throw new Error('Error in writer thread');
+            throw new Error();
         }
         if (len > this.limit || src.length > this.limit) {
-            throw new Error('buffer overflow');
+            throw new Error();
         }
         try {
             this.socket.send(src.slice(0, len));
@@ -142,10 +139,8 @@ class WebSocketEvent {
 }
 
 class WebSocketReader {
-    // constructor
     private readonly limit: number;
 
-    // runtime
     private queue: WebSocketEvent[] = [];
     private event: WebSocketEvent | null = null;
     private callback: ((data: WebSocketEvent) => void) | null = null;
@@ -164,7 +159,7 @@ class WebSocketReader {
 
     private onmessage = (e: MessageEvent): void => {
         if (this.closed) {
-            throw new Error('WebSocketReader is closed!');
+            throw new Error();
         }
 
         const event: WebSocketEvent = new WebSocketEvent(new Uint8Array(e.data));
@@ -182,10 +177,10 @@ class WebSocketReader {
 
     async read(): Promise<number> {
         if (this.closed) {
-            throw new Error('WebSocketReader is closed!');
+            throw new Error();
         }
         return await Promise.race([
-            new Promise<number>((resolve) => {
+            new Promise<number>(resolve => {
                 if (!this.event || this.event.available === 0) {
                     this.event = this.queue.shift() ?? null;
                 }
@@ -203,18 +198,18 @@ class WebSocketReader {
             new Promise<number>((_, reject) => {
                 setTimeout(() => {
                     if (this.closed) {
-                        reject(new Error('WebSocketReader closed while reading.'));
+                        reject(new Error());
                     } else {
-                        reject(new Error('No data received within 2 seconds.'));
+                        reject(new Error());
                     }
                 }, 20000);
-            }),
+            })
         ]);
     }
 
     async readBytes(dst: Uint8Array, off: number, len: number): Promise<Uint8Array> {
         if (this.closed) {
-            throw new Error('WebSocketReader is closed!');
+            throw new Error();
         }
         for (let i = 0; i < len; i++) {
             dst[off + i] = await this.read();

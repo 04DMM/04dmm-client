@@ -1,7 +1,6 @@
 import Model from '#/graphics/Model.js';
 
 export default class Wall {
-    // constructor
     readonly y: number;
     readonly x: number;
     readonly z: number;
@@ -9,10 +8,10 @@ export default class Wall {
     readonly typeB: number;
     modelA: Model | null;
     modelB: Model | null;
-    readonly bitset: number;
+    readonly typecode: number;
     readonly info: number; // byte
 
-    constructor(y: number, x: number, z: number, typeA: number, typeB: number, modelA: Model | null, modelB: Model | null, bitset: number, info: number) {
+    constructor(y: number, x: number, z: number, typeA: number, typeB: number, modelA: Model | null, modelB: Model | null, typecode: number, info: number) {
         this.y = y;
         this.x = x;
         this.z = z;
@@ -20,7 +19,7 @@ export default class Wall {
         this.typeB = typeB;
         this.modelA = modelA;
         this.modelB = modelB;
-        this.bitset = bitset;
+        this.typecode = typecode;
         this.info = info;
     }
 }

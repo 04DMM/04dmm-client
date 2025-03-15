@@ -1,7 +1,6 @@
 import Linkable from '#/datastruct/Linkable.js';
 
 export default class HashTable {
-    // constructor
     readonly bucketCount: number;
     readonly buckets: Linkable[];
 
@@ -9,7 +8,7 @@ export default class HashTable {
         this.buckets = new Array(size);
         this.bucketCount = size;
         for (let i: number = 0; i < size; i++) {
-            const sentinel = this.buckets[i] = new Linkable();
+            const sentinel = (this.buckets[i] = new Linkable());
             sentinel.next = sentinel;
             sentinel.prev = sentinel;
         }

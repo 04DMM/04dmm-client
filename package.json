@@ -7,10 +7,8 @@
         "#/*": "./src/*"
     },
     "scripts": {
-        "build:dev": "bun run bundle.js dev",
-        "build:obfuscate": "bun run bundle.js prod obfuscate",
-        "build:prod": "bun run bundle.js prod",
-        "build:uglify": "bun run bundle.js prod uglify"
+        "build": "bun run bundle.ts",
+        "build:dev": "bun run bundle.ts dev"
     },
     "devDependencies": {
         "@types/bun": "latest",

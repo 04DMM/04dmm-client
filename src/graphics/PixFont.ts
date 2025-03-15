@@ -1,6 +1,6 @@
 import DoublyLinkable from '#/datastruct/DoublyLinkable.js';
 
-import Colors from '#/graphics/Colors.js';
+import { Colors } from '#/graphics/Colors.js';
 import Pix2D from '#/graphics/Pix2D.js';
 
 import Jagfile from '#/io/Jagfile.js';
@@ -11,6 +11,17 @@ import JavaRandom from '#/util/JavaRandom.js';
 export default class PixFont extends DoublyLinkable {
     static readonly CHARSET: string = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!"£$%^&*()-_=+[{]};:\'@#~,<.>/?\\| ';
     static readonly CHARCODESET: number[] = [];
+
+    private readonly charMask: Int8Array[] = [];
+    readonly charMaskWidth: Int32Array = new Int32Array(94);
+    readonly charMaskHeight: Int32Array = new Int32Array(94);
+    readonly charOffsetX: Int32Array = new Int32Array(94);
+    readonly charOffsetY: Int32Array = new Int32Array(94);
+    readonly charAdvance: Int32Array = new Int32Array(95);
+    readonly drawWidth: Int32Array = new Int32Array(256);
+    private readonly random: JavaRandom = new JavaRandom(BigInt(Date.now()));
+
+    height2d: number = 0;
 
     static {
         const isCapacitor: boolean = navigator.userAgent.includes('Capacitor');
@@ -33,24 +44,13 @@ export default class PixFont extends DoublyLinkable {
         }
     }
 
-    private readonly charMask: Int8Array[] = [];
-    readonly charMaskWidth: Int32Array = new Int32Array(94);
-    readonly charMaskHeight: Int32Array = new Int32Array(94);
-    readonly charOffsetX: Int32Array = new Int32Array(94);
-    readonly charOffsetY: Int32Array = new Int32Array(94);
-    readonly charAdvance: Int32Array = new Int32Array(95);
-    readonly drawWidth: Int32Array = new Int32Array(256);
-    private readonly random: JavaRandom = new JavaRandom(BigInt(Date.now()));
-
-    height: number = 0;
-
-    static fromArchive = (archive: Jagfile, name: string): PixFont => {
+    static fromArchive(archive: Jagfile, name: string): PixFont {
         const dat: Packet = new Packet(archive.read(name + '.dat'));
         const idx: Packet = new Packet(archive.read('index.dat'));
 
-        idx.pos = dat.g2 + 4; // skip cropW and cropH
+        idx.pos = dat.g2() + 4; // skip cropW and cropH
 
-        const off: number = idx.g1;
+        const off: number = idx.g1();
         if (off > 0) {
             // skip palette
             idx.pos += (off - 1) * 3;
@@ -59,31 +59,31 @@ export default class PixFont extends DoublyLinkable {
         const font: PixFont = new PixFont();
 
         for (let i: number = 0; i < 94; i++) {
-            font.charOffsetX[i] = idx.g1;
-            font.charOffsetY[i] = idx.g1;
+            font.charOffsetX[i] = idx.g1();
+            font.charOffsetY[i] = idx.g1();
 
-            const w: number = (font.charMaskWidth[i] = idx.g2);
-            const h: number = (font.charMaskHeight[i] = idx.g2);
+            const w: number = (font.charMaskWidth[i] = idx.g2());
+            const h: number = (font.charMaskHeight[i] = idx.g2());
 
-            const type: number = idx.g1;
+            const type: number = idx.g1();
             const len: number = w * h;
 
             font.charMask[i] = new Int8Array(len);
 
             if (type === 0) {
                 for (let j: number = 0; j < w * h; j++) {
-                    font.charMask[i][j] = dat.g1b;
+                    font.charMask[i][j] = dat.g1b();
                 }
             } else if (type === 1) {
                 for (let x: number = 0; x < w; x++) {
                     for (let y: number = 0; y < h; y++) {
-                        font.charMask[i][x + y * w] = dat.g1b;
+                        font.charMask[i][x + y * w] = dat.g1b();
                     }
                 }
             }
 
-            if (h > font.height) {
-                font.height = h;
+            if (h > font.height2d) {
+                font.height2d = h;
             }
 
             font.charOffsetX[i] = 1;
@@ -119,7 +119,7 @@ export default class PixFont extends DoublyLinkable {
         }
 
         return font;
-    };
+    }
 
     drawString(x: number, y: number, str: string | null, color: number): void {
         if (!str) {
@@ -130,7 +130,7 @@ export default class PixFont extends DoublyLinkable {
         y |= 0;
 
         const length: number = str.length;
-        y -= this.height;
+        y -= this.height2d;
         for (let i: number = 0; i < length; i++) {
             const c: number = PixFont.CHARCODESET[str.charCodeAt(i)];
 
@@ -147,7 +147,7 @@ export default class PixFont extends DoublyLinkable {
         y |= 0;
 
         const length: number = str.length;
-        y -= this.height;
+        y -= this.height2d;
         for (let i: number = 0; i < length; i++) {
             if (str.charAt(i) === '@' && i + 4 < length && str.charAt(i + 4) === '@') {
                 color = this.evaluateTag(str.substring(i + 1, i + 4));
@@ -210,7 +210,7 @@ export default class PixFont extends DoublyLinkable {
         this.random.setSeed(BigInt(seed));
 
         const rand: number = (this.random.nextInt() & 0x1f) + 192;
-        const offY: number = y - this.height;
+        const offY: number = y - this.height2d;
         for (let i: number = 0; i < str.length; i++) {
             if (str.charAt(i) === '@' && i + 4 < str.length && str.charAt(i + 4) === '@') {
                 color = this.evaluateTag(str.substring(i + 1, i + 4));
@@ -252,7 +252,7 @@ export default class PixFont extends DoublyLinkable {
         y |= 0;
 
         x -= (this.stringWidth(str) / 2) | 0;
-        const offY: number = y - this.height;
+        const offY: number = y - this.height2d;
 
         for (let i: number = 0; i < str.length; i++) {
             const c: number = PixFont.CHARCODESET[str.charCodeAt(i)];
@@ -465,8 +465,6 @@ export default class PixFont extends DoublyLinkable {
             return Colors.BLACK;
         }
     }
-
-    //
 
     split(str: string, maxWidth: number): string[] {
         if (str.length === 0) {

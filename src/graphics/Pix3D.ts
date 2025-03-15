@@ -12,7 +12,7 @@ export default class Pix3D extends Pix2D {
     static reciprocal16: Int32Array = new Int32Array(2048);
     static sin: Int32Array = new Int32Array(2048);
     static cos: Int32Array = new Int32Array(2048);
-    static palette: Int32Array = new Int32Array(65536);
+    static hslPal: Int32Array = new Int32Array(65536);
 
     static textures: (Pix8 | null)[] = new TypedArray1d(50, null);
     static textureCount: number = 0;
@@ -30,7 +30,7 @@ export default class Pix3D extends Pix2D {
     static poolSize: number = 0;
     static cycle: number = 0;
     static textureCycle: Int32Array = new Int32Array(50);
-    static texturePalette: (Int32Array | null)[] = new TypedArray1d(50, null);
+    static texPal: (Int32Array | null)[] = new TypedArray1d(50, null);
 
     private static opaque: boolean = false;
     private static textureTranslucent: boolean[] = new TypedArray1d(50, false);
@@ -53,30 +53,30 @@ export default class Pix3D extends Pix2D {
         }
     }
 
-    static init2D = (): void => {
+    static init2D(): void {
         this.lineOffset = new Int32Array(Pix2D.height2d);
         for (let y: number = 0; y < Pix2D.height2d; y++) {
             this.lineOffset[y] = Pix2D.width2d * y;
         }
         this.centerX = (Pix2D.width2d / 2) | 0;
         this.centerY = (Pix2D.height2d / 2) | 0;
-    };
+    }
 
-    static init3D = (width: number, height: number): void => {
+    static init3D(width: number, height: number): void {
         this.lineOffset = new Int32Array(height);
         for (let y: number = 0; y < height; y++) {
             this.lineOffset[y] = width * y;
         }
         this.centerX = (width / 2) | 0;
         this.centerY = (height / 2) | 0;
-    };
+    }
 
-    static clearTexels = (): void => {
+    static clearTexels(): void {
         this.texelPool = null;
         this.activeTexels.fill(null);
-    };
+    }
 
-    static unpackTextures = (textures: Jagfile): void => {
+    static unpackTextures(textures: Jagfile): void {
         this.textureCount = 0;
 
         for (let i: number = 0; i < 50; i++) {
@@ -92,14 +92,14 @@ export default class Pix3D extends Pix2D {
                 /* empty */
             }
         }
-    };
+    }
 
-    static getAverageTextureRGB = (id: number): number => {
+    static getAverageTextureRGB(id: number): number {
         if (this.averageTextureRGB[id] !== 0) {
             return this.averageTextureRGB[id];
         }
 
-        const palette: Int32Array | null = this.texturePalette[id];
+        const palette: Int32Array | null = this.texPal[id];
         if (!palette) {
             return 0;
         }
@@ -121,9 +121,9 @@ export default class Pix3D extends Pix2D {
         }
         this.averageTextureRGB[id] = rgb;
         return rgb;
-    };
+    }
 
-    static setBrightness = (brightness: number): void => {
+    static setBrightness(brightness: number): void {
         const randomBrightness: number = brightness + Math.random() * 0.03 - 0.015;
         let offset: number = 0;
         for (let y: number = 0; y < 512; y++) {
@@ -182,7 +182,7 @@ export default class Pix3D extends Pix2D {
                 const intG: number = (g * 256.0) | 0;
                 const intB: number = (b * 256.0) | 0;
                 const rgb: number = (intR << 16) + (intG << 8) + intB;
-                this.palette[offset++] = this.setGamma(rgb, randomBrightness);
+                this.hslPal[offset++] = this.setGamma(rgb, randomBrightness);
             }
         }
         for (let id: number = 0; id < 50; id++) {
@@ -190,10 +190,10 @@ export default class Pix3D extends Pix2D {
             if (!texture) {
                 continue;
             }
-            const palette: Int32Array = texture.palette;
-            this.texturePalette[id] = new Int32Array(palette.length);
+            const palette: Int32Array = texture.rgbPal;
+            this.texPal[id] = new Int32Array(palette.length);
             for (let i: number = 0; i < palette.length; i++) {
-                const texturePalette: Int32Array | null = this.texturePalette[id];
+                const texturePalette: Int32Array | null = this.texPal[id];
                 if (!texturePalette) {
                     continue;
                 }
@@ -204,9 +204,9 @@ export default class Pix3D extends Pix2D {
         for (let id: number = 0; id < 50; id++) {
             this.pushTexture(id);
         }
-    };
+    }
 
-    private static setGamma = (rgb: number, gamma: number): number => {
+    private static setGamma(rgb: number, gamma: number): number {
         const r: number = (rgb >> 16) / 256.0;
         const g: number = ((rgb >> 8) & 0xff) / 256.0;
         const b: number = (rgb & 0xff) / 256.0;
@@ -217,9 +217,9 @@ export default class Pix3D extends Pix2D {
         const intG: number = (powG * 256.0) | 0;
         const intB: number = (powB * 256.0) | 0;
         return (intR << 16) + (intG << 8) + intB;
-    };
+    }
 
-    static initPool = (size: number): void => {
+    static initPool(size: number): void {
         if (this.texelPool) {
             return;
         }
@@ -230,9 +230,9 @@ export default class Pix3D extends Pix2D {
             this.texelPool = new Int32Array2d(size, 65536);
         }
         this.activeTexels.fill(null);
-    };
+    }
 
-    static fillGouraudTriangle = (xA: number, xB: number, xC: number, yA: number, yB: number, yC: number, colorA: number, colorB: number, colorC: number): void => {
+    static fillGouraudTriangle(xA: number, xB: number, xC: number, yA: number, yB: number, yC: number, colorA: number, colorB: number, colorC: number): void {
         let xStepAB: number = 0;
         let colorStepAB: number = 0;
         if (yB !== yA) {
@@ -730,9 +730,9 @@ export default class Pix3D extends Pix2D {
                 }
             }
         }
-    };
+    }
 
-    private static drawGouraudScanline = (x0: number, x1: number, color0: number, color1: number, dst: Int32Array, offset: number, length: number): void => {
+    private static drawGouraudScanline(x0: number, x1: number, color0: number, color1: number, dst: Int32Array, offset: number, length: number): void {
         let rgb: number;
 
         if (Pix3D.jagged) {
@@ -776,7 +776,7 @@ export default class Pix3D extends Pix2D {
                     if (length < 0) {
                         length = (x1 - x0) & 0x3;
                         if (length > 0) {
-                            rgb = Pix3D.palette[color0 >> 8];
+                            rgb = Pix3D.hslPal[color0 >> 8];
                             do {
                                 dst[offset++] = rgb;
                                 length--;
@@ -785,7 +785,7 @@ export default class Pix3D extends Pix2D {
                         }
                         break;
                     }
-                    rgb = Pix3D.palette[color0 >> 8];
+                    rgb = Pix3D.hslPal[color0 >> 8];
                     color0 += colorStep;
                     dst[offset++] = rgb;
                     dst[offset++] = rgb;
@@ -801,7 +801,7 @@ export default class Pix3D extends Pix2D {
                     if (length < 0) {
                         length = (x1 - x0) & 0x3;
                         if (length > 0) {
-                            rgb = Pix3D.palette[color0 >> 8];
+                            rgb = Pix3D.hslPal[color0 >> 8];
                             rgb = ((((rgb & 0xff00ff) * invAlpha) >> 8) & 0xff00ff) + ((((rgb & 0xff00) * invAlpha) >> 8) & 0xff00);
                             do {
                                 dst[offset++] = rgb + ((((dst[offset] & 0xff00ff) * alpha) >> 8) & 0xff00ff) + ((((dst[offset] & 0xff00) * alpha) >> 8) & 0xff00);
@@ -810,7 +810,7 @@ export default class Pix3D extends Pix2D {
                         }
                         break;
                     }
-                    rgb = Pix3D.palette[color0 >> 8];
+                    rgb = Pix3D.hslPal[color0 >> 8];
                     color0 += colorStep;
                     rgb = ((((rgb & 0xff00ff) * invAlpha) >> 8) & 0xff00ff) + ((((rgb & 0xff00) * invAlpha) >> 8) & 0xff00);
                     dst[offset++] = rgb + ((((dst[offset] & 0xff00ff) * alpha) >> 8) & 0xff00ff) + ((((dst[offset] & 0xff00) * alpha) >> 8) & 0xff00);
@@ -837,7 +837,7 @@ export default class Pix3D extends Pix2D {
             length = x1 - x0;
             if (Pix3D.alpha === 0) {
                 do {
-                    dst[offset++] = Pix3D.palette[color0 >> 8];
+                    dst[offset++] = Pix3D.hslPal[color0 >> 8];
                     color0 += colorStep;
                     length--;
                 } while (length > 0);
@@ -845,7 +845,7 @@ export default class Pix3D extends Pix2D {
                 const alpha: number = Pix3D.alpha;
                 const invAlpha: number = 256 - Pix3D.alpha;
                 do {
-                    rgb = Pix3D.palette[color0 >> 8];
+                    rgb = Pix3D.hslPal[color0 >> 8];
                     color0 += colorStep;
                     rgb = ((((rgb & 0xff00ff) * invAlpha) >> 8) & 0xff00ff) + ((((rgb & 0xff00) * invAlpha) >> 8) & 0xff00);
                     dst[offset++] = rgb + ((((dst[offset] & 0xff00ff) * alpha) >> 8) & 0xff00ff) + ((((dst[offset] & 0xff00) * alpha) >> 8) & 0xff00);
@@ -853,9 +853,9 @@ export default class Pix3D extends Pix2D {
                 } while (length > 0);
             }
         }
-    };
+    }
 
-    static fillTriangle = (x0: number, x1: number, x2: number, y0: number, y1: number, y2: number, color: number): void => {
+    static fillTriangle(x0: number, x1: number, x2: number, y0: number, y1: number, y2: number, color: number): void {
         let xStepAB: number = 0;
         if (y1 !== y0) {
             xStepAB = (((x1 - x0) << 16) / (y1 - y0)) | 0;
@@ -1275,9 +1275,9 @@ export default class Pix3D extends Pix2D {
                 }
             }
         }
-    };
+    }
 
-    static fillTexturedTriangle = (
+    static fillTexturedTriangle(
         xA: number,
         xB: number,
         xC: number,
@@ -1297,7 +1297,7 @@ export default class Pix3D extends Pix2D {
         tzB: number,
         tzC: number,
         texture: number
-    ): void => {
+    ): void {
         const texels: Int32Array | null = this.getTexels(texture);
         this.opaque = !this.textureTranslucent[texture];
 
@@ -2006,9 +2006,9 @@ export default class Pix3D extends Pix2D {
                 }
             }
         }
-    };
+    }
 
-    private static drawTexturedScanline = (
+    private static drawTexturedScanline(
         xA: number,
         xB: number,
         dst: Int32Array,
@@ -2024,7 +2024,7 @@ export default class Pix3D extends Pix2D {
         wStride: number,
         shadeA: number,
         shadeB: number
-    ): void => {
+    ): void {
         if (xA >= xB) {
             return;
         }
@@ -2424,9 +2424,9 @@ export default class Pix3D extends Pix2D {
             curU += stepU;
             curV += stepV;
         }
-    };
+    }
 
-    private static drawScanline = (x0: number, x1: number, dst: Int32Array, offset: number, rgb: number): void => {
+    private static drawScanline(x0: number, x1: number, dst: Int32Array, offset: number, rgb: number): void {
         if (this.clipX) {
             if (x1 > Pix2D.boundX) {
                 x1 = Pix2D.boundX;
@@ -2489,16 +2489,16 @@ export default class Pix3D extends Pix2D {
             dst[offset++] = rgb + ((((dst[offset] & 0xff00ff) * alpha) >> 8) & 0xff00ff) + ((((dst[offset] & 0xff00) * alpha) >> 8) & 0xff00);
             dst[offset++] = rgb + ((((dst[offset] & 0xff00ff) * alpha) >> 8) & 0xff00ff) + ((((dst[offset] & 0xff00) * alpha) >> 8) & 0xff00);
         }
-    };
+    }
 
-    static pushTexture = (id: number): void => {
+    static pushTexture(id: number): void {
         if (this.activeTexels[id] && this.texelPool) {
             this.texelPool[this.poolSize++] = this.activeTexels[id];
             this.activeTexels[id] = null;
         }
-    };
+    }
 
-    private static getTexels = (id: number): Int32Array | null => {
+    private static getTexels(id: number): Int32Array | null {
         this.textureCycle[id] = this.cycle++;
         if (this.activeTexels[id]) {
             return this.activeTexels[id];
@@ -2523,7 +2523,7 @@ export default class Pix3D extends Pix2D {
 
         this.activeTexels[id] = texels;
         const texture: Pix8 | null = this.textures[id];
-        const palette: Int32Array | null = this.texturePalette[id];
+        const palette: Int32Array | null = this.texPal[id];
 
         if (!texels || !texture || !palette) {
             return null;
@@ -2541,7 +2541,7 @@ export default class Pix3D extends Pix2D {
                 texels[i + 12288] = (rgb - (rgb >>> 2) - (rgb >>> 3)) & 0xf8f8ff;
             }
         } else {
-            if (texture.width === 64) {
+            if (texture.width2d === 64) {
                 for (let y: number = 0; y < 128; y++) {
                     for (let x: number = 0; x < 128; x++) {
                         texels[x + ((y << 7) | 0)] = palette[texture.pixels[(x >> 1) + (((y >> 1) << 6) | 0)]];
@@ -2567,5 +2567,5 @@ export default class Pix3D extends Pix2D {
         }
 
         return texels;
-    };
+    }
 }

@@ -8,121 +8,194 @@ import JString from '#/datastruct/JString.js';
 
 import PathingEntity from '#/dash3d/entity/PathingEntity.js';
 
-import Colors from '#/graphics/Colors.js';
 import Model from '#/graphics/Model.js';
 
 import Packet from '#/io/Packet.js';
 
 import { TypedArray1d } from '#/util/Arrays.js';
 
-export default class PlayerEntity extends PathingEntity {
-    static readonly APPEARANCE: number = 0x1;
-    static readonly ANIM: number = 0x2;
-    static readonly FACE_ENTITY: number = 0x4;
-    static readonly SAY: number = 0x8;
-    static readonly DAMAGE: number = 0x10;
-    static readonly FACE_COORD: number = 0x20;
-    static readonly CHAT: number = 0x40;
-    static readonly BIG_UPDATE: number = 0x80;
-    static readonly SPOTANIM: number = 0x100;
-    static readonly EXACT_MOVE: number = 0x200;
+export const enum PlayerUpdate {
+    APPEARANCE = 0x1,
+    ANIM = 0x2,
+    FACE_ENTITY = 0x4,
+    SAY = 0x8,
+    DAMAGE = 0x10,
+    FACE_COORD = 0x20,
+    CHAT = 0x40,
+    BIG_UPDATE = 0x80,
+    SPOTANIM = 0x100,
+    EXACT_MOVE = 0x200
+}
 
+const enum HairColor {
+    HAIR_DARK_BROWN = 6798,
+    HAIR_WHITE = 107,
+    HAIR_LIGHT_GREY = 10283,
+    HAIR_DARK_GREY = 16,
+    HAIR_APRICOT = 4797,
+    HAIR_STRAW = 7744,
+    HAIR_LIGHT_BROWN = 5799,
+    HAIR_BROWN = 4634,
+    HAIR_TURQUOISE = 33697,
+    HAIR_GREEN = 22433,
+    HAIR_GINGER = 2983,
+    HAIR_MAGENTA = 54193,
+}
+
+const enum BodyColorSource {   
+    BODY_KHAKI = 8741,
+    BODY_CHARCOAL = 12,
+    BODY_CRIMSON = 64030,
+    BODY_NAVY = 43162,
+    BODY_STRAW = 7735,
+    BODY_WHITE = 8404,
+    BODY_RED = 1701,
+    BODY_BLUE = 38430,
+    BODY_GREEN = 24094,
+    BODY_YELLOW = 10153,
+    BODY_PURPLE = 56621,
+    BODY_ORANGE = 4783,
+    BODY_ROSE = 1341,
+    BODY_LIME = 16578,
+    BODY_CYAN = 35003,
+    BODY_EMERALD = 25239,
+}
+
+const enum BodyColorDest {
+    BODY_RECOLOR_KHAKI = 9104,
+    BODY_RECOLOR_CHARCOAL = 10275,
+    BODY_RECOLOR_CRIMSON = 7595,
+    BODY_RECOLOR_NAVY = 3610,
+    BODY_RECOLOR_STRAW = 7975,
+    BODY_RECOLOR_WHITE = 8526,
+    BODY_RECOLOR_RED = 918,
+    BODY_RECOLOR_BLUE = 38802,
+    BODY_RECOLOR_GREEN = 24466,
+    BODY_RECOLOR_YELLOW = 10145,
+    BODY_RECOLOR_PURPLE = 58654,
+    BODY_RECOLOR_ORANGE = 5027,
+    BODY_RECOLOR_ROSE = 1457,
+    BODY_RECOLOR_LIME = 16565,
+    BODY_RECOLOR_CYAN = 34991,
+    BODY_RECOLOR_EMERALD = 25486,
+}
+
+const enum FeetColor {
+    FEET_BROWN = 4626,
+    FEET_KHAKI = 11146,
+    FEET_ASHEN = 6439,
+    FEET_DARK = 12,
+    FEET_TERRACOTTA = 4758,
+    FEET_GREY = 10270,
+}
+
+const enum SkinColor {
+    SKIN = 4574,
+    SKIN_DARKER = 4550,
+    SKIN_DARKER_DARKER = 4537,
+    SKIN_DARKER_DARKER_DARKER = 5681,
+    SKIN_DARKER_DARKER_DARKER_DARKER = 5673,
+    SKIN_DARKER_DARKER_DARKER_DARKER_DARKER = 5790,
+    SKIN_DARKER_DARKER_DARKER_DARKER_DARKER_DARKER = 6806,
+    SKIN_DARKER_DARKER_DARKER_DARKER_DARKER_DARKER_DARKER = 8076,
+}
+
+export default class PlayerEntity extends PathingEntity {
     // prettier-ignore
     static readonly TORSO_RECOLORS: number[] = [
-        Colors.BODY_RECOLOR_KHAKI,
-        Colors.BODY_RECOLOR_CHARCOAL,
-        Colors.BODY_RECOLOR_CRIMSON,
-        Colors.BODY_RECOLOR_NAVY,
-        Colors.BODY_RECOLOR_STRAW,
-        Colors.BODY_RECOLOR_WHITE,
-        Colors.BODY_RECOLOR_RED,
-        Colors.BODY_RECOLOR_BLUE,
-        Colors.BODY_RECOLOR_GREEN,
-        Colors.BODY_RECOLOR_YELLOW,
-        Colors.BODY_RECOLOR_PURPLE,
-        Colors.BODY_RECOLOR_ORANGE,
-        Colors.BODY_RECOLOR_ROSE,
-        Colors.BODY_RECOLOR_LIME,
-        Colors.BODY_RECOLOR_CYAN,
-        Colors.BODY_RECOLOR_EMERALD
+        BodyColorDest.BODY_RECOLOR_KHAKI,
+        BodyColorDest.BODY_RECOLOR_CHARCOAL,
+        BodyColorDest.BODY_RECOLOR_CRIMSON,
+        BodyColorDest.BODY_RECOLOR_NAVY,
+        BodyColorDest.BODY_RECOLOR_STRAW,
+        BodyColorDest.BODY_RECOLOR_WHITE,
+        BodyColorDest.BODY_RECOLOR_RED,
+        BodyColorDest.BODY_RECOLOR_BLUE,
+        BodyColorDest.BODY_RECOLOR_GREEN,
+        BodyColorDest.BODY_RECOLOR_YELLOW,
+        BodyColorDest.BODY_RECOLOR_PURPLE,
+        BodyColorDest.BODY_RECOLOR_ORANGE,
+        BodyColorDest.BODY_RECOLOR_ROSE,
+        BodyColorDest.BODY_RECOLOR_LIME,
+        BodyColorDest.BODY_RECOLOR_CYAN,
+        BodyColorDest.BODY_RECOLOR_EMERALD
     ];
 
     // prettier-ignore
     static readonly DESIGN_IDK_COLORS: number[][] = [
         [ // hair
-            Colors.HAIR_DARK_BROWN,
-            Colors.HAIR_WHITE,
-            Colors.HAIR_LIGHT_GREY,
-            Colors.HAIR_DARK_GREY,
-            Colors.HAIR_APRICOT,
-            Colors.HAIR_STRAW,
-            Colors.HAIR_LIGHT_BROWN,
-            Colors.HAIR_BROWN,
-            Colors.HAIR_TURQUOISE,
-            Colors.HAIR_GREEN,
-            Colors.HAIR_GINGER,
-            Colors.HAIR_MAGENTA
+            HairColor.HAIR_DARK_BROWN,
+            HairColor.HAIR_WHITE,
+            HairColor.HAIR_LIGHT_GREY,
+            HairColor.HAIR_DARK_GREY,
+            HairColor.HAIR_APRICOT,
+            HairColor.HAIR_STRAW,
+            HairColor.HAIR_LIGHT_BROWN,
+            HairColor.HAIR_BROWN,
+            HairColor.HAIR_TURQUOISE,
+            HairColor.HAIR_GREEN,
+            HairColor.HAIR_GINGER,
+            HairColor.HAIR_MAGENTA
         ],
         [ // torso
-            Colors.BODY_KHAKI,
-            Colors.BODY_CHARCOAL,
-            Colors.BODY_CRIMSON,
-            Colors.BODY_NAVY,
-            Colors.BODY_STRAW,
-            Colors.BODY_WHITE,
-            Colors.BODY_RED,
-            Colors.BODY_BLUE,
-            Colors.BODY_GREEN,
-            Colors.BODY_YELLOW,
-            Colors.BODY_PURPLE,
-            Colors.BODY_ORANGE,
-            Colors.BODY_ROSE,
-            Colors.BODY_LIME,
-            Colors.BODY_CYAN,
-            Colors.BODY_EMERALD
+            BodyColorSource.BODY_KHAKI,
+            BodyColorSource.BODY_CHARCOAL,
+            BodyColorSource.BODY_CRIMSON,
+            BodyColorSource.BODY_NAVY,
+            BodyColorSource.BODY_STRAW,
+            BodyColorSource.BODY_WHITE,
+            BodyColorSource.BODY_RED,
+            BodyColorSource.BODY_BLUE,
+            BodyColorSource.BODY_GREEN,
+            BodyColorSource.BODY_YELLOW,
+            BodyColorSource.BODY_PURPLE,
+            BodyColorSource.BODY_ORANGE,
+            BodyColorSource.BODY_ROSE,
+            BodyColorSource.BODY_LIME,
+            BodyColorSource.BODY_CYAN,
+            BodyColorSource.BODY_EMERALD
         ],
         [ // legs
-            Colors.BODY_EMERALD - 1,
-            Colors.BODY_KHAKI + 1,
-            Colors.BODY_CHARCOAL,
-            Colors.BODY_CRIMSON,
-            Colors.BODY_NAVY,
-            Colors.BODY_STRAW,
-            Colors.BODY_WHITE,
-            Colors.BODY_RED,
-            Colors.BODY_BLUE,
-            Colors.BODY_GREEN,
-            Colors.BODY_YELLOW,
-            Colors.BODY_PURPLE,
-            Colors.BODY_ORANGE,
-            Colors.BODY_ROSE,
-            Colors.BODY_LIME,
-            Colors.BODY_CYAN
+            BodyColorSource.BODY_EMERALD - 1,
+            BodyColorSource.BODY_KHAKI + 1,
+            BodyColorSource.BODY_CHARCOAL,
+            BodyColorSource.BODY_CRIMSON,
+            BodyColorSource.BODY_NAVY,
+            BodyColorSource.BODY_STRAW,
+            BodyColorSource.BODY_WHITE,
+            BodyColorSource.BODY_RED,
+            BodyColorSource.BODY_BLUE,
+            BodyColorSource.BODY_GREEN,
+            BodyColorSource.BODY_YELLOW,
+            BodyColorSource.BODY_PURPLE,
+            BodyColorSource.BODY_ORANGE,
+            BodyColorSource.BODY_ROSE,
+            BodyColorSource.BODY_LIME,
+            BodyColorSource.BODY_CYAN
         ],
         [ // feet
-            Colors.FEET_BROWN,
-            Colors.FEET_KHAKI,
-            Colors.FEET_ASHEN,
-            Colors.FEET_DARK,
-            Colors.FEET_TERRACOTTA,
-            Colors.FEET_GREY
+            FeetColor.FEET_BROWN,
+            FeetColor.FEET_KHAKI,
+            FeetColor.FEET_ASHEN,
+            FeetColor.FEET_DARK,
+            FeetColor.FEET_TERRACOTTA,
+            FeetColor.FEET_GREY
         ],
         [ // skin
-            Colors.SKIN_DARKER,
-            Colors.SKIN_DARKER_DARKER,
-            Colors.SKIN_DARKER_DARKER_DARKER,
-            Colors.SKIN_DARKER_DARKER_DARKER_DARKER,
-            Colors.SKIN_DARKER_DARKER_DARKER_DARKER_DARKER,
-            Colors.SKIN_DARKER_DARKER_DARKER_DARKER_DARKER_DARKER,
-            Colors.SKIN_DARKER_DARKER_DARKER_DARKER_DARKER_DARKER_DARKER,
-            Colors.SKIN
+            SkinColor.SKIN_DARKER,
+            SkinColor.SKIN_DARKER_DARKER,
+            SkinColor.SKIN_DARKER_DARKER_DARKER,
+            SkinColor.SKIN_DARKER_DARKER_DARKER_DARKER,
+            SkinColor.SKIN_DARKER_DARKER_DARKER_DARKER_DARKER,
+            SkinColor.SKIN_DARKER_DARKER_DARKER_DARKER_DARKER_DARKER,
+            SkinColor.SKIN_DARKER_DARKER_DARKER_DARKER_DARKER_DARKER_DARKER,
+            SkinColor.SKIN
         ]
     ];
-
     static modelCache: LruCache | null = new LruCache(200);
 
     name: string | null = null;
-    visible: boolean = false;
+    playerVisible: boolean = false;
     gender: number = 0;
     headicons: number = 0;
     appearances: Uint16Array = new Uint16Array(12);
@@ -143,12 +216,12 @@ export default class PlayerEntity extends PathingEntity {
     lowMemory: boolean = false;
 
     draw(loopCycle: number): Model | null {
-        if (!this.visible) {
+        if (!this.playerVisible) {
             return null;
         }
 
         let model: Model = this.getSequencedModel();
-        this.height = model.maxY;
+        this.maxY = model.maxY;
         model.pickable = true;
 
         if (this.lowMemory) {
@@ -159,10 +232,10 @@ export default class PlayerEntity extends PathingEntity {
             const spotanim: SpotAnimType = SpotAnimType.instances[this.spotanimId];
             const model2: Model = Model.modelShareColored(spotanim.getModel(), true, !spotanim.disposeAlpha, false);
 
-            model2.translate(-this.spotanimOffset, 0, 0);
+            model2.translateModel(-this.spotanimOffset, 0, 0);
             model2.createLabelReferences();
-            if (spotanim.seq && spotanim.seq.frames) {
-                model2.applyTransform(spotanim.seq.frames[this.spotanimFrame]);
+            if (spotanim.seq && spotanim.seq.seqFrames) {
+                model2.applyTransform(spotanim.seq.seqFrames[this.spotanimFrame]);
             }
             model2.labelFaces = null;
             model2.labelVertices = null;
@@ -183,7 +256,7 @@ export default class PlayerEntity extends PathingEntity {
             if (loopCycle >= this.locStartCycle && loopCycle < this.locStopCycle) {
                 const loc: Model | null = this.locModel;
                 if (loc) {
-                    loc.translate(this.locOffsetY - this.y, this.locOffsetX - this.x, this.locOffsetZ - this.z);
+                    loc.translateModel(this.locOffsetY - this.y, this.locOffsetX - this.x, this.locOffsetZ - this.z);
                     if (this.dstYaw === 512) {
                         loc.rotateY90();
                         loc.rotateY90();
@@ -207,7 +280,7 @@ export default class PlayerEntity extends PathingEntity {
                         loc.rotateY90();
                         loc.rotateY90();
                     }
-                    loc.translate(this.y - this.locOffsetY, this.x - this.locOffsetX, this.z - this.locOffsetZ);
+                    loc.translateModel(this.y - this.locOffsetY, this.x - this.locOffsetX, this.z - this.locOffsetZ);
                 }
             }
         }
@@ -216,71 +289,72 @@ export default class PlayerEntity extends PathingEntity {
         return model;
     }
 
-    isVisible(): boolean {
-        return this.visible;
+    isVisibleNow(): boolean {
+        return this.playerVisible;
     }
 
+    /*@__MANGLE_PROP__*/
     read(buf: Packet): void {
         buf.pos = 0;
 
-        this.gender = buf.g1;
-        this.headicons = buf.g1;
+        this.gender = buf.g1();
+        this.headicons = buf.g1();
 
         for (let part: number = 0; part < 12; part++) {
-            const msb: number = buf.g1;
+            const msb: number = buf.g1();
             if (msb === 0) {
                 this.appearances[part] = 0;
             } else {
-                this.appearances[part] = (msb << 8) + buf.g1;
+                this.appearances[part] = (msb << 8) + buf.g1();
             }
         }
 
         for (let part: number = 0; part < 5; part++) {
-            let color: number = buf.g1;
+            let color: number = buf.g1();
             if (color < 0 || color >= PlayerEntity.DESIGN_IDK_COLORS[part].length) {
                 color = 0;
             }
             this.colors[part] = color;
         }
 
-        this.seqStandId = buf.g2;
+        this.seqStandId = buf.g2();
         if (this.seqStandId === 65535) {
             this.seqStandId = -1;
         }
 
-        this.seqTurnId = buf.g2;
+        this.seqTurnId = buf.g2();
         if (this.seqTurnId === 65535) {
             this.seqTurnId = -1;
         }
 
-        this.seqWalkId = buf.g2;
+        this.seqWalkId = buf.g2();
         if (this.seqWalkId === 65535) {
             this.seqWalkId = -1;
         }
 
-        this.seqTurnAroundId = buf.g2;
+        this.seqTurnAroundId = buf.g2();
         if (this.seqTurnAroundId === 65535) {
             this.seqTurnAroundId = -1;
         }
 
-        this.seqTurnLeftId = buf.g2;
+        this.seqTurnLeftId = buf.g2();
         if (this.seqTurnLeftId === 65535) {
             this.seqTurnLeftId = -1;
         }
 
-        this.seqTurnRightId = buf.g2;
+        this.seqTurnRightId = buf.g2();
         if (this.seqTurnRightId === 65535) {
             this.seqTurnRightId = -1;
         }
 
-        this.seqRunId = buf.g2;
+        this.seqRunId = buf.g2();
         if (this.seqRunId === 65535) {
             this.seqRunId = -1;
         }
 
-        this.name = JString.formatName(JString.fromBase37(buf.g8));
-        this.combatLevel = buf.g1;
-        this.visible = true;
+        this.name = JString.formatName(JString.fromBase37(buf.g8()));
+        this.combatLevel = buf.g1();
+        this.playerVisible = true;
 
         this.appearanceHashcode = 0n;
         for (let part: number = 0; part < 12; part++) {
@@ -304,7 +378,7 @@ export default class PlayerEntity extends PathingEntity {
     }
 
     getHeadModel(): Model | null {
-        if (!this.visible) {
+        if (!this.playerVisible) {
             return null;
         }
 
@@ -349,11 +423,11 @@ export default class PlayerEntity extends PathingEntity {
         if (this.primarySeqId >= 0 && this.primarySeqDelay === 0) {
             const seq: SeqType = SeqType.instances[this.primarySeqId];
 
-            if (seq.frames) {
-                primaryTransformId = seq.frames[this.primarySeqFrame];
+            if (seq.seqFrames) {
+                primaryTransformId = seq.seqFrames[this.primarySeqFrame];
             }
             if (this.secondarySeqId >= 0 && this.secondarySeqId !== this.seqStandId) {
-                const secondFrames: Int16Array | null = SeqType.instances[this.secondarySeqId].frames;
+                const secondFrames: Int16Array | null = SeqType.instances[this.secondarySeqId].seqFrames;
                 if (secondFrames) {
                     secondaryTransformId = secondFrames[this.secondarySeqFrame];
                 }
@@ -369,7 +443,7 @@ export default class PlayerEntity extends PathingEntity {
                 hashCode += BigInt(leftHandValue - this.appearances[3]) << 16n;
             }
         } else if (this.secondarySeqId >= 0) {
-            const secondFrames: Int16Array | null = SeqType.instances[this.secondarySeqId].frames;
+            const secondFrames: Int16Array | null = SeqType.instances[this.secondarySeqId].seqFrames;
             if (secondFrames) {
                 primaryTransformId = secondFrames[this.secondarySeqFrame];
             }

@@ -40,13 +40,13 @@ export default class Packet extends DoublyLinkable {
         }
     }
 
-    static crc32 = (src: Uint8Array): number => {
+    static crc32(src: Uint8Array): number {
         let crc: number = 0xffffffff;
         for (let i: number = 0; i < src.length; i++) {
             crc = (crc >>> 8) ^ Packet.crctable[(crc ^ src[i]) & 0xff];
         }
         return ~crc;
-    };
+    }
 
     // constructor
     private readonly view: DataView;
@@ -59,7 +59,7 @@ export default class Packet extends DoublyLinkable {
 
     constructor(src: Uint8Array | Int8Array | null) {
         if (!src) {
-            throw new Error('Input src packet array was null!');
+            throw new Error();
         }
         super();
         if (src instanceof Int8Array) {
@@ -78,7 +78,7 @@ export default class Packet extends DoublyLinkable {
         return this.length - this.pos;
     }
 
-    static alloc = (type: number): Packet => {
+    static alloc(type: number): Packet {
         let cached: Packet | null = null;
         if (type === 0 && Packet.cacheMinCount > 0) {
             Packet.cacheMinCount--;
@@ -102,7 +102,7 @@ export default class Packet extends DoublyLinkable {
             return new Packet(new Uint8Array(5000));
         }
         return new Packet(new Uint8Array(30000));
-    };
+    }
 
     release(): void {
         this.pos = 0;
@@ -118,56 +118,56 @@ export default class Packet extends DoublyLinkable {
         }
     }
 
-    get g1(): number {
+    g1(): number {
         return this.view.getUint8(this.pos++);
     }
 
     // signed
-    get g1b(): number {
+    g1b(): number {
         return this.view.getInt8(this.pos++);
     }
 
-    get g2(): number {
+    g2(): number {
         const result: number = this.view.getUint16(this.pos);
         this.pos += 2;
         return result;
     }
 
     // signed
-    get g2b(): number {
+    g2b(): number {
         const result: number = this.view.getInt16(this.pos);
         this.pos += 2;
         return result;
     }
 
-    get g3(): number {
+    g3(): number {
         const result: number = (this.view.getUint8(this.pos++) << 16) | this.view.getUint16(this.pos);
         this.pos += 2;
         return result;
     }
 
-    get g4(): number {
+    g4(): number {
         const result: number = this.view.getInt32(this.pos);
         this.pos += 4;
         return result;
     }
 
-    get g8(): bigint {
+    g8(): bigint {
         const result: bigint = this.view.getBigInt64(this.pos);
         this.pos += 8;
         return result;
     }
 
-    get gsmart(): number {
-        return this.view.getUint8(this.pos) < 0x80 ? this.g1 - 0x40 : this.g2 - 0xc000;
+    gsmart(): number {
+        return this.view.getUint8(this.pos) < 0x80 ? this.g1() - 0x40 : this.g2() - 0xc000;
     }
 
     // signed
-    get gsmarts(): number {
-        return this.view.getUint8(this.pos) < 0x80 ? this.g1 : this.g2 - 0x8000;
+    gsmarts(): number {
+        return this.view.getUint8(this.pos) < 0x80 ? this.g1() : this.g2() - 0x8000;
     }
 
-    get gjstr(): string {
+    gjstr(): string {
         const view: DataView = this.view;
         const length: number = view.byteLength;
         let str: string = '';

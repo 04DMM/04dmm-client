@@ -8,12 +8,14 @@ export default class WordFilter {
             .split('')
             .map((char): number => char.charCodeAt(0))
     );
+
     private static readonly AMPERSAT: Uint16Array = new Uint16Array(
         ['(', 'a', ')']
             .join('')
             .split('')
             .map((char): number => char.charCodeAt(0))
     );
+
     private static readonly SLASH: Uint16Array = new Uint16Array(
         ['s', 'l', 'a', 's', 'h']
             .join('')
@@ -30,15 +32,15 @@ export default class WordFilter {
     private static readonly domains: Uint16Array[] = [];
     private static readonly fragments: number[] = [];
 
-    static unpack = (wordenc: Jagfile): void => {
+    static unpack(wordenc: Jagfile): void {
         const fragments: Packet = new Packet(wordenc.read('fragmentsenc.txt'));
         const bad: Packet = new Packet(wordenc.read('badenc.txt'));
         const domain: Packet = new Packet(wordenc.read('domainenc.txt'));
         const tld: Packet = new Packet(wordenc.read('tldlist.txt'));
         this.read(bad, domain, fragments, tld);
-    };
+    }
 
-    static filter = (input: string): string => {
+    static filter(input: string): string {
         const characters: string[] = [...input];
         this.format(characters);
         const trimmed: string = characters.join('').trim();
@@ -60,49 +62,49 @@ export default class WordFilter {
         this.replaceUppercases(filtered, [...trimmed]);
         this.formatUppercases(filtered);
         return filtered.join('').trim();
-    };
+    }
 
-    private static read = (bad: Packet, domain: Packet, fragments: Packet, tld: Packet): void => {
+    private static read(bad: Packet, domain: Packet, fragments: Packet, tld: Packet): void {
         this.readBadWords(bad);
         this.readDomains(domain);
         this.readFragments(fragments);
         this.readTld(tld);
-    };
+    }
 
-    private static readTld = (packet: Packet): void => {
-        const count: number = packet.g4;
+    private static readTld(packet: Packet): void {
+        const count: number = packet.g4();
         for (let index: number = 0; index < count; index++) {
-            this.tldTypes[index] = packet.g1;
-            this.tlds[index] = new Uint16Array(packet.g1).map((): number => packet.g1);
+            this.tldTypes[index] = packet.g1();
+            this.tlds[index] = new Uint16Array(packet.g1()).map((): number => packet.g1());
         }
-    };
+    }
 
-    private static readBadWords = (packet: Packet): void => {
-        const count: number = packet.g4;
+    private static readBadWords(packet: Packet): void {
+        const count: number = packet.g4();
         for (let index: number = 0; index < count; index++) {
-            this.bads[index] = new Uint16Array(packet.g1).map((): number => packet.g1);
-            const combos: number[][] = new Array(packet.g1).fill([]).map((): number[] => [packet.g1b, packet.g1b]);
+            this.bads[index] = new Uint16Array(packet.g1()).map((): number => packet.g1());
+            const combos: number[][] = new Array(packet.g1()).fill([]).map((): number[] => [packet.g1b(), packet.g1b()]);
             if (combos.length > 0) {
                 this.badCombinations[index] = combos;
             }
         }
-    };
+    }
 
-    private static readDomains = (packet: Packet): void => {
-        const count: number = packet.g4;
+    private static readDomains(packet: Packet): void {
+        const count: number = packet.g4();
         for (let index: number = 0; index < count; index++) {
-            this.domains[index] = new Uint16Array(packet.g1).map((): number => packet.g1);
+            this.domains[index] = new Uint16Array(packet.g1()).map((): number => packet.g1());
         }
-    };
+    }
 
-    private static readFragments = (packet: Packet): void => {
-        const count: number = packet.g4;
+    private static readFragments(packet: Packet): void {
+        const count: number = packet.g4();
         for (let index: number = 0; index < count; index++) {
-            this.fragments[index] = packet.g2;
+            this.fragments[index] = packet.g2();
         }
-    };
+    }
 
-    private static filterTlds = (chars: string[]): void => {
+    private static filterTlds(chars: string[]): void {
         const period: string[] = [...chars];
         const slash: string[] = [...chars];
         this.filterBadCombinations(null, period, this.PERIOD);
@@ -110,17 +112,17 @@ export default class WordFilter {
         for (let index: number = 0; index < this.tlds.length; index++) {
             this.filterTld(slash, this.tldTypes[index], chars, this.tlds[index], period);
         }
-    };
+    }
 
-    private static filterBadWords = (chars: string[]): void => {
+    private static filterBadWords(chars: string[]): void {
         for (let comboIndex: number = 0; comboIndex < 2; comboIndex++) {
             for (let index: number = this.bads.length - 1; index >= 0; index--) {
                 this.filterBadCombinations(this.badCombinations[index], chars, this.bads[index]);
             }
         }
-    };
+    }
 
-    private static filterDomains = (chars: string[]): void => {
+    private static filterDomains(chars: string[]): void {
         const ampersat: string[] = [...chars];
         const period: string[] = [...chars];
         this.filterBadCombinations(null, ampersat, this.AMPERSAT);
@@ -128,9 +130,9 @@ export default class WordFilter {
         for (let index: number = this.domains.length - 1; index >= 0; index--) {
             this.filterDomain(period, ampersat, this.domains[index], chars);
         }
-    };
+    }
 
-    private static filterFragments = (chars: string[]): void => {
+    private static filterFragments(chars: string[]): void {
         for (let currentIndex: number = 0; currentIndex < chars.length; ) {
             const numberIndex: number = this.indexOfNumber(chars, currentIndex);
             if (numberIndex === -1) {
@@ -172,9 +174,9 @@ export default class WordFilter {
             }
             currentIndex = this.indexOfNonNumber(currentIndex, chars);
         }
-    };
+    }
 
-    private static isBadFragment = (chars: string[]): boolean => {
+    private static isBadFragment(chars: string[]): boolean {
         if (this.isNumericalChars(chars)) {
             return true;
         }
@@ -201,9 +203,9 @@ export default class WordFilter {
             }
         }
         return false;
-    };
+    }
 
-    private static getInteger = (chars: string[]): number => {
+    private static getInteger(chars: string[]): number {
         if (chars.length > 6) {
             return 0;
         }
@@ -221,27 +223,27 @@ export default class WordFilter {
             }
         }
         return value;
-    };
+    }
 
-    private static indexOfNumber = (chars: string[], offset: number): number => {
+    private static indexOfNumber(chars: string[], offset: number): number {
         for (let index: number = offset; index < chars.length && index >= 0; index++) {
             if (this.isNumerical(chars[index])) {
                 return index;
             }
         }
         return -1;
-    };
+    }
 
-    private static indexOfNonNumber = (offset: number, chars: string[]): number => {
+    private static indexOfNonNumber(offset: number, chars: string[]): number {
         for (let index: number = offset; index < chars.length && index >= 0; index++) {
             if (!this.isNumerical(chars[index])) {
                 return index;
             }
         }
         return chars.length;
-    };
+    }
 
-    private static getEmulatedDomainCharLen = (nextChar: string, domainChar: string, currentChar: string): number => {
+    private static getEmulatedDomainCharLen(nextChar: string, domainChar: string, currentChar: string): number {
         if (domainChar === currentChar) {
             return 1;
         } else if (domainChar === 'o' && currentChar === '0') {
@@ -258,9 +260,9 @@ export default class WordFilter {
             return 1;
         }
         return 0;
-    };
+    }
 
-    private static filterDomain = (period: string[], ampersat: string[], domain: Uint16Array, chars: string[]): void => {
+    private static filterDomain(period: string[], ampersat: string[], domain: Uint16Array, chars: string[]): void {
         const domainLength: number = domain.length;
         const charsLength: number = chars.length;
         for (let index: number = 0; index <= charsLength - domainLength; index++) {
@@ -276,16 +278,16 @@ export default class WordFilter {
             }
             this.maskChars(index, currentIndex, chars);
         }
-    };
+    }
 
-    private static findMatchingDomain = (
+    private static findMatchingDomain(
         startIndex: number,
         domain: Uint16Array,
         chars: string[]
     ): {
         matched: boolean;
         currentIndex: number;
-    } => {
+    } {
         const domainLength: number = domain.length;
         let currentIndex: number = startIndex;
         let domainIndex: number = 0;
@@ -313,9 +315,9 @@ export default class WordFilter {
         }
 
         return { matched: domainIndex >= domainLength, currentIndex };
-    };
+    }
 
-    private static filterBadCombinations = (combos: number[][] | null, chars: string[], bads: Uint16Array): void => {
+    private static filterBadCombinations(combos: number[][] | null, chars: string[], bads: Uint16Array): void {
         if (bads.length > chars.length) {
             return;
         }
@@ -404,9 +406,9 @@ export default class WordFilter {
                 this.maskChars(startIndex, currentIndex, chars);
             }
         }
-    };
+    }
 
-    private static processBadCharacters = (
+    private static processBadCharacters(
         chars: string[],
         bads: Uint16Array,
         startIndex: number
@@ -416,7 +418,7 @@ export default class WordFilter {
         hasSymbol: boolean;
         hasNumber: boolean;
         hasDigit: boolean;
-    } => {
+    } {
         let index: number = startIndex;
         let badIndex: number = 0;
         let count: number = 0;
@@ -467,9 +469,9 @@ export default class WordFilter {
             }
         }
         return { currentIndex: index, badIndex, hasSymbol, hasNumber, hasDigit };
-    };
+    }
 
-    private static getEmulatedBadCharLen = (nextChar: string, badChar: string, currentChar: string): number => {
+    private static getEmulatedBadCharLen(nextChar: string, badChar: string, currentChar: string): number {
         if (badChar === currentChar) {
             return 1;
         }
@@ -643,9 +645,9 @@ export default class WordFilter {
             return currentChar === 'i' ? 1 : 0;
         }
         return 0;
-    };
+    }
 
-    private static comboMatches = (currentIndex: number, combos: number[][], nextIndex: number): boolean => {
+    private static comboMatches(currentIndex: number, combos: number[][], nextIndex: number): boolean {
         let start: number = 0;
         let end: number = combos.length - 1;
 
@@ -660,9 +662,9 @@ export default class WordFilter {
             }
         }
         return false;
-    };
+    }
 
-    private static getIndex = (char: string): number => {
+    private static getIndex(char: string): number {
         if (this.isLowercaseAlpha(char)) {
             return char.charCodeAt(0) + 1 - 'a'.charCodeAt(0);
         } else if (char === "'") {
@@ -671,9 +673,9 @@ export default class WordFilter {
             return char.charCodeAt(0) + 29 - '0'.charCodeAt(0);
         }
         return 27;
-    };
+    }
 
-    private static filterTld = (slash: string[], tldType: number, chars: string[], tld: Uint16Array, period: string[]): void => {
+    private static filterTld(slash: string[], tldType: number, chars: string[], tld: Uint16Array, period: string[]): void {
         if (tld.length > chars.length) {
             return;
         }
@@ -759,16 +761,16 @@ export default class WordFilter {
             }
             this.maskChars(startFilterIndex, endFilterIndex + 1, chars);
         }
-    };
+    }
 
-    private static processTlds = (
+    private static processTlds(
         chars: string[],
         tld: Uint16Array,
         currentIndex: number
     ): {
         currentIndex: number;
         tldIndex: number;
-    } => {
+    } {
         let tldIndex: number = 0;
         while (currentIndex < chars.length && tldIndex < tld.length) {
             const currentChar: string = chars[currentIndex];
@@ -794,36 +796,48 @@ export default class WordFilter {
             }
         }
         return { currentIndex, tldIndex };
-    };
+    }
 
-    private static isSymbol = (char: string): boolean => !this.isAlpha(char) && !this.isNumerical(char);
+    private static isSymbol(char: string): boolean {
+        return !this.isAlpha(char) && !this.isNumerical(char);
+    }
 
-    private static isNotLowercaseAlpha = (char: string): boolean => (this.isLowercaseAlpha(char) ? char === 'v' || char === 'x' || char === 'j' || char === 'q' || char === 'z' : true);
+    private static isNotLowercaseAlpha(char: string): boolean {
+        return this.isLowercaseAlpha(char) ? char === 'v' || char === 'x' || char === 'j' || char === 'q' || char === 'z' : true;
+    }
 
-    private static isAlpha = (char: string): boolean => this.isLowercaseAlpha(char) || this.isUppercaseAlpha(char);
+    private static isAlpha(char: string): boolean {
+        return this.isLowercaseAlpha(char) || this.isUppercaseAlpha(char);
+    }
 
-    private static isNumerical = (char: string): boolean => char >= '0' && char <= '9';
+    private static isNumerical(char: string): boolean {
+        return char >= '0' && char <= '9';
+    }
 
-    private static isLowercaseAlpha = (char: string): boolean => char >= 'a' && char <= 'z';
+    private static isLowercaseAlpha(char: string): boolean {
+        return char >= 'a' && char <= 'z';
+    }
 
-    private static isUppercaseAlpha = (char: string): boolean => char >= 'A' && char <= 'Z';
+    private static isUppercaseAlpha(char: string): boolean {
+        return char >= 'A' && char <= 'Z';
+    }
 
-    private static isNumericalChars = (chars: string[]): boolean => {
+    private static isNumericalChars(chars: string[]): boolean {
         for (let index: number = 0; index < chars.length; index++) {
             if (!this.isNumerical(chars[index]) && chars[index] !== '\u0000') {
                 return false;
             }
         }
         return true;
-    };
+    }
 
-    private static maskChars = (offset: number, length: number, chars: string[]): void => {
+    private static maskChars(offset: number, length: number, chars: string[]): void {
         for (let index: number = offset; index < length; index++) {
             chars[index] = '*';
         }
-    };
+    }
 
-    private static maskedCountBackwards = (chars: string[], offset: number): number => {
+    private static maskedCountBackwards(chars: string[], offset: number): number {
         let count: number = 0;
         for (let index: number = offset - 1; index >= 0 && this.isSymbol(chars[index]); index--) {
             if (chars[index] === '*') {
@@ -831,9 +845,9 @@ export default class WordFilter {
             }
         }
         return count;
-    };
+    }
 
-    private static maskedCountForwards = (chars: string[], offset: number): number => {
+    private static maskedCountForwards(chars: string[], offset: number): number {
         let count: number = 0;
         for (let index: number = offset + 1; index < chars.length && this.isSymbol(chars[index]); index++) {
             if (chars[index] === '*') {
@@ -841,9 +855,9 @@ export default class WordFilter {
             }
         }
         return count;
-    };
+    }
 
-    private static maskedCharsStatus = (chars: string[], filtered: string[], offset: number, length: number, prefix: boolean): number => {
+    private static maskedCharsStatus(chars: string[], filtered: string[], offset: number, length: number, prefix: boolean): number {
         const count: number = prefix ? this.maskedCountBackwards(filtered, offset) : this.maskedCountForwards(filtered, offset);
         if (count >= length) {
             return 4;
@@ -851,9 +865,9 @@ export default class WordFilter {
             return 1;
         }
         return 0;
-    };
+    }
 
-    private static prefixSymbolStatus = (offset: number, chars: string[], length: number, symbolChars: string[], symbols: string[]): number => {
+    private static prefixSymbolStatus(offset: number, chars: string[], length: number, symbolChars: string[], symbols: string[]): number {
         if (offset === 0) {
             return 2;
         }
@@ -863,9 +877,9 @@ export default class WordFilter {
             }
         }
         return this.maskedCharsStatus(chars, symbolChars, offset, length, true);
-    };
+    }
 
-    private static suffixSymbolStatus = (offset: number, chars: string[], length: number, symbolChars: string[], symbols: string[]): number => {
+    private static suffixSymbolStatus(offset: number, chars: string[], length: number, symbolChars: string[], symbols: string[]): number {
         if (offset + 1 === chars.length) {
             return 2;
         }
@@ -875,9 +889,9 @@ export default class WordFilter {
             }
         }
         return this.maskedCharsStatus(chars, symbolChars, offset, length, false);
-    };
+    }
 
-    private static format = (chars: string[]): void => {
+    private static format(chars: string[]): void {
         let pos: number = 0;
         for (let index: number = 0; index < chars.length; index++) {
             if (this.isCharacterAllowed(chars[index])) {
@@ -892,19 +906,21 @@ export default class WordFilter {
         for (let index: number = pos; index < chars.length; index++) {
             chars[index] = ' ';
         }
-    };
+    }
 
-    private static isCharacterAllowed = (char: string): boolean => (char >= ' ' && char <= '\u007f') || char === ' ' || char === '\n' || char === '\t' || char === '£' || char === '€';
+    private static isCharacterAllowed(char: string): boolean {
+        return (char >= ' ' && char <= '\u007f') || char === ' ' || char === '\n' || char === '\t' || char === '£' || char === '€';
+    }
 
-    private static replaceUppercases = (chars: string[], comparison: string[]): void => {
+    private static replaceUppercases(chars: string[], comparison: string[]): void {
         for (let index: number = 0; index < comparison.length; index++) {
             if (chars[index] !== '*' && this.isUppercaseAlpha(comparison[index])) {
                 chars[index] = comparison[index];
             }
         }
-    };
+    }
 
-    private static formatUppercases = (chars: string[]): void => {
+    private static formatUppercases(chars: string[]): void {
         let flagged: boolean = true;
         for (let index: number = 0; index < chars.length; index++) {
             const char: string = chars[index];
@@ -918,5 +934,5 @@ export default class WordFilter {
                 chars[index] = String.fromCharCode(char.charCodeAt(0) + 'a'.charCodeAt(0) - 65);
             }
         }
-    };
+    }
 }

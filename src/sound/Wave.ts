@@ -13,10 +13,10 @@ export default class Wave {
     private static readonly tracks: (Wave | null)[] = new TypedArray1d(1000, null);
     private readonly tones: (Tone | null)[] = new TypedArray1d(10, null);
 
-    private loopBegin: number = 0;
-    private loopEnd: number = 0;
+    private waveLoopBegin: number = 0;
+    private waveLoopEnd: number = 0;
 
-    static unpack = (sounds: Jagfile): void => {
+    static unpack(sounds: Jagfile): void {
         const dat: Packet = new Packet(sounds.read('sounds.dat'));
         this.waveBytes = new Uint8Array(441000);
         this.waveBuffer = new Packet(this.waveBytes);
@@ -24,7 +24,7 @@ export default class Wave {
 
         // eslint-disable-next-line no-constant-condition
         while (true) {
-            const id: number = dat.g2;
+            const id: number = dat.g2();
             if (id === 65535) {
                 break;
             }
@@ -34,38 +34,38 @@ export default class Wave {
             this.tracks[id] = wave;
             this.delays[id] = wave.trim();
         }
-    };
+    }
 
-    static generate = (id: number, loopCount: number): Packet | null => {
+    static generate(id: number, loopCount: number): Packet | null {
         if (!this.tracks[id]) {
             return null;
         }
         const track: Wave | null = this.tracks[id];
         return track?.getWave(loopCount) ?? null;
-    };
+    }
 
     read(dat: Packet): void {
         for (let tone: number = 0; tone < 10; tone++) {
-            if (dat.g1 !== 0) {
+            if (dat.g1() !== 0) {
                 dat.pos--;
                 this.tones[tone] = new Tone();
                 this.tones[tone]?.read(dat);
             }
         }
-        this.loopBegin = dat.g2;
-        this.loopEnd = dat.g2;
+        this.waveLoopBegin = dat.g2();
+        this.waveLoopEnd = dat.g2();
     }
 
     trim(): number {
         let start: number = 9999999;
         for (let tone: number = 0; tone < 10; tone++) {
-            if (this.tones[tone] && ((this.tones[tone]!.start / 20) | 0) < start) {
-                start = (this.tones[tone]!.start / 20) | 0;
+            if (this.tones[tone] && ((this.tones[tone]!.toneStart / 20) | 0) < start) {
+                start = (this.tones[tone]!.toneStart / 20) | 0;
             }
         }
 
-        if (this.loopBegin < this.loopEnd && ((this.loopBegin / 20) | 0) < start) {
-            start = (this.loopBegin / 20) | 0;
+        if (this.waveLoopBegin < this.waveLoopEnd && ((this.waveLoopBegin / 20) | 0) < start) {
+            start = (this.waveLoopBegin / 20) | 0;
         }
 
         if (start === 9999999 || start === 0) {
@@ -74,13 +74,13 @@ export default class Wave {
 
         for (let tone: number = 0; tone < 10; tone++) {
             if (this.tones[tone]) {
-                this.tones[tone]!.start -= start * 20;
+                this.tones[tone]!.toneStart -= start * 20;
             }
         }
 
-        if (this.loopBegin < this.loopEnd) {
-            this.loopBegin -= start * 20;
-            this.loopEnd -= start * 20;
+        if (this.waveLoopBegin < this.waveLoopEnd) {
+            this.waveLoopBegin -= start * 20;
+            this.waveLoopEnd -= start * 20;
         }
 
         return start;
@@ -109,8 +109,8 @@ export default class Wave {
     private generate(loopCount: number): number {
         let duration: number = 0;
         for (let tone: number = 0; tone < 10; tone++) {
-            if (this.tones[tone] && this.tones[tone]!.length + this.tones[tone]!.start > duration) {
-                duration = this.tones[tone]!.length + this.tones[tone]!.start;
+            if (this.tones[tone] && this.tones[tone]!.toneLength + this.tones[tone]!.toneStart > duration) {
+                duration = this.tones[tone]!.toneLength + this.tones[tone]!.toneStart;
             }
         }
 
@@ -119,8 +119,8 @@ export default class Wave {
         }
 
         let sampleCount: number = ((duration * 22050) / 1000) | 0;
-        let loopStart: number = ((this.loopBegin * 22050) / 1000) | 0;
-        let loopStop: number = ((this.loopEnd * 22050) / 1000) | 0;
+        let loopStart: number = ((this.waveLoopBegin * 22050) / 1000) | 0;
+        let loopStop: number = ((this.waveLoopEnd * 22050) / 1000) | 0;
         if (loopStart < 0 || loopStop < 0 || loopStop > sampleCount || loopStart >= loopStop) {
             loopCount = 0;
         }
@@ -134,9 +134,9 @@ export default class Wave {
 
         for (let tone: number = 0; tone < 10; tone++) {
             if (this.tones[tone]) {
-                const toneSampleCount: number = ((this.tones[tone]!.length * 22050) / 1000) | 0;
-                const start: number = ((this.tones[tone]!.start * 22050) / 1000) | 0;
-                const samples: Int32Array = this.tones[tone]!.generate(toneSampleCount, this.tones[tone]!.length);
+                const toneSampleCount: number = ((this.tones[tone]!.toneLength * 22050) / 1000) | 0;
+                const start: number = ((this.tones[tone]!.toneStart * 22050) / 1000) | 0;
+                const samples: Int32Array = this.tones[tone]!.generate(toneSampleCount, this.tones[tone]!.toneLength);
 
                 for (let sample: number = 0; sample < toneSampleCount; sample++) {
                     if (Wave.waveBytes) {

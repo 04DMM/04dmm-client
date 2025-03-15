@@ -8,44 +8,44 @@ import Packet from '#/io/Packet.js';
 import { TypedArray1d } from '#/util/Arrays.js';
 
 export default class IdkType extends ConfigType {
-    static count: number = 0;
+    static totalCount: number = 0;
     static instances: IdkType[] = [];
 
-    static unpack = (config: Jagfile): void => {
+    static unpack(config: Jagfile): void {
         const dat: Packet = new Packet(config.read('idk.dat'));
-        this.count = dat.g2;
-        for (let i: number = 0; i < this.count; i++) {
-            this.instances[i] = new IdkType(i).decodeType(dat);
+        this.totalCount = dat.g2();
+        for (let i: number = 0; i < this.totalCount; i++) {
+            this.instances[i] = new IdkType(i).unpackType(dat);
         }
-    };
+    }
 
     // ----
 
-    type: number = -1;
+    bodyPart: number = -1;
     models: Int32Array | null = null;
     heads: Int32Array = new Int32Array(5).fill(-1);
     recol_s: Int32Array = new Int32Array(6);
     recol_d: Int32Array = new Int32Array(6);
-    disable: boolean = false;
+    disableKit: boolean = false;
 
-    decode(code: number, dat: Packet): void {
+    unpack(code: number, dat: Packet): void {
         if (code === 1) {
-            this.type = dat.g1;
+            this.bodyPart = dat.g1();
         } else if (code === 2) {
-            const count: number = dat.g1;
+            const count: number = dat.g1();
             this.models = new Int32Array(count);
 
             for (let i: number = 0; i < count; i++) {
-                this.models[i] = dat.g2;
+                this.models[i] = dat.g2();
             }
         } else if (code === 3) {
-            this.disable = true;
+            this.disableKit = true;
         } else if (code >= 40 && code < 50) {
-            this.recol_s[code - 40] = dat.g2;
+            this.recol_s[code - 40] = dat.g2();
         } else if (code >= 50 && code < 60) {
-            this.recol_d[code - 50] = dat.g2;
+            this.recol_d[code - 50] = dat.g2();
         } else if (code >= 60 && code < 70) {
-            this.heads[code - 60] = dat.g2;
+            this.heads[code - 60] = dat.g2();
         } else {
             console.log('Error unrecognised config code: ', code);
         }

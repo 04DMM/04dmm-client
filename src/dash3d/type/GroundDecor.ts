@@ -1,20 +1,19 @@
 import Model from '#/graphics/Model.js';
 
 export default class GroundDecor {
-    // constructor
     readonly y: number;
     readonly x: number;
     readonly z: number;
     model: Model | null;
-    readonly bitset: number;
+    readonly typecode: number;
     readonly info: number; // byte
 
-    constructor(y: number, x: number, z: number, model: Model | null, bitset: number, info: number) {
+    constructor(y: number, x: number, z: number, model: Model | null, typecode: number, info: number) {
         this.y = y;
         this.x = x;
         this.z = z;
         this.model = model;
-        this.bitset = bitset;
+        this.typecode = typecode;
         this.info = info;
     }
 }

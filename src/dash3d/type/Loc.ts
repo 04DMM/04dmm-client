@@ -4,7 +4,7 @@ import Model from '#/graphics/Model.js';
 
 export default class Location {
     // constructor
-    readonly level: number;
+    readonly locLevel: number;
     readonly y: number;
     readonly x: number;
     readonly z: number;
@@ -15,15 +15,15 @@ export default class Location {
     readonly maxSceneTileX: number;
     readonly minSceneTileZ: number;
     readonly maxSceneTileZ: number;
-    readonly bitset: number;
+    readonly typecode: number;
     readonly info: number; // byte
 
     // runtime
     distance: number = 0;
     cycle: number = 0;
 
-    constructor(level: number, y: number, x: number, z: number, model: Model | null, entity: Entity | null, yaw: number, minSceneTileX: number, maxSceneTileX: number, minSceneTileZ: number, maxSceneTileZ: number, bitset: number, info: number) {
-        this.level = level;
+    constructor(level: number, y: number, x: number, z: number, model: Model | null, entity: Entity | null, yaw: number, minSceneTileX: number, maxSceneTileX: number, minSceneTileZ: number, maxSceneTileZ: number, typecode: number, info: number) {
+        this.locLevel = level;
         this.y = y;
         this.x = x;
         this.z = z;
@@ -34,7 +34,7 @@ export default class Location {
         this.maxSceneTileX = maxSceneTileX;
         this.minSceneTileZ = minSceneTileZ;
         this.maxSceneTileZ = maxSceneTileZ;
-        this.bitset = bitset;
+        this.typecode = typecode;
         this.info = info;
     }
 }

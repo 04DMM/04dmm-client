@@ -7,40 +7,39 @@ import Packet from '#/io/Packet.js';
 
 // identical to Pix24 except the image is indexed by a palette
 export default class Pix8 extends DoublyLinkable {
-    // constructor
     pixels: Int8Array;
-    width: number;
-    height: number;
+    width2d: number;
+    height2d: number;
     cropX: number;
     cropY: number;
     cropW: number;
     cropH: number;
-    readonly palette: Int32Array;
+    readonly rgbPal: Int32Array;
 
     constructor(width: number, height: number, palette: Int32Array) {
         super();
         this.pixels = new Int8Array(width * height);
-        this.width = this.cropW = width;
-        this.height = this.cropH = height;
+        this.width2d = this.cropW = width;
+        this.height2d = this.cropH = height;
         this.cropX = this.cropY = 0;
-        this.palette = palette;
+        this.rgbPal = palette;
     }
 
-    static fromArchive = (archive: Jagfile, name: string, sprite: number = 0): Pix8 => {
+    static fromArchive(archive: Jagfile, name: string, sprite: number = 0): Pix8 {
         const dat: Packet = new Packet(archive.read(name + '.dat'));
         const index: Packet = new Packet(archive.read('index.dat'));
 
         // cropW/cropH are shared across all sprites in a single image
-        index.pos = dat.g2;
-        const cropW: number = index.g2;
-        const cropH: number = index.g2;
+        index.pos = dat.g2();
+        const cropW: number = index.g2();
+        const cropH: number = index.g2();
 
         // palette is shared across all images in a single archive
-        const paletteCount: number = index.g1;
+        const paletteCount: number = index.g1();
         const palette: Int32Array = new Int32Array(paletteCount);
         // the first color (0) is reserved for transparency
         for (let i: number = 1; i < paletteCount; i++) {
-            palette[i] = index.g3;
+            palette[i] = index.g3();
             // black (0) will become transparent, make it black (1) so it's visible
             if (palette[i] === 0) {
                 palette[i] = 1;
@@ -50,7 +49,7 @@ export default class Pix8 extends DoublyLinkable {
         // advance to sprite
         for (let i: number = 0; i < sprite; i++) {
             index.pos += 2;
-            dat.pos += index.g2 * index.g2;
+            dat.pos += index.g2() * index.g2();
             index.pos += 1;
         }
 
@@ -59,10 +58,10 @@ export default class Pix8 extends DoublyLinkable {
         }
 
         // read sprite
-        const cropX: number = index.g1;
-        const cropY: number = index.g1;
-        const width: number = index.g2;
-        const height: number = index.g2;
+        const cropX: number = index.g1();
+        const cropY: number = index.g1();
+        const width: number = index.g2();
+        const height: number = index.g2();
 
         const image: Pix8 = new Pix8(width, height, palette);
         image.cropX = cropX;
@@ -71,24 +70,24 @@ export default class Pix8 extends DoublyLinkable {
         image.cropH = cropH;
 
         const pixels: Int8Array = image.pixels;
-        const pixelOrder: number = index.g1;
+        const pixelOrder: number = index.g1();
         if (pixelOrder === 0) {
-            const length: number = image.width * image.height;
+            const length: number = image.width2d * image.height2d;
             for (let i: number = 0; i < length; i++) {
-                pixels[i] = dat.g1b;
+                pixels[i] = dat.g1b();
             }
         } else if (pixelOrder === 1) {
-            const width: number = image.width;
-            const height: number = image.height;
+            const width: number = image.width2d;
+            const height: number = image.height2d;
             for (let x: number = 0; x < width; x++) {
                 for (let y: number = 0; y < height; y++) {
-                    pixels[x + y * width] = dat.g1b;
+                    pixels[x + y * width] = dat.g1b();
                 }
             }
         }
 
         return image;
-    };
+    }
 
     draw(x: number, y: number): void {
         x |= 0;
@@ -99,8 +98,8 @@ export default class Pix8 extends DoublyLinkable {
 
         let dstOff: number = x + y * Pix2D.width2d;
         let srcOff: number = 0;
-        let h: number = this.height;
-        let w: number = this.width;
+        let h: number = this.height2d;
+        let w: number = this.width2d;
         let dstStep: number = Pix2D.width2d - w;
         let srcStep: number = 0;
 
@@ -140,8 +139,8 @@ export default class Pix8 extends DoublyLinkable {
 
     flipHorizontally(): void {
         const pixels: Int8Array = this.pixels;
-        const width: number = this.width;
-        const height: number = this.height;
+        const width: number = this.width2d;
+        const height: number = this.height2d;
 
         for (let y: number = 0; y < height; y++) {
             const div: number = (width / 2) | 0;
@@ -158,8 +157,8 @@ export default class Pix8 extends DoublyLinkable {
 
     flipVertically(): void {
         const pixels: Int8Array = this.pixels;
-        const width: number = this.width;
-        const height: number = this.height;
+        const width: number = this.width2d;
+        const height: number = this.height2d;
 
         for (let y: number = 0; y < ((height / 2) | 0); y++) {
             for (let x: number = 0; x < width; x++) {
@@ -173,9 +172,9 @@ export default class Pix8 extends DoublyLinkable {
         }
     }
 
-    translate(r: number, g: number, b: number): void {
-        for (let i: number = 0; i < this.palette.length; i++) {
-            let red: number = (this.palette[i] >> 16) & 0xff;
+    translate2d(r: number, g: number, b: number): void {
+        for (let i: number = 0; i < this.rgbPal.length; i++) {
+            let red: number = (this.rgbPal[i] >> 16) & 0xff;
             red += r;
             if (red < 0) {
                 red = 0;
@@ -183,7 +182,7 @@ export default class Pix8 extends DoublyLinkable {
                 red = 255;
             }
 
-            let green: number = (this.palette[i] >> 8) & 0xff;
+            let green: number = (this.rgbPal[i] >> 8) & 0xff;
             green += g;
             if (green < 0) {
                 green = 0;
@@ -191,7 +190,7 @@ export default class Pix8 extends DoublyLinkable {
                 green = 255;
             }
 
-            let blue: number = this.palette[i] & 0xff;
+            let blue: number = this.rgbPal[i] & 0xff;
             blue += b;
             if (blue < 0) {
                 blue = 0;
@@ -199,7 +198,7 @@ export default class Pix8 extends DoublyLinkable {
                 blue = 255;
             }
 
-            this.palette[i] = (red << 16) + (green << 8) + blue;
+            this.rgbPal[i] = (red << 16) + (green << 8) + blue;
         }
     }
 
@@ -213,33 +212,33 @@ export default class Pix8 extends DoublyLinkable {
 
         const pixels: Int8Array = new Int8Array(this.cropW * this.cropH);
         let off: number = 0;
-        for (let y: number = 0; y < this.height; y++) {
-            for (let x: number = 0; x < this.width; x++) {
+        for (let y: number = 0; y < this.height2d; y++) {
+            for (let x: number = 0; x < this.width2d; x++) {
                 pixels[((x + this.cropX) >> 1) + ((y + this.cropY) >> 1) * this.cropW] = this.pixels[off++];
             }
         }
         this.pixels = pixels;
-        this.width = this.cropW;
-        this.height = this.cropH;
+        this.width2d = this.cropW;
+        this.height2d = this.cropH;
         this.cropX = 0;
         this.cropY = 0;
     }
 
     crop(): void {
-        if (this.width === this.cropW && this.height === this.cropH) {
+        if (this.width2d === this.cropW && this.height2d === this.cropH) {
             return;
         }
 
         const pixels: Int8Array = new Int8Array(this.cropW * this.cropH);
         let off: number = 0;
-        for (let y: number = 0; y < this.height; y++) {
-            for (let x: number = 0; x < this.width; x++) {
+        for (let y: number = 0; y < this.height2d; y++) {
+            for (let x: number = 0; x < this.width2d; x++) {
                 pixels[x + this.cropX + (y + this.cropY) * this.cropW] = this.pixels[off++];
             }
         }
         this.pixels = pixels;
-        this.width = this.cropW;
-        this.height = this.cropH;
+        this.width2d = this.cropW;
+        this.height2d = this.cropH;
         this.cropX = 0;
         this.cropY = 0;
     }
@@ -254,28 +253,28 @@ export default class Pix8 extends DoublyLinkable {
                 if (palIndex === 0) {
                     dstOff++;
                 } else {
-                    dst[dstOff++] = this.palette[palIndex & 0xff];
+                    dst[dstOff++] = this.rgbPal[palIndex & 0xff];
                 }
 
                 palIndex = src[srcOff++];
                 if (palIndex === 0) {
                     dstOff++;
                 } else {
-                    dst[dstOff++] = this.palette[palIndex & 0xff];
+                    dst[dstOff++] = this.rgbPal[palIndex & 0xff];
                 }
 
                 palIndex = src[srcOff++];
                 if (palIndex === 0) {
                     dstOff++;
                 } else {
-                    dst[dstOff++] = this.palette[palIndex & 0xff];
+                    dst[dstOff++] = this.rgbPal[palIndex & 0xff];
                 }
 
                 palIndex = src[srcOff++];
                 if (palIndex === 0) {
                     dstOff++;
                 } else {
-                    dst[dstOff++] = this.palette[palIndex & 0xff];
+                    dst[dstOff++] = this.rgbPal[palIndex & 0xff];
                 }
             }
 
@@ -284,7 +283,7 @@ export default class Pix8 extends DoublyLinkable {
                 if (palIndex === 0) {
                     dstOff++;
                 } else {
-                    dst[dstOff++] = this.palette[palIndex & 0xff];
+                    dst[dstOff++] = this.rgbPal[palIndex & 0xff];
                 }
             }
 
@@ -295,8 +294,8 @@ export default class Pix8 extends DoublyLinkable {
 
     clip(arg0: number, arg1: number, arg2: number, arg3: number): void {
         try {
-            const local2: number = this.width;
-            const local5: number = this.height;
+            const local2: number = this.width2d;
+            const local5: number = this.height2d;
             let local7: number = 0;
             let local9: number = 0;
             const local15: number = ((local2 << 16) / arg2) | 0;
@@ -313,8 +312,8 @@ export default class Pix8 extends DoublyLinkable {
             if ((this.cropY * arg3) % local27 != 0) {
                 local9 = (((local27 - ((this.cropY * arg3) % local27)) << 16) / arg3) | 0;
             }
-            arg2 = ((arg2 * (this.width - (local7 >> 16))) / local24) | 0;
-            arg3 = ((arg3 * (this.height - (local9 >> 16))) / local27) | 0;
+            arg2 = ((arg2 * (this.width2d - (local7 >> 16))) / local24) | 0;
+            arg3 = ((arg3 * (this.height2d - (local9 >> 16))) / local27) | 0;
             let local133: number = arg0 + arg1 * Pix2D.width2d;
             let local137: number = Pix2D.width2d - arg2;
             let local144: number;
@@ -341,7 +340,7 @@ export default class Pix8 extends DoublyLinkable {
                 arg2 -= local144;
                 local137 += local144;
             }
-            this.plot_scale(Pix2D.pixels, this.pixels, this.palette, local7, local9, local133, local137, arg2, arg3, local33, local39, local2);
+            this.plot_scale(Pix2D.pixels, this.pixels, this.rgbPal, local7, local9, local133, local137, arg2, arg3, local33, local39, local2);
         } catch (ignore) {
             console.log('error in sprite clipping routine');
         }

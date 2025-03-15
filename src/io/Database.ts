@@ -7,7 +7,7 @@ export default class Database {
         this.db = db;
     }
 
-    static openDatabase = async (): Promise<IDBDatabase> => {
+    static async openDatabase(): Promise<IDBDatabase> {
         return await new Promise<IDBDatabase>((resolve, reject): void => {
             const request: IDBOpenDBRequest = indexedDB.open('lostcity', 1);
 
@@ -26,7 +26,7 @@ export default class Database {
                 reject(target.result);
             };
         });
-    };
+    }
 
     async cacheload(name: string) {
         return await new Promise<Uint8Array | undefined>((resolve): void => {
@@ -49,7 +49,11 @@ export default class Database {
         });
     }
 
-    async cachesave(name: string, src: Uint8Array | Int8Array) {
+    async cachesave(name: string, src: Uint8Array | Int8Array | null) {
+        if (src === null) {
+            return;
+        }
+
         return await new Promise<void>((resolve, reject): void => {
             const transaction: IDBTransaction = this.db.transaction('cache', 'readwrite');
             const store: IDBObjectStore = transaction.objectStore('cache');
@@ -69,22 +73,4 @@ export default class Database {
     private onclose = (event: Event): void => {};
 
     private onerror = (event: Event): void => {};
-
-    private genHash = (str: string): number => {
-        const trimmed: string = str.trim();
-        let hash: number = 0;
-        for (let i: number = 0; i < trimmed.length && i < 12; i++) {
-            const c: string = trimmed.charAt(i);
-            hash *= 37;
-
-            if (c >= 'A' && c <= 'Z') {
-                hash += c.charCodeAt(0) + 1 - 65;
-            } else if (c >= 'a' && c <= 'z') {
-                hash += c.charCodeAt(0) + 1 - 97;
-            } else if (c >= '0' && c <= '9') {
-                hash += c.charCodeAt(0) + 27 - 48;
-            }
-        }
-        return hash;
-    };
 }

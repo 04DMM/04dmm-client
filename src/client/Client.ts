@@ -2256,7 +2256,7 @@ export class Client extends GameShell {
                 this.hintType = 0;
                 this.menuSize = 0;
                 this.menuVisible = false;
-                this.idleCycles = Date.now();
+                this.idleCycles = performance.now();
 
                 for (let i: number = 0; i < 100; i++) {
                     this.messageText[i] = null;
@@ -2458,9 +2458,9 @@ export class Client extends GameShell {
                             throw new Error();
                         }
 
-                        if (Date.now() + ((buf.pos / 22) | 0) > this.lastWaveStartTime + ((this.lastWaveLength / 22) | 0)) {
+                        if (performance.now() + ((buf.pos / 22) | 0) > this.lastWaveStartTime + ((this.lastWaveLength / 22) | 0)) {
                             this.lastWaveLength = buf.pos;
-                            this.lastWaveStartTime = Date.now();
+                            this.lastWaveStartTime = performance.now();
                             this.lastWaveId = this.waveIds[wave];
                             this.lastWaveLoops = this.waveLoops[wave];
                             await playWave(buf.data.slice(0, buf.pos));
@@ -2650,11 +2650,11 @@ export class Client extends GameShell {
             // timers when a different tab is active, or the window has been minimized.
             // afk logout has to still happen after 90s of no activity (if allowed).
             // https://developer.chrome.com/blog/timer-throttling-in-chrome-88/
-            if (Date.now() - this.idleCycles > 90_000) {
+            if (performance.now() - this.idleCycles > 90_000) {
                 // 4500 ticks * 20ms = 90000ms
                 this.idleTimeout = 250;
                 // 500 ticks * 20ms = 10000ms
-                this.idleCycles = Date.now() - 10_000;
+                this.idleCycles = performance.now() - 10_000;
                 this.out.p1isaac(ClientProt.IDLE_TIMER);
             }
             // === original code ===

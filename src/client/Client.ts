@@ -7665,7 +7665,11 @@ export class Client extends GameShell {
                                 }
                             }
 
-                            this.menuOption[this.menuSize] = 'Examine @lre@' + obj.name;
+                            if (process.env.DEV_CLIENT) {
+                                this.menuOption[this.menuSize] = 'Examine @lre@' + obj.name + ' @whi@(@gre@' + obj.id + '@whi@)';
+                            } else {
+                                this.menuOption[this.menuSize] = 'Examine @lre@' + obj.name;
+                            }
                             this.menuAction[this.menuSize] = 1773;
                             this.menuParamA[this.menuSize] = obj.id;
                             if (child.invSlotObjCount) {
@@ -7814,7 +7818,11 @@ export class Client extends GameShell {
                         }
                     }
 
-                    this.menuOption[this.menuSize] = 'Examine @cya@' + loc.name;
+                    if (process.env.DEV_CLIENT) {
+                        this.menuOption[this.menuSize] = 'Examine @cya@' + loc.name + ' @whi@(@gre@' + loc.id + '@whi@)';
+                    } else {
+                        this.menuOption[this.menuSize] = 'Examine @cya@' + loc.name;
+                    }
                     this.menuAction[this.menuSize] = 1175;
                     this.menuParamA[this.menuSize] = typecode;
                     this.menuParamB[this.menuSize] = x;
@@ -7925,7 +7933,11 @@ export class Client extends GameShell {
                             }
                         }
 
-                        this.menuOption[this.menuSize] = 'Examine @lre@' + type.name;
+                        if (process.env.DEV_CLIENT) {
+                            this.menuOption[this.menuSize] = 'Examine @lre@' + type.name + ' @whi@(@gre@' + type.id + '@whi@)';
+                        } else {
+                            this.menuOption[this.menuSize] = 'Examine @lre@' + type.name;
+                        }
                         this.menuAction[this.menuSize] = 1102;
                         this.menuParamA[this.menuSize] = obj.index;
                         this.menuParamB[this.menuSize] = x;
@@ -8018,7 +8030,11 @@ export class Client extends GameShell {
                 }
             }
 
-            this.menuOption[this.menuSize] = 'Examine @yel@' + tooltip;
+            if (process.env.DEV_CLIENT) {
+                this.menuOption[this.menuSize] = 'Examine @yel@' + tooltip + ' @whi@(@gre@' + npc.id + '@whi@)';
+            } else {
+                this.menuOption[this.menuSize] = 'Examine @yel@' + tooltip;
+            }
             this.menuAction[this.menuSize] = 1607;
             this.menuParamA[this.menuSize] = a;
             this.menuParamB[this.menuSize] = b;

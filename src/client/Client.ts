@@ -74,10 +74,180 @@ const enum Constants {
 }
 
 export class Client extends GameShell {
+    // sorted: (real order)
     static nodeId: number = 10;
     static members: boolean = true;
     static lowMemory: boolean = false;
+    static alreadyStarted: boolean = false;
 
+    private loopCycle: number = 0;
+    private systemUpdateTimer: number = 0;
+
+    private hintType: number = 0;
+    private hintNpc: number = 0;
+    private hintTileX: number = 0;
+    private hintTileZ: number = 0;
+    private hintPlayer: number = 0;
+    private hintOffsetX: number = 0;
+    private hintOffsetZ: number = 0;
+    private hintHeight: number = 0;
+
+    private titleScreenState: number = 0;
+
+    private npcs: (NpcEntity | null)[] = new TypedArray1d(8192, null);
+    private npcCount: number = 0;
+    private npcIds: Int32Array = new Int32Array(8192);
+
+    private netStream: ClientStream | null = null;
+    private out: Packet = Packet.alloc(1);
+    private loginout: Packet = Packet.alloc(1);
+    private in: Packet = Packet.alloc(1);
+    private inPacketSize: number = 0;
+    private inPacketType: number = 0;
+    private idleNetCycles: number = 0;
+    private idleTimeout: number = 0;
+    private lastPacketType0: number = 0;
+    private lastPacketType1: number = 0;
+    private lastPacketType2: number = 0;
+
+    private sceneBaseTileX: number = 0;
+    private sceneBaseTileZ: number = 0;
+    private scene: World3D | null = null;
+    private sceneMapLocData: (Uint8Array | null)[] | null = null;
+    private sceneMapLocReady: boolean[] | null = null;
+    private levelTileFlags: Uint8Array[][] | null = null;
+    private levelHeightmap: Int32Array[][] | null = null;
+    private levelCollisionMap: (CollisionMap | null)[] = new TypedArray1d(CollisionConstants.LEVELS, null);
+    private baseX: number = 0;
+    private baseZ: number = 0;
+    private tryMoveNearest: number = 0;
+
+    private cameraAnticheatOffsetX: number = 0;
+    private cameraOffsetXModifier: number = 2;
+    private cameraAnticheatOffsetZ: number = 0;
+    private cameraOffsetZModifier: number = 2;
+    private cameraAnticheatAngle: number = 0;
+    private cameraOffsetYawModifier: number = 1;
+    private cameraOffsetCycle: number = 0;
+
+    private minimapAnticheatAngle: number = 0;
+    private minimapAngleModifier: number = 2;
+    private minimapZoom: number = 0;
+    private minimapZoomModifier: number = 1;
+    private minimapOffsetCycle: number = 0;
+
+    private sceneDelta: number = 0;
+
+    private imageCompass: Pix24 | null = null;
+    private imageMapscene: (Pix8 | null)[] = new TypedArray1d(50, null);
+    private imageMapfunction: (Pix24 | null)[] = new TypedArray1d(50, null);
+    private imageHitmarks: (Pix24 | null)[] = new TypedArray1d(20, null);
+    private imageHeadicons: (Pix24 | null)[] = new TypedArray1d(20, null);
+    private imageMapflag: Pix24 | null = null;
+    private imageCrosses: (Pix24 | null)[] = new TypedArray1d(8, null);
+    private imageMapdot0: Pix24 | null = null;
+    private imageMapdot1: Pix24 | null = null;
+    private imageMapdot2: Pix24 | null = null;
+    private imageMapdot3: Pix24 | null = null;
+    private imageScrollbar0: Pix8 | null = null;
+    private imageScrollbar1: Pix8 | null = null;
+    private imageMapback: Pix8 | null = null;
+    private compassMaskLineOffsets: Int32Array = new Int32Array(33);
+    private compassMaskLineLengths: Int32Array = new Int32Array(33);
+    private minimapMaskLineOffsets: Int32Array = new Int32Array(151);
+    private minimapMaskLineLengths: Int32Array = new Int32Array(151);
+
+    private cameraX: number = 0;
+    private cameraY: number = 0;
+    private cameraZ: number = 0;
+    private cameraPitch: number = 0;
+    private cameraYaw: number = 0;
+
+    private orbitCameraX: number = 0;
+    private orbitCameraZ: number = 0;
+    private orbitCameraPitch: number = 128;
+    private orbitCameraPitchVelocity: number = 0;
+    private orbitCameraYaw: number = 0;
+    private orbitCameraYawVelocity: number = 0;
+    private cameraPitchClamp: number = 0;
+
+    private tileLastOccupiedCycle: Int32Array[] = new Int32Array2d(CollisionConstants.SIZE, CollisionConstants.SIZE);
+    private sceneCycle: number = 0;
+
+    private projectX: number = 0;
+    private projectY: number = 0;
+
+    private crossX: number = 0;
+    private crossY: number = 0;
+    private crossCycle: number = 0;
+    private crossMode: number = 0;
+
+    private objDragArea: number = 0;
+    private objGrabX: number = 0;
+    private objGrabY: number = 0;
+    private objDragSlot: number = 0;
+    private objGrabThreshold: boolean = false;
+
+    private overrideChat: number = 0;
+
+    private players: (PlayerEntity | null)[] = new TypedArray1d(Constants.MAX_PLAYER_COUNT, null);
+    private playerCount: number = 0;
+    private playerIds: Int32Array = new Int32Array(Constants.MAX_PLAYER_COUNT);
+    private entityUpdateCount: number = 0;
+    private entityUpdateIds: Int32Array = new Int32Array(Constants.MAX_PLAYER_COUNT);
+    private playerAppearanceBuffer: (Packet | null)[] = new TypedArray1d(Constants.MAX_PLAYER_COUNT, null);
+    private entityRemovalCount: number = 0;
+    private entityRemovalIds: Int32Array = new Int32Array(1000);
+
+    private projectiles: LinkList = new LinkList();
+    private spotanims: LinkList = new LinkList();
+    private objStacks: (LinkList | null)[][][] = new TypedArray3d(CollisionConstants.LEVELS, CollisionConstants.SIZE, CollisionConstants.SIZE, null);
+    private addedLocs: LinkList = new LinkList();
+    private locList: LinkList = new LinkList();
+
+    private skillLevel: number[] = [];
+    private skillBaseLevel: number[] = [];
+    private skillExperience: number[] = [];
+
+    private mouseButtonsOption: number = 0;
+    private menuVisible: boolean = false;
+    private menuSize: number = 0;
+    private menuParamB: Int32Array = new Int32Array(500);
+    private menuParamC: Int32Array = new Int32Array(500);
+    private menuAction: Int32Array = new Int32Array(500);
+    private menuParamA: Int32Array = new Int32Array(500);
+    private chatEffects: number = 0;
+    private energy: number = 0;
+    private weightCarried: number = 0;
+    private rights: boolean = false;
+
+    private messageTextType: Int32Array = new Int32Array(100);
+    private messageTextSender: (string | null)[] = new TypedArray1d(100, null);
+    private messageText: (string | null)[] = new TypedArray1d(100, null);
+    private publicChatSetting: number = 0;
+    private privateChatSetting: number = 0;
+    private tradeChatSetting: number = 0;
+
+    private minimapLevel: number = -1;
+    private activeMapFunctionCount: number = 0;
+    private activeMapFunctionX: Int32Array = new Int32Array(1000);
+    private activeMapFunctionZ: Int32Array = new Int32Array(1000);
+    private activeMapFunctions: (Pix24 | null)[] = new TypedArray1d(1000, null);
+
+    private flagSceneTileX: number = 0;
+    private flagSceneTileZ: number = 0;
+
+    private waveDelay: Int32Array = new Int32Array(50);
+    private waveCount: number = 0;
+
+    private cutscene: boolean = false;
+    private cameraModifierEnabled: boolean[] = new TypedArray1d(5, false);
+    private cameraModifierJitter: Int32Array = new Int32Array(5);
+    private cameraModifierWobbleScale: Int32Array = new Int32Array(5);
+    private cameraModifierWobbleSpeed: Int32Array = new Int32Array(5);
+    private cameraModifierCycle: Int32Array = new Int32Array(5);
+
+    // unsorted:
     static cyclelogic1: number = 0;
     static cyclelogic2: number = 0;
     static cyclelogic3: number = 0;
@@ -95,7 +265,8 @@ export class Client extends GameShell {
     static oplogic8: number = 0;
     static oplogic9: number = 0;
 
-    private alreadyStarted: boolean = false;
+    static levelExperience: number[] = [];
+
     private errorStarted: boolean = false;
     private errorLoading: boolean = false;
     private errorHost: boolean = false;
@@ -103,29 +274,15 @@ export class Client extends GameShell {
 
     // important client stuff
     private db: Database | null = null;
-    private loopCycle: number = 0;
     private archiveChecksums: number[] = [];
-    private netStream: ClientStream | null = null;
-    private in: Packet = Packet.alloc(1);
-    private out: Packet = Packet.alloc(1);
-    private loginout: Packet = Packet.alloc(1);
     private serverSeed: bigint = 0n;
-    private idleNetCycles: number = 0;
-    private idleTimeout: number = 0;
-    private systemUpdateTimer: number = 0;
     private randomIn: Isaac | null = null;
-    private inPacketType: number = 0;
-    private inPacketSize: number = 0;
-    private lastPacketType0: number = 0;
-    private lastPacketType1: number = 0;
-    private lastPacketType2: number = 0;
 
     // archives
     private titleArchive: Jagfile | null = null;
 
     // login screen properties
     private redrawTitleBackground: boolean = true;
-    private titleScreenState: number = 0;
     private titleLoginField: number = 0;
     private imageTitle2: PixMap | null = null;
     private imageTitle3: PixMap | null = null;
@@ -189,32 +346,14 @@ export class Client extends GameShell {
     private areaChatbackOffsets: Int32Array | null = null;
     private areaSidebarOffsets: Int32Array | null = null;
     private areaViewportOffsets: Int32Array | null = null;
-    private compassMaskLineOffsets: Int32Array = new Int32Array(33);
-    private compassMaskLineLengths: Int32Array = new Int32Array(33);
-    private minimapMaskLineOffsets: Int32Array = new Int32Array(151);
-    private minimapMaskLineLengths: Int32Array = new Int32Array(151);
 
     private imageInvback: Pix8 | null = null;
     private imageChatback: Pix8 | null = null;
-    private imageMapback: Pix8 | null = null;
     private imageBackbase1: Pix8 | null = null;
     private imageBackbase2: Pix8 | null = null;
     private imageBackhmid1: Pix8 | null = null;
     private imageSideicons: (Pix8 | null)[] = new TypedArray1d(13, null);
     private imageMinimap: Pix24 | null = null;
-    private imageCompass: Pix24 | null = null;
-    private imageMapscene: (Pix8 | null)[] = new TypedArray1d(50, null);
-    private imageMapfunction: (Pix24 | null)[] = new TypedArray1d(50, null);
-    private imageHitmarks: (Pix24 | null)[] = new TypedArray1d(20, null);
-    private imageHeadicons: (Pix24 | null)[] = new TypedArray1d(20, null);
-    private imageMapflag: Pix24 | null = null;
-    private imageCrosses: (Pix24 | null)[] = new TypedArray1d(8, null);
-    private imageMapdot0: Pix24 | null = null;
-    private imageMapdot1: Pix24 | null = null;
-    private imageMapdot2: Pix24 | null = null;
-    private imageMapdot3: Pix24 | null = null;
-    private imageScrollbar0: Pix8 | null = null;
-    private imageScrollbar1: Pix8 | null = null;
     private imageRedstone1: Pix8 | null = null;
     private imageRedstone2: Pix8 | null = null;
     private imageRedstone3: Pix8 | null = null;
@@ -229,26 +368,17 @@ export class Client extends GameShell {
     private genderButtonImage0: Pix24 | null = null;
     private genderButtonImage1: Pix24 | null = null;
 
-    private activeMapFunctions: (Pix24 | null)[] = new TypedArray1d(1000, null);
-
     private redrawSidebar: boolean = false;
     private redrawChatback: boolean = false;
     private redrawSideicons: boolean = false;
     private redrawPrivacySettings: boolean = false;
     private viewportInterfaceId: number = -1;
     private dragCycles: number = 0;
-    private crossMode: number = 0;
-    private crossCycle: number = 0;
-    private crossX: number = 0;
-    private crossY: number = 0;
-    private overrideChat: number = 0;
-    private menuVisible: boolean = false;
     private menuArea: number = 0;
     private menuX: number = 0;
     private menuY: number = 0;
     private menuWidth: number = 0;
     private menuHeight: number = 0;
-    private menuSize: number = 0;
     private menuOption: string[] = [];
     private sidebarInterfaceId: number = -1;
     private chatInterfaceId: number = -1;
@@ -257,25 +387,10 @@ export class Client extends GameShell {
     private chatScrollOffset: number = 0;
     private ignoreCount: number = 0;
     private ignoreName37: bigint[] = [];
-    private hintType: number = 0;
-    private hintNpc: number = 0;
-    private hintOffsetX: number = 0;
-    private hintOffsetZ: number = 0;
-    private hintPlayer: number = 0;
-    private hintTileX: number = 0;
-    private hintTileZ: number = 0;
-    private hintHeight: number = 0;
-    private skillExperience: number[] = [];
-    private skillLevel: number[] = [];
-    private skillBaseLevel: number[] = [];
-    private levelExperience: number[] = [];
     private modalMessage: string | null = null;
     private flashingTab: number = -1;
     private selectedTab: number = 3;
     private tabInterfaceId: number[] = [-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1];
-    private publicChatSetting: number = 0;
-    private privateChatSetting: number = 0;
-    private tradeChatSetting: number = 0;
     private scrollGrabbed: boolean = false;
     private scrollInputPadding: number = 0;
     private showSocialInput: boolean = false;
@@ -285,24 +400,15 @@ export class Client extends GameShell {
     private chatbackInput: string = '';
     private chatbackInputOpen: boolean = false;
     private stickyChatInterfaceId: number = -1;
-    private messageText: (string | null)[] = new TypedArray1d(100, null);
-    private messageTextSender: (string | null)[] = new TypedArray1d(100, null);
-    private messageTextType: Int32Array = new Int32Array(100);
-    private messageTextIds: Int32Array = new Int32Array(100);
     private privateMessageCount: number = 0;
+    private messageTextIds: Int32Array = new Int32Array(100);
     private splitPrivateChat: number = 0;
-    private chatEffects: number = 0;
     private chatTyped: string = '';
     private viewportHoveredInterfaceIndex: number = 0;
     private sidebarHoveredInterfaceIndex: number = 0;
     private chatHoveredInterfaceIndex: number = 0;
     private objDragInterfaceId: number = 0;
-    private objDragSlot: number = 0;
-    private objDragArea: number = 0;
-    private objGrabX: number = 0;
-    private objGrabY: number = 0;
     private objDragCycles: number = 0;
-    private objGrabThreshold: boolean = false;
     private objSelected: number = 0;
     private objSelectedSlot: number = 0;
     private objSelectedInterface: number = 0;
@@ -319,11 +425,6 @@ export class Client extends GameShell {
     private activeSpellId: number = 0;
     private activeSpellFlags: number = 0;
     private spellCaption: string | null = null;
-    private mouseButtonsOption: number = 0;
-    private menuAction: Int32Array = new Int32Array(500);
-    private menuParamA: Int32Array = new Int32Array(500);
-    private menuParamB: Int32Array = new Int32Array(500);
-    private menuParamC: Int32Array = new Int32Array(500);
     private hoveredSlotParentId: number = 0;
     private hoveredSlot: number = 0;
     private lastHoveredInterfaceId: number = 0;
@@ -334,71 +435,20 @@ export class Client extends GameShell {
     private daysSinceLastLogin: number = 0;
     private daysSinceRecoveriesChanged: number = 0;
     private unreadMessages: number = 0;
-    private activeMapFunctionCount: number = 0;
-    private activeMapFunctionX: Int32Array = new Int32Array(1000);
-    private activeMapFunctionZ: Int32Array = new Int32Array(1000);
 
     // scene
-    private scene: World3D | null = null;
     private sceneState: number = 0;
-    private sceneDelta: number = 0;
-    private sceneCycle: number = 0;
-    private flagSceneTileX: number = 0;
-    private flagSceneTileZ: number = 0;
-    private cutscene: boolean = false;
-    private cameraOffsetCycle: number = 0;
-    private cameraAnticheatOffsetX: number = 0;
-    private cameraAnticheatOffsetZ: number = 0;
-    private cameraAnticheatAngle: number = 0;
-    private cameraOffsetXModifier: number = 2;
-    private cameraOffsetZModifier: number = 2;
-    private cameraOffsetYawModifier: number = 1;
-    private cameraModifierCycle: Int32Array = new Int32Array(5);
-    private cameraModifierEnabled: boolean[] = new TypedArray1d(5, false);
-    private cameraModifierJitter: Int32Array = new Int32Array(5);
-    private cameraModifierWobbleScale: Int32Array = new Int32Array(5);
-    private cameraModifierWobbleSpeed: Int32Array = new Int32Array(5);
-    private cameraX: number = 0;
-    private cameraY: number = 0;
-    private cameraZ: number = 0;
-    private cameraPitch: number = 0;
-    private cameraYaw: number = 0;
-    private cameraPitchClamp: number = 0;
-    private minimapOffsetCycle: number = 0;
-    private minimapAnticheatAngle: number = 0;
-    private minimapZoom: number = 0;
-    private minimapZoomModifier: number = 1;
-    private minimapAngleModifier: number = 2;
-    private minimapLevel: number = -1;
-    private baseX: number = 0;
-    private baseZ: number = 0;
     private sceneCenterZoneX: number = 0;
     private sceneCenterZoneZ: number = 0;
-    private sceneBaseTileX: number = 0;
-    private sceneBaseTileZ: number = 0;
     private sceneMapLandData: (Uint8Array | null)[] | null = null;
     private sceneMapLandReady: boolean[] | null = null;
-    private sceneMapLocData: (Uint8Array | null)[] | null = null;
-    private sceneMapLocReady: boolean[] | null = null;
     private sceneMapIndex: Int32Array | null = null;
     private sceneAwaitingSync: boolean = false;
     private scenePrevBaseTileX: number = 0;
     private scenePrevBaseTileZ: number = 0;
     private textureBuffer: Int8Array = new Int8Array(16384);
-    private levelCollisionMap: (CollisionMap | null)[] = new TypedArray1d(CollisionConstants.LEVELS, null);
     private currentLevel: number = 0;
     private cameraMovedWrite: number = 0;
-    private orbitCameraPitch: number = 128;
-    private orbitCameraYaw: number = 0;
-    private orbitCameraYawVelocity: number = 0;
-    private orbitCameraPitchVelocity: number = 0;
-    private orbitCameraX: number = 0;
-    private orbitCameraZ: number = 0;
-    private levelHeightmap: Int32Array[][] | null = null;
-    private levelTileFlags: Uint8Array[][] | null = null;
-    private tileLastOccupiedCycle: Int32Array[] = new Int32Array2d(CollisionConstants.SIZE, CollisionConstants.SIZE);
-    private projectX: number = 0;
-    private projectY: number = 0;
     private cutsceneDstLocalTileX: number = 0;
     private cutsceneDstLocalTileZ: number = 0;
     private cutsceneDstHeight: number = 0;
@@ -410,41 +460,19 @@ export class Client extends GameShell {
     private cutsceneMoveSpeed: number = 0;
     private cutsceneMoveAcceleration: number = 0;
 
-    // entities
-    private players: (PlayerEntity | null)[] = new TypedArray1d(Constants.MAX_PLAYER_COUNT, null);
-    private playerCount: number = 0;
-    private playerIds: Int32Array = new Int32Array(Constants.MAX_PLAYER_COUNT);
-    private entityUpdateCount: number = 0;
-    private entityRemovalCount: number = 0;
-    private entityUpdateIds: Int32Array = new Int32Array(Constants.MAX_PLAYER_COUNT);
-    private entityRemovalIds: Int32Array = new Int32Array(1000);
-    private playerAppearanceBuffer: (Packet | null)[] = new TypedArray1d(Constants.MAX_PLAYER_COUNT, null);
-    private npcs: (NpcEntity | null)[] = new TypedArray1d(8192, null);
-    private npcCount: number = 0;
-    private npcIds: Int32Array = new Int32Array(8192);
-    private projectiles: LinkList = new LinkList();
-    private spotanims: LinkList = new LinkList();
-    private locList: LinkList = new LinkList();
-    private objStacks: (LinkList | null)[][][] = new TypedArray3d(CollisionConstants.LEVELS, CollisionConstants.SIZE, CollisionConstants.SIZE, null);
-    private addedLocs: LinkList = new LinkList();
-
     // bfs pathfinder
     private bfsStepX: Int32Array = new Int32Array(4000);
     private bfsStepZ: Int32Array = new Int32Array(4000);
     private bfsDirection: Int32Array = new Int32Array(CollisionConstants.SIZE * CollisionConstants.SIZE);
     private bfsCost: Int32Array = new Int32Array(CollisionConstants.SIZE * CollisionConstants.SIZE);
-    private tryMoveNearest: number = 0;
 
     // player
     private localPlayer: PlayerEntity | null = null;
-    private energy: number = 0;
     private inMultizone: number = 0;
     private localPid: number = -1;
-    private weightCarried: number = 0;
     private heartbeatTimer: number = 0;
     private wildernessLevel: number = 0;
     private worldLocationState: number = 0;
-    private rights: boolean = false;
     private designGenderMale: boolean = true;
     private updateDesignModel: boolean = false;
     private designIdentikits: Int32Array = new Int32Array(7);
@@ -468,11 +496,9 @@ export class Client extends GameShell {
     private socialName37: bigint | null = null;
 
     // audio
-    private waveCount: number = 0;
     private waveEnabled: boolean = true;
     private waveIds: Int32Array = new Int32Array(50);
     private waveLoops: Int32Array = new Int32Array(50);
-    private waveDelay: Int32Array = new Int32Array(50);
     private waveVolume: number = 64;
     private lastWaveId: number = -1;
     private lastWaveLoops: number = -1;
@@ -487,18 +513,16 @@ export class Client extends GameShell {
 
     private displayFps: boolean = false;
 
-    static setHighMemory(): void {
-        World3D.lowMemory = false;
-        Pix3D.lowMemory = false;
-        Client.lowMemory = false;
-        World.lowMemory = false;
-    }
+    // ----
 
-    static setLowMemory(): void {
-        World3D.lowMemory = true;
-        Pix3D.lowMemory = true;
-        Client.lowMemory = true;
-        World.lowMemory = true;
+    static {
+        let acc: number = 0;
+        for (let i: number = 0; i < 99; i++) {
+            const level: number = i + 1;
+            const delta: number = (level + Math.pow(2.0, level / 7.0) * 300.0) | 0;
+            acc += delta;
+            Client.levelExperience[i] = (acc / 4) | 0;
+        }
     }
 
     constructor(nodeid: number, lowmem: boolean, members: boolean) {
@@ -526,85 +550,18 @@ export class Client extends GameShell {
         this.run();
     }
 
-    // ---- override functions
-    getTitleScreenState(): number {
-        return this.titleScreenState;
+    static setHighMemory(): void {
+        World3D.lowMemory = false;
+        Pix3D.lowMemory = false;
+        Client.lowMemory = false;
+        World.lowMemory = false;
     }
 
-    isChatBackInputOpen(): boolean {
-        return this.chatbackInputOpen;
-    }
-
-    isShowSocialInput(): boolean {
-        return this.showSocialInput;
-    }
-
-    getChatInterfaceId(): number {
-        return this.chatInterfaceId;
-    }
-
-    getViewportInterfaceId(): number {
-        return this.viewportInterfaceId;
-    }
-
-    getReportAbuseInterfaceId(): number {
-        // custom: for report abuse input on mobile
-        return this.reportAbuseInterfaceID;
-    }
-
-    // ----
-
-    private unloadTitle(): void {
-        this.flameActive = false;
-        if (this.flamesInterval) {
-            clearInterval(this.flamesInterval);
-            this.flamesInterval = null;
-        }
-        this.imageTitlebox = null;
-        this.imageTitlebutton = null;
-        this.imageRunes = [];
-        this.flameGradient = null;
-        this.flameGradient0 = null;
-        this.flameGradient1 = null;
-        this.flameGradient2 = null;
-        this.flameBuffer0 = null;
-        this.flameBuffer1 = null;
-        this.flameBuffer3 = null;
-        this.flameBuffer2 = null;
-        this.imageFlamesLeft = null;
-        this.imageFlamesRight = null;
-    }
-
-    private async loadArchive(filename: string, displayName: string, crc: number, progress: number): Promise<Jagfile> {
-        let retry: number = 5;
-        let data: Uint8Array | undefined = await this.db?.cacheload(filename);
-        if (data && Packet.crc32(data) !== crc) {
-            data = undefined;
-        }
-
-        if (data) {
-            return new Jagfile(data);
-        }
-
-        while (!data) {
-            await this.showProgress(progress, `Requesting ${displayName}`);
-
-            try {
-                data = await downloadUrl(`/${filename}${crc}`);
-            } catch (e) {
-                data = undefined;
-                for (let i: number = retry; i > 0; i--) {
-                    await this.showProgress(progress, `Error loading - Will retry in ${i} secs.`);
-                    await sleep(1000);
-                }
-                retry *= 2;
-                if (retry > 60) {
-                    retry = 60;
-                }
-            }
-        }
-        await this.db?.cachesave(filename, data);
-        return new Jagfile(data);
+    static setLowMemory(): void {
+        World3D.lowMemory = true;
+        Pix3D.lowMemory = true;
+        Client.lowMemory = true;
+        World.lowMemory = true;
     }
 
     private async setMidi(name: string, crc: number, length: number, fade: boolean): Promise<void> {
@@ -641,776 +598,32 @@ export class Client extends GameShell {
         }
     }
 
-    private drawError(): void {
-        canvas2d.fillStyle = 'black';
-        canvas2d.fillRect(0, 0, this.width, this.height);
-
-        this.setFramerate(1);
-
-        this.flameActive = false;
-        let y: number = 35;
-
-        if (this.errorLoading) {
-            canvas2d.font = 'bold 16px helvetica, sans-serif';
-            canvas2d.textAlign = 'left';
-            canvas2d.fillStyle = 'yellow';
-
-            canvas2d.fillText('Sorry, an error has occured whilst loading RuneScape', 30, y);
-
-            y += 50;
-            canvas2d.fillStyle = 'white';
-            canvas2d.fillText('To fix this try the following (in order):', 30, y);
-
-            y += 50;
-            canvas2d.font = 'bold 12px helvetica, sans-serif';
-            canvas2d.fillText('1: Try closing ALL open web-browser windows, and reloading', 30, y);
-
-            y += 30;
-            canvas2d.fillText('2: Try clearing your web-browsers cache', 30, y);
-
-            y += 30;
-            canvas2d.fillText('3: Try using a different game-world', 30, y);
-
-            y += 30;
-            canvas2d.fillText('4: Try rebooting your computer', 30, y);
-        } else if (this.errorHost) {
-            canvas2d.font = 'bold 20px helvetica, sans-serif';
-            canvas2d.textAlign = 'left';
-            canvas2d.fillStyle = 'white';
-
-            canvas2d.fillText('Error - unable to load game!', 50, 50);
-            canvas2d.fillText('To play RuneScape make sure you play from an approved domain', 50, 100);
-        } else if (this.errorStarted) {
-            canvas2d.font = 'bold 13px helvetica, sans-serif';
-            canvas2d.textAlign = 'left';
-            canvas2d.fillStyle = 'yellow';
-
-            canvas2d.fillText('Error a copy of RuneScape already appears to be loaded', 30, y);
-
-            y += 50;
-            canvas2d.fillStyle = 'white';
-            canvas2d.fillText('To fix this try the following (in order):', 30, y);
-
-            y += 50;
-            canvas2d.font = 'bold 12px helvetica, sans-serif';
-            canvas2d.fillText('1: Try closing ALL open web-browser windows, and reloading', 30, y);
-
-            y += 30;
-            canvas2d.fillText('2: Try rebooting your computer, and reloading', 30, y);
-        }
-
-        if (this.errorMessage) {
-            y += 50;
-            canvas2d.fillStyle = 'red';
-            canvas2d.fillText('Error: ' + this.errorMessage, 30, y);
-        }
+    getTitleScreenState(): number {
+        return this.titleScreenState;
     }
 
-    private executeInterfaceScript(com: Component): boolean {
-        if (!com.scriptComparator) {
-            return false;
-        }
-
-        for (let i: number = 0; i < com.scriptComparator.length; i++) {
-            const value: number = this.executeClientscript1(com, i);
-            if (!com.scriptOperand) {
-                return false;
-            }
-            const operand: number = com.scriptOperand[i];
-
-            if (com.scriptComparator[i] === 2) {
-                if (value >= operand) {
-                    return false;
-                }
-            } else if (com.scriptComparator[i] === 3) {
-                if (value <= operand) {
-                    return false;
-                }
-            } else if (com.scriptComparator[i] === 4) {
-                if (value === operand) {
-                    return false;
-                }
-            } else if (value !== operand) {
-                return false;
-            }
-        }
-
-        return true;
+    isChatBackInputOpen(): boolean {
+        return this.chatbackInputOpen;
     }
 
-    private drawScrollbar(x: number, y: number, scrollY: number, scrollHeight: number, height: number): void {
-        this.imageScrollbar0?.draw(x, y);
-        this.imageScrollbar1?.draw(x, y + height - 16);
-        Pix2D.fillRect2d(x, y + 16, 16, height - 32, Colors.SCROLLBAR_TRACK);
-
-        let gripSize: number = (((height - 32) * height) / scrollHeight) | 0;
-        if (gripSize < 8) {
-            gripSize = 8;
-        }
-
-        const gripY: number = (((height - gripSize - 32) * scrollY) / (scrollHeight - height)) | 0;
-        Pix2D.fillRect2d(x, y + gripY + 16, 16, gripSize, Colors.SCROLLBAR_GRIP_FOREGROUND);
-
-        Pix2D.drawVerticalLine(x, y + gripY + 16, Colors.SCROLLBAR_GRIP_HIGHLIGHT, gripSize);
-        Pix2D.drawVerticalLine(x + 1, y + gripY + 16, Colors.SCROLLBAR_GRIP_HIGHLIGHT, gripSize);
-
-        Pix2D.drawHorizontalLine(x, y + gripY + 16, Colors.SCROLLBAR_GRIP_HIGHLIGHT, 16);
-        Pix2D.drawHorizontalLine(x, y + gripY + 17, Colors.SCROLLBAR_GRIP_HIGHLIGHT, 16);
-
-        Pix2D.drawVerticalLine(x + 15, y + gripY + 16, Colors.SCROLLBAR_GRIP_LOWLIGHT, gripSize);
-        Pix2D.drawVerticalLine(x + 14, y + gripY + 17, Colors.SCROLLBAR_GRIP_LOWLIGHT, gripSize - 1);
-
-        Pix2D.drawHorizontalLine(x, y + gripY + gripSize + 15, Colors.SCROLLBAR_GRIP_LOWLIGHT, 16);
-        Pix2D.drawHorizontalLine(x + 1, y + gripY + gripSize + 14, Colors.SCROLLBAR_GRIP_LOWLIGHT, 15);
+    isShowSocialInput(): boolean {
+        return this.showSocialInput;
     }
 
-    private updateInterfaceAnimation(id: number, delta: number): boolean {
-        let updated: boolean = false;
-        const parent: Component = Component.instances[id];
-        if (!parent.childId) {
-            return false;
-        }
-
-        for (let i: number = 0; i < parent.childId.length && parent.childId[i] !== -1; i++) {
-            const child: Component = Component.instances[parent.childId[i]];
-            if (child.comType === 1) {
-                updated ||= this.updateInterfaceAnimation(child.id, delta);
-            }
-
-            if (child.comType === 6 && (child.anim !== -1 || child.activeAnim !== -1)) {
-                const active: boolean = this.executeInterfaceScript(child);
-
-                let seqId: number;
-                if (active) {
-                    seqId = child.activeAnim;
-                } else {
-                    seqId = child.anim;
-                }
-
-                if (seqId !== -1) {
-                    const type: SeqType = SeqType.instances[seqId];
-                    child.seqCycle += delta;
-
-                    if (type.seqDelay) {
-                        while (child.seqCycle > type.seqDelay[child.seqFrame]) {
-                            child.seqCycle -= type.seqDelay[child.seqFrame] + 1;
-                            child.seqFrame++;
-
-                            if (child.seqFrame >= type.seqFrameCount) {
-                                child.seqFrame -= type.replayoff;
-
-                                if (child.seqFrame < 0 || child.seqFrame >= type.seqFrameCount) {
-                                    child.seqFrame = 0;
-                                }
-                            }
-
-                            updated = true;
-                        }
-                    }
-                }
-            }
-        }
-
-        return updated;
+    getChatInterfaceId(): number {
+        return this.chatInterfaceId;
     }
 
-    private drawInterface(com: Component, x: number, y: number, scrollY: number, outline: boolean = false): void {
-        if (com.comType !== 0 || !com.childId || (com.hide && this.viewportHoveredInterfaceIndex !== com.id && this.sidebarHoveredInterfaceIndex !== com.id && this.chatHoveredInterfaceIndex !== com.id)) {
-            return;
-        }
-
-        const left: number = Pix2D.left;
-        const top: number = Pix2D.top;
-        const right: number = Pix2D.right;
-        const bottom: number = Pix2D.bottom;
-
-        Pix2D.setBounds(x, y, x + com.width, y + com.height);
-        const children: number = com.childId.length;
-
-        for (let i: number = 0; i < children; i++) {
-            if (!com.childX || !com.childY) {
-                continue;
-            }
-
-            let childX: number = com.childX[i] + x;
-            let childY: number = com.childY[i] + y - scrollY;
-
-            const child: Component = Component.instances[com.childId[i]];
-            childX += child.x;
-            childY += child.y;
-
-            if (outline) {
-                Pix2D.drawRect(childX, childY, child.width, child.height, Colors.WHITE);
-            }
-
-            if (child.clientCode > 0) {
-                this.updateInterfaceContent(child);
-            }
-
-            if (child.comType === ComponentType.TYPE_LAYER) {
-                if (child.scrollPosition > child.scroll - child.height) {
-                    child.scrollPosition = child.scroll - child.height;
-                }
-
-                if (child.scrollPosition < 0) {
-                    child.scrollPosition = 0;
-                }
-
-                this.drawInterface(child, childX, childY, child.scrollPosition, outline);
-
-                if (child.scroll > child.height) {
-                    this.drawScrollbar(childX + child.width, childY, child.scrollPosition, child.scroll, child.height);
-                }
-            } else if (child.comType === ComponentType.TYPE_INV) {
-                let slot: number = 0;
-
-                for (let row: number = 0; row < child.height; row++) {
-                    for (let col: number = 0; col < child.width; col++) {
-                        if (!child.invSlotOffsetX || !child.invSlotOffsetY || !child.invSlotObjId || !child.invSlotObjCount) {
-                            continue;
-                        }
-
-                        let slotX: number = childX + col * (child.marginX + 32);
-                        let slotY: number = childY + row * (child.marginY + 32);
-
-                        if (slot < 20) {
-                            slotX += child.invSlotOffsetX[slot];
-                            slotY += child.invSlotOffsetY[slot];
-                        }
-
-                        if (child.invSlotObjId[slot] > 0) {
-                            let dx: number = 0;
-                            let dy: number = 0;
-                            const id: number = child.invSlotObjId[slot] - 1;
-
-                            if ((slotX >= -32 && slotX <= 512 && slotY >= -32 && slotY <= 334) || (this.objDragArea !== 0 && this.objDragSlot === slot)) {
-                                const icon: Pix24 = ObjType.getIcon(id, child.invSlotObjCount[slot]);
-                                if (this.objDragArea !== 0 && this.objDragSlot === slot && this.objDragInterfaceId === child.id) {
-                                    dx = this.mouseX - this.objGrabX;
-                                    dy = this.mouseY - this.objGrabY;
-
-                                    if (dx < 5 && dx > -5) {
-                                        dx = 0;
-                                    }
-
-                                    if (dy < 5 && dy > -5) {
-                                        dy = 0;
-                                    }
-
-                                    if (this.objDragCycles < 5) {
-                                        dx = 0;
-                                        dy = 0;
-                                    }
-
-                                    icon.drawAlpha(128, slotX + dx, slotY + dy);
-                                } else if (this.selectedArea !== 0 && this.selectedItem === slot && this.selectedInterface === child.id) {
-                                    icon.drawAlpha(128, slotX, slotY);
-                                } else {
-                                    icon.draw(slotX, slotY);
-                                }
-
-                                if (icon.cropW === 33 || child.invSlotObjCount[slot] !== 1) {
-                                    const count: number = child.invSlotObjCount[slot];
-                                    this.fontPlain11?.drawString(slotX + dx + 1, slotY + 10 + dy, this.formatObjCount(count), Colors.BLACK);
-                                    this.fontPlain11?.drawString(slotX + dx, slotY + 9 + dy, this.formatObjCount(count), Colors.YELLOW);
-                                }
-                            }
-                        } else if (child.invSlotSprite && slot < 20) {
-                            const image: Pix24 | null = child.invSlotSprite[slot];
-                            image?.draw(slotX, slotY);
-                        }
-
-                        slot++;
-                    }
-                }
-            } else if (child.comType === ComponentType.TYPE_RECT) {
-                if (child.fill) {
-                    Pix2D.fillRect2d(childX, childY, child.width, child.height, child.colour);
-                } else {
-                    Pix2D.drawRect(childX, childY, child.width, child.height, child.colour);
-                }
-            } else if (child.comType === ComponentType.TYPE_TEXT) {
-                const font: PixFont | null = child.font;
-                let color: number = child.colour;
-                let text: string | null = child.text;
-
-                if ((this.chatHoveredInterfaceIndex === child.id || this.sidebarHoveredInterfaceIndex === child.id || this.viewportHoveredInterfaceIndex === child.id) && child.overColour !== 0) {
-                    color = child.overColour;
-                }
-
-                if (this.executeInterfaceScript(child)) {
-                    color = child.activeColour;
-
-                    if (child.activeText && child.activeText.length > 0) {
-                        text = child.activeText;
-                    }
-                }
-
-                if (child.buttonType === ButtonType.BUTTON_CONTINUE && this.pressedContinueOption) {
-                    text = 'Please wait...';
-                    color = child.colour;
-                }
-
-                if (!font || !text) {
-                    continue;
-                }
-
-                for (let lineY: number = childY + font.height2d; text.length > 0; lineY += font.height2d) {
-                    if (text.indexOf('%') !== -1) {
-                        do {
-                            const index: number = text.indexOf('%1');
-                            if (index === -1) {
-                                break;
-                            }
-
-                            text = text.substring(0, index) + this.getIntString(this.executeClientscript1(child, 0)) + text.substring(index + 2);
-                            // eslint-disable-next-line no-constant-condition
-                        } while (true);
-
-                        do {
-                            const index: number = text.indexOf('%2');
-                            if (index === -1) {
-                                break;
-                            }
-
-                            text = text.substring(0, index) + this.getIntString(this.executeClientscript1(child, 1)) + text.substring(index + 2);
-                            // eslint-disable-next-line no-constant-condition
-                        } while (true);
-
-                        do {
-                            const index: number = text.indexOf('%3');
-                            if (index === -1) {
-                                break;
-                            }
-
-                            text = text.substring(0, index) + this.getIntString(this.executeClientscript1(child, 2)) + text.substring(index + 2);
-                            // eslint-disable-next-line no-constant-condition
-                        } while (true);
-
-                        do {
-                            const index: number = text.indexOf('%4');
-                            if (index === -1) {
-                                break;
-                            }
-
-                            text = text.substring(0, index) + this.getIntString(this.executeClientscript1(child, 3)) + text.substring(index + 2);
-                            // eslint-disable-next-line no-constant-condition
-                        } while (true);
-
-                        do {
-                            const index: number = text.indexOf('%5');
-                            if (index === -1) {
-                                break;
-                            }
-
-                            text = text.substring(0, index) + this.getIntString(this.executeClientscript1(child, 4)) + text.substring(index + 2);
-                            // eslint-disable-next-line no-constant-condition
-                        } while (true);
-                    }
-
-                    const newline: number = text.indexOf('\\n');
-                    let split: string;
-                    if (newline !== -1) {
-                        split = text.substring(0, newline);
-                        text = text.substring(newline + 2);
-                    } else {
-                        split = text;
-                        text = '';
-                    }
-
-                    if (child.center) {
-                        font.drawStringTaggableCenter(childX + ((child.width / 2) | 0), lineY, split, color, child.shadowed);
-                    } else {
-                        font.drawStringTaggable(childX, lineY, split, color, child.shadowed);
-                    }
-                }
-            } else if (child.comType === ComponentType.TYPE_GRAPHIC) {
-                let image: Pix24 | null;
-                if (this.executeInterfaceScript(child)) {
-                    image = child.activeGraphic;
-                } else {
-                    image = child.graphic;
-                }
-
-                image?.draw(childX, childY);
-            } else if (child.comType === ComponentType.TYPE_MODEL) {
-                const tmpX: number = Pix3D.centerX;
-                const tmpY: number = Pix3D.centerY;
-
-                Pix3D.centerX = childX + ((child.width / 2) | 0);
-                Pix3D.centerY = childY + ((child.height / 2) | 0);
-
-                const eyeY: number = (Pix3D.sin[child.xan] * child.zoom) >> 16;
-                const eyeZ: number = (Pix3D.cos[child.xan] * child.zoom) >> 16;
-
-                const active: boolean = this.executeInterfaceScript(child);
-                let seqId: number;
-                if (active) {
-                    seqId = child.activeAnim;
-                } else {
-                    seqId = child.anim;
-                }
-
-                let model: Model | null = null;
-                if (seqId === -1) {
-                    model = child.getModel(-1, -1, active);
-                } else {
-                    const seq: SeqType = SeqType.instances[seqId];
-                    if (seq.seqFrames && seq.seqIframes) {
-                        model = child.getModel(seq.seqFrames[child.seqFrame], seq.seqIframes[child.seqFrame], active);
-                    }
-                }
-
-                if (model) {
-                    model.drawSimple(0, child.yan, 0, child.xan, 0, eyeY, eyeZ);
-                }
-
-                Pix3D.centerX = tmpX;
-                Pix3D.centerY = tmpY;
-            } else if (child.comType === ComponentType.TYPE_INV_TEXT) {
-                const font: PixFont | null = child.font;
-                if (!font || !child.invSlotObjId || !child.invSlotObjCount) {
-                    continue;
-                }
-
-                let slot: number = 0;
-                for (let row: number = 0; row < child.height; row++) {
-                    for (let col: number = 0; col < child.width; col++) {
-                        if (child.invSlotObjId[slot] > 0) {
-                            const obj: ObjType = ObjType.get(child.invSlotObjId[slot] - 1);
-                            let text: string | null = obj.name;
-                            if (obj.stackable || child.invSlotObjCount[slot] !== 1) {
-                                text = text + ' x' + this.formatObjCountTagged(child.invSlotObjCount[slot]);
-                            }
-
-                            if (!text) {
-                                continue;
-                            }
-
-                            const textX: number = childX + col * (child.marginX + 115);
-                            const textY: number = childY + row * (child.marginY + 12);
-
-                            if (child.center) {
-                                font.drawStringTaggableCenter(textX + ((child.width / 2) | 0), textY, text, child.colour, child.shadowed);
-                            } else {
-                                font.drawStringTaggable(textX, textY, text, child.colour, child.shadowed);
-                            }
-                        }
-
-                        slot++;
-                    }
-                }
-            }
-        }
-        Pix2D.setBounds(left, top, right, bottom);
+    getViewportInterfaceId(): number {
+        return this.viewportInterfaceId;
     }
 
-    private updateInterfaceContent(component: Component): void {
-        let clientCode: number = component.clientCode;
-
-        if (clientCode >= ClientCode.CC_FRIENDS_START && clientCode <= ClientCode.CC_FRIENDS_END) {
-            clientCode--;
-            if (clientCode >= this.friendCount) {
-                component.text = '';
-                component.buttonType = 0;
-            } else {
-                component.text = this.friendName[clientCode];
-                component.buttonType = 1;
-            }
-        } else if (clientCode >= ClientCode.CC_FRIENDS_UPDATE_START && clientCode <= ClientCode.CC_FRIENDS_UPDATE_END) {
-            clientCode -= ClientCode.CC_FRIENDS_UPDATE_START;
-            if (clientCode >= this.friendCount) {
-                component.text = '';
-                component.buttonType = 0;
-            } else {
-                if (this.friendWorld[clientCode] === 0) {
-                    component.text = '@red@Offline';
-                } else if (this.friendWorld[clientCode] === Client.nodeId) {
-                    component.text = '@gre@World-' + (this.friendWorld[clientCode] - 9);
-                } else {
-                    component.text = '@yel@World-' + (this.friendWorld[clientCode] - 9);
-                }
-                component.buttonType = 1;
-            }
-        } else if (clientCode === ClientCode.CC_FRIENDS_SIZE) {
-            component.scroll = this.friendCount * 15 + 20;
-            if (component.scroll <= component.height) {
-                component.scroll = component.height + 1;
-            }
-        } else if (clientCode >= ClientCode.CC_IGNORES_START && clientCode <= ClientCode.CC_IGNORES_END) {
-            clientCode -= ClientCode.CC_IGNORES_START;
-            if (clientCode >= this.ignoreCount) {
-                component.text = '';
-                component.buttonType = 0;
-            } else {
-                component.text = JString.formatName(JString.fromBase37(this.ignoreName37[clientCode]));
-                component.buttonType = 1;
-            }
-        } else if (clientCode === ClientCode.CC_IGNORES_SIZE) {
-            component.scroll = this.ignoreCount * 15 + 20;
-            if (component.scroll <= component.height) {
-                component.scroll = component.height + 1;
-            }
-        } else if (clientCode === ClientCode.CC_DESIGN_PREVIEW) {
-            component.xan = 150;
-            component.yan = ((Math.sin(this.loopCycle / 40.0) * 256.0) | 0) & 0x7ff;
-            if (this.updateDesignModel) {
-                this.updateDesignModel = false;
-
-                const models: (Model | null)[] = new TypedArray1d(7, null);
-                let modelCount: number = 0;
-                for (let part: number = 0; part < 7; part++) {
-                    const kit: number = this.designIdentikits[part];
-                    if (kit >= 0) {
-                        models[modelCount++] = IdkType.instances[kit].getModel();
-                    }
-                }
-
-                const model: Model = Model.modelFromModels(models, modelCount);
-                for (let part: number = 0; part < 5; part++) {
-                    if (this.designColors[part] !== 0) {
-                        model.recolor(PlayerEntity.DESIGN_IDK_COLORS[part][0], PlayerEntity.DESIGN_IDK_COLORS[part][this.designColors[part]]);
-                        if (part === 1) {
-                            model.recolor(PlayerEntity.TORSO_RECOLORS[0], PlayerEntity.TORSO_RECOLORS[this.designColors[part]]);
-                        }
-                    }
-                }
-
-                if (this.localPlayer) {
-                    const frames: Int16Array | null = SeqType.instances[this.localPlayer.seqStandId].seqFrames;
-                    if (frames) {
-                        model.createLabelReferences();
-                        model.applyTransform(frames[0]);
-                        model.calculateNormals(64, 850, -30, -50, -30, true);
-                        component.model = model;
-                    }
-                }
-            }
-        } else if (clientCode === ClientCode.CC_SWITCH_TO_MALE) {
-            if (!this.genderButtonImage0) {
-                this.genderButtonImage0 = component.graphic;
-                this.genderButtonImage1 = component.activeGraphic;
-            }
-            if (this.designGenderMale) {
-                component.graphic = this.genderButtonImage1;
-            } else {
-                component.graphic = this.genderButtonImage0;
-            }
-        } else if (clientCode === ClientCode.CC_SWITCH_TO_FEMALE) {
-            if (!this.genderButtonImage0) {
-                this.genderButtonImage0 = component.graphic;
-                this.genderButtonImage1 = component.activeGraphic;
-            }
-            if (this.designGenderMale) {
-                component.graphic = this.genderButtonImage0;
-            } else {
-                component.graphic = this.genderButtonImage1;
-            }
-        } else if (clientCode === ClientCode.CC_REPORT_INPUT) {
-            component.text = this.reportAbuseInput;
-            if (this.loopCycle % 20 < 10) {
-                component.text = component.text + '|';
-            } else {
-                component.text = component.text + ' ';
-            }
-        } else if (clientCode === ClientCode.CC_MOD_MUTE) {
-            if (!this.rights) {
-                component.text = '';
-            } else if (this.reportAbuseMuteOption) {
-                component.colour = Colors.RED;
-                component.text = 'Moderator option: Mute player for 48 hours: <ON>';
-            } else {
-                component.colour = Colors.WHITE;
-                component.text = 'Moderator option: Mute player for 48 hours: <OFF>';
-            }
-        } else if (clientCode === ClientCode.CC_LAST_LOGIN_INFO || clientCode === ClientCode.CC_LAST_LOGIN_INFO2) {
-            if (this.lastAddress === 0) {
-                component.text = '';
-            } else {
-                let text: string;
-                if (this.daysSinceLastLogin === 0) {
-                    text = 'earlier today';
-                } else if (this.daysSinceLastLogin === 1) {
-                    text = 'yesterday';
-                } else {
-                    text = this.daysSinceLastLogin + ' days ago';
-                }
-
-                // Show ip address only if not 127.0.0.1
-                // Production does not record IP so it's always 127.0.0.1
-                const ipStr = JString.formatIPv4(this.lastAddress);
-                component.text = 'You last logged in ' + text + (ipStr === '127.0.0.1' ? '.' : ' from: ' + ipStr);
-            }
-        } else if (clientCode === ClientCode.CC_UNREAD_MESSAGES) {
-            if (this.unreadMessages === 0) {
-                component.text = '0 unread messages';
-                component.colour = Colors.YELLOW;
-            }
-            if (this.unreadMessages === 1) {
-                component.text = '1 unread message';
-                component.colour = Colors.GREEN;
-            }
-            if (this.unreadMessages > 1) {
-                component.text = this.unreadMessages + ' unread messages';
-                component.colour = Colors.GREEN;
-            }
-        } else if (clientCode === ClientCode.CC_RECOVERY1) {
-            if (this.daysSinceRecoveriesChanged === 201) {
-                component.text = '';
-            } else if (this.daysSinceRecoveriesChanged === 200) {
-                component.text = 'You have not yet set any password recovery questions.';
-            } else {
-                let text: string;
-                if (this.daysSinceRecoveriesChanged === 0) {
-                    text = 'Earlier today';
-                } else if (this.daysSinceRecoveriesChanged === 1) {
-                    text = 'Yesterday';
-                } else {
-                    text = this.daysSinceRecoveriesChanged + ' days ago';
-                }
-                component.text = text + ' you changed your recovery questions';
-            }
-        } else if (clientCode === ClientCode.CC_RECOVERY2) {
-            if (this.daysSinceRecoveriesChanged === 201) {
-                component.text = '';
-            } else if (this.daysSinceRecoveriesChanged === 200) {
-                component.text = 'We strongly recommend you do so now to secure your account.';
-            } else {
-                component.text = 'If you do not remember making this change then cancel it immediately';
-            }
-        } else if (clientCode === ClientCode.CC_RECOVERY3) {
-            if (this.daysSinceRecoveriesChanged === 201) {
-                component.text = '';
-            } else if (this.daysSinceRecoveriesChanged === 200) {
-                component.text = "Do this from the 'account management' area on our front webpage";
-            } else {
-                component.text = "Do this from the 'account management' area on our front webpage";
-            }
-        }
+    getReportAbuseInterfaceId(): number {
+        // custom: for report abuse input on mobile
+        return this.reportAbuseInterfaceID;
     }
 
-    private executeClientscript1(component: Component, scriptId: number): number {
-        if (!component.script || scriptId >= component.script.length) {
-            return -2;
-        }
-
-        try {
-            const script: Uint16Array | null = component.script[scriptId];
-            if (!script) {
-                // -1 is right bcos if an exception happen from array not being initialized in the lower code etc etc
-                return -1;
-            }
-            let register: number = 0;
-            let pc: number = 0;
-
-            // eslint-disable-next-line no-constant-condition
-            while (true) {
-                const opcode: number = script[pc++];
-                if (opcode === 0) {
-                    return register;
-                }
-
-                if (opcode === 1) {
-                    // load_skill_level {skill}
-                    register += this.skillLevel[script[pc++]];
-                } else if (opcode === 2) {
-                    // load_skill_base_level {skill}
-                    register += this.skillBaseLevel[script[pc++]];
-                } else if (opcode === 3) {
-                    // load_skill_exp {skill}
-                    register += this.skillExperience[script[pc++]];
-                } else if (opcode === 4) {
-                    // load_inv_count {interface id} {obj id}
-                    const com: Component = Component.instances[script[pc++]];
-                    const obj: number = script[pc++] + 1;
-
-                    if (com.invSlotObjId && com.invSlotObjCount) {
-                        for (let i: number = 0; i < com.invSlotObjId.length; i++) {
-                            if (com.invSlotObjId[i] === obj) {
-                                register += com.invSlotObjCount[i];
-                            }
-                        }
-                    } else {
-                        register += 0; // TODO this is custom bcos idk if it can fall 'out of sync' if u dont add to register...
-                    }
-                } else if (opcode === 5) {
-                    // load_var {id}
-                    register += this.varps[script[pc++]];
-                } else if (opcode === 6) {
-                    // load_next_level_xp {skill}
-                    register += this.levelExperience[this.skillBaseLevel[script[pc++]] - 1];
-                } else if (opcode === 7) {
-                    register += ((this.varps[script[pc++]] * 100) / 46875) | 0;
-                } else if (opcode === 8) {
-                    // load_combat_level
-                    register += this.localPlayer?.combatLevel || 0;
-                } else if (opcode === 9) {
-                    // load_total_level
-                    for (let i: number = 0; i < 19; i++) {
-                        if (i === 18) {
-                            // runecrafting
-                            i = 20;
-                        }
-
-                        register += this.skillBaseLevel[i];
-                    }
-                } else if (opcode === 10) {
-                    // load_inv_contains {interface id} {obj id}
-                    const com: Component = Component.instances[script[pc++]];
-                    const obj: number = script[pc++] + 1;
-
-                    for (let i: number = 0; i < com.invSlotObjId!.length; i++) {
-                        if (com.invSlotObjId![i] === obj) {
-                            register += 999999999;
-                            break;
-                        }
-                    }
-                } else if (opcode === 11) {
-                    // load_energy
-                    register += this.energy;
-                } else if (opcode === 12) {
-                    // load_weight
-                    register += this.weightCarried;
-                } else if (opcode === 13) {
-                    // load_bool {varp} {bit: 0..31}
-                    const varp: number = this.varps[script[pc++]];
-                    const lsb: number = script[pc++];
-
-                    register += (varp & (0x1 << lsb)) === 0 ? 0 : 1;
-                }
-            }
-        } catch (e) {
-            return -1;
-        }
-    }
-
-    // ---- private functions
-    private getIntString(value: number): string {
-        return value < 999999999 ? String(value) : '*';
-    }
-
-    private formatObjCountTagged(amount: number): string {
-        let s: string = String(amount);
-        for (let i: number = s.length - 3; i > 0; i -= 3) {
-            s = s.substring(0, i) + ',' + s.substring(i);
-        }
-        if (s.length > 8) {
-            s = '@gre@' + s.substring(0, s.length - 8) + ' million @whi@(' + s + ')';
-        } else if (s.length > 4) {
-            s = '@cya@' + s.substring(0, s.length - 4) + 'K @whi@(' + s + ')';
-        }
-        return ' ' + s;
-    }
-
-    private formatObjCount(amount: number): string {
-        if (amount < 100000) {
-            return String(amount);
-        } else if (amount < 10000000) {
-            return ((amount / 1000) | 0) + 'K';
-        } else {
-            return ((amount / 1000000) | 0) + 'M';
-        }
-    }
+    // ----
 
     async load() {
         if (this.isMobile && Client.lowMemory) {
@@ -1418,12 +631,12 @@ export class Client extends GameShell {
             this.setTargetedFramerate(30);
         }
 
-        if (this.alreadyStarted) {
+        if (Client.alreadyStarted) {
             this.errorStarted = true;
             return;
         }
 
-        this.alreadyStarted = true;
+        Client.alreadyStarted = true;
 
         try {
             await this.showProgress(10, 'Connecting to fileserver');
@@ -1675,7 +888,6 @@ export class Client extends GameShell {
 
             World3D.init(512, 334, 500, 800, distance);
             WordFilter.unpack(wordenc);
-            this.initializeLevelExperience();
         } catch (err) {
             this.errorLoading = true;
 
@@ -1716,6 +928,8 @@ export class Client extends GameShell {
     async refresh() {
         this.redrawTitleBackground = true;
     }
+
+	// ----
 
     async showProgress(progress: number, str: string): Promise<void> {
         console.log(`${progress}%: ${str}`);
@@ -1760,244 +974,101 @@ export class Client extends GameShell {
         await sleep(5); // return a slice of time to the main loop so it can update the progress bar
     }
 
-    runFlames(): void {
-        if (!this.flameActive) {
-            return;
+    private drawError(): void {
+        canvas2d.fillStyle = 'black';
+        canvas2d.fillRect(0, 0, this.width, this.height);
+
+        this.setFramerate(1);
+
+        this.flameActive = false;
+        let y: number = 35;
+
+        if (this.errorLoading) {
+            canvas2d.font = 'bold 16px helvetica, sans-serif';
+            canvas2d.textAlign = 'left';
+            canvas2d.fillStyle = 'yellow';
+
+            canvas2d.fillText('Sorry, an error has occured whilst loading RuneScape', 30, y);
+
+            y += 50;
+            canvas2d.fillStyle = 'white';
+            canvas2d.fillText('To fix this try the following (in order):', 30, y);
+
+            y += 50;
+            canvas2d.font = 'bold 12px helvetica, sans-serif';
+            canvas2d.fillText('1: Try closing ALL open web-browser windows, and reloading', 30, y);
+
+            y += 30;
+            canvas2d.fillText('2: Try clearing your web-browsers cache', 30, y);
+
+            y += 30;
+            canvas2d.fillText('3: Try using a different game-world', 30, y);
+
+            y += 30;
+            canvas2d.fillText('4: Try rebooting your computer', 30, y);
+        } else if (this.errorHost) {
+            canvas2d.font = 'bold 20px helvetica, sans-serif';
+            canvas2d.textAlign = 'left';
+            canvas2d.fillStyle = 'white';
+
+            canvas2d.fillText('Error - unable to load game!', 50, 50);
+            canvas2d.fillText('To play RuneScape make sure you play from an approved domain', 50, 100);
+        } else if (this.errorStarted) {
+            canvas2d.font = 'bold 13px helvetica, sans-serif';
+            canvas2d.textAlign = 'left';
+            canvas2d.fillStyle = 'yellow';
+
+            canvas2d.fillText('Error a copy of RuneScape already appears to be loaded', 30, y);
+
+            y += 50;
+            canvas2d.fillStyle = 'white';
+            canvas2d.fillText('To fix this try the following (in order):', 30, y);
+
+            y += 50;
+            canvas2d.font = 'bold 12px helvetica, sans-serif';
+            canvas2d.fillText('1: Try closing ALL open web-browser windows, and reloading', 30, y);
+
+            y += 30;
+            canvas2d.fillText('2: Try rebooting your computer, and reloading', 30, y);
         }
-        this.updateFlames();
-        this.updateFlames();
-        this.drawFlames();
+
+        if (this.errorMessage) {
+            y += 50;
+            canvas2d.fillStyle = 'red';
+            canvas2d.fillText('Error: ' + this.errorMessage, 30, y);
+        }
     }
 
-    private async loadTitle(): Promise<void> {
-        if (!this.imageTitle2) {
-            this.drawArea = null;
-            this.areaChatback = null;
-            this.areaMapback = null;
-            this.areaSidebar = null;
-            this.areaViewport = null;
-            this.areaBackbase1 = null;
-            this.areaBackbase2 = null;
-            this.areaBackhmid1 = null;
-
-            this.imageTitle0 = new PixMap(128, 265);
-            Pix2D.clear();
-
-            this.imageTitle1 = new PixMap(128, 265);
-            Pix2D.clear();
-
-            this.imageTitle2 = new PixMap(533, 186);
-            Pix2D.clear();
-
-            this.imageTitle3 = new PixMap(360, 146);
-            Pix2D.clear();
-
-            this.imageTitle4 = new PixMap(360, 200);
-            Pix2D.clear();
-
-            this.imageTitle5 = new PixMap(214, 267);
-            Pix2D.clear();
-
-            this.imageTitle6 = new PixMap(215, 267);
-            Pix2D.clear();
-
-            this.imageTitle7 = new PixMap(86, 79);
-            Pix2D.clear();
-
-            this.imageTitle8 = new PixMap(87, 79);
-            Pix2D.clear();
-
-            if (this.titleArchive) {
-                await this.loadTitleBackground();
-                this.loadTitleImages();
-            }
-            this.redrawTitleBackground = true;
-        }
-    }
-
-    private async loadTitleBackground(): Promise<void> {
-        if (!this.titleArchive) {
-            return;
-        }
-        const background: Pix24 = await Pix24.fromJpeg(this.titleArchive, 'title');
-
-        this.imageTitle0?.bind();
-        background.blitOpaque(0, 0);
-
-        this.imageTitle1?.bind();
-        background.blitOpaque(-661, 0);
-
-        this.imageTitle2?.bind();
-        background.blitOpaque(-128, 0);
-
-        this.imageTitle3?.bind();
-        background.blitOpaque(-214, -386);
-
-        this.imageTitle4?.bind();
-        background.blitOpaque(-214, -186);
-
-        this.imageTitle5?.bind();
-        background.blitOpaque(0, -265);
-
-        this.imageTitle6?.bind();
-        background.blitOpaque(-128, -186);
-
-        this.imageTitle7?.bind();
-        background.blitOpaque(-128, -186);
-
-        this.imageTitle8?.bind();
-        background.blitOpaque(-574, -186);
-
-        // draw right side (mirror image)
-        background.flipHorizontally();
-
-        this.imageTitle0?.bind();
-        background.blitOpaque(394, 0);
-
-        this.imageTitle1?.bind();
-        background.blitOpaque(-267, 0);
-
-        this.imageTitle2?.bind();
-        background.blitOpaque(266, 0);
-
-        this.imageTitle3?.bind();
-        background.blitOpaque(180, -386);
-
-        this.imageTitle4?.bind();
-        background.blitOpaque(180, -186);
-
-        this.imageTitle5?.bind();
-        background.blitOpaque(394, -265);
-
-        this.imageTitle6?.bind();
-        background.blitOpaque(-180, -265);
-
-        this.imageTitle7?.bind();
-        background.blitOpaque(212, -186);
-
-        this.imageTitle8?.bind();
-        background.blitOpaque(-180, -186);
-
-        const logo: Pix24 = Pix24.fromArchive(this.titleArchive, 'logo');
-        this.imageTitle2?.bind();
-        logo.draw(((this.width / 2) | 0) - ((logo.width2d / 2) | 0) - 128, 18);
-    }
-
-    private updateFlameBuffer(image: Pix8 | null): void {
-        if (!this.flameBuffer0 || !this.flameBuffer1) {
-            return;
+    private async loadArchive(filename: string, displayName: string, crc: number, progress: number): Promise<Jagfile> {
+        let retry: number = 5;
+        let data: Uint8Array | undefined = await this.db?.cacheload(filename);
+        if (data && Packet.crc32(data) !== crc) {
+            data = undefined;
         }
 
-        const flameHeight: number = 256;
-
-        // Clears the initial flame buffer
-        this.flameBuffer0.fill(0);
-
-        // Blends the fire at random
-        for (let i: number = 0; i < 5000; i++) {
-            const rand: number = (Math.random() * 128.0 * flameHeight) | 0;
-            this.flameBuffer0[rand] = (Math.random() * 256.0) | 0;
+        if (data) {
+            return new Jagfile(data);
         }
 
-        // changes color between last few flames
-        for (let i: number = 0; i < 20; i++) {
-            for (let y: number = 1; y < flameHeight - 1; y++) {
-                for (let x: number = 1; x < 127; x++) {
-                    const index: number = x + (y << 7);
-                    this.flameBuffer1[index] = ((this.flameBuffer0[index - 1] + this.flameBuffer0[index + 1] + this.flameBuffer0[index - 128] + this.flameBuffer0[index + 128]) / 4) | 0;
+        while (!data) {
+            await this.showProgress(progress, `Requesting ${displayName}`);
+
+            try {
+                data = await downloadUrl(`/${filename}${crc}`);
+            } catch (e) {
+                data = undefined;
+                for (let i: number = retry; i > 0; i--) {
+                    await this.showProgress(progress, `Error loading - Will retry in ${i} secs.`);
+                    await sleep(1000);
                 }
-            }
-
-            const last: Int32Array = this.flameBuffer0;
-            this.flameBuffer0 = this.flameBuffer1;
-            this.flameBuffer1 = last;
-        }
-
-        // Renders the rune images
-        if (image) {
-            let off: number = 0;
-
-            for (let y: number = 0; y < image.height2d; y++) {
-                for (let x: number = 0; x < image.width2d; x++) {
-                    if (image.pixels[off++] !== 0) {
-                        const x0: number = x + image.cropX + 16;
-                        const y0: number = y + image.cropY + 16;
-                        const index: number = x0 + (y0 << 7);
-                        this.flameBuffer0[index] = 0;
-                    }
+                retry *= 2;
+                if (retry > 60) {
+                    retry = 60;
                 }
             }
         }
-    }
-
-    private loadTitleImages(): void {
-        if (!this.titleArchive) {
-            return;
-        }
-        this.imageTitlebox = Pix8.fromArchive(this.titleArchive, 'titlebox');
-        this.imageTitlebutton = Pix8.fromArchive(this.titleArchive, 'titlebutton');
-        for (let i: number = 0; i < 12; i++) {
-            this.imageRunes[i] = Pix8.fromArchive(this.titleArchive, 'runes', i);
-        }
-        this.imageFlamesLeft = new Pix24(128, 265);
-        this.imageFlamesRight = new Pix24(128, 265);
-
-        if (this.imageTitle0) arraycopy(this.imageTitle0.pixels, 0, this.imageFlamesLeft.pixels, 0, 33920);
-        if (this.imageTitle1) arraycopy(this.imageTitle1.pixels, 0, this.imageFlamesRight.pixels, 0, 33920);
-
-        this.flameGradient0 = new Int32Array(256);
-        for (let index: number = 0; index < 64; index++) {
-            this.flameGradient0[index] = index * 262144;
-        }
-        for (let index: number = 0; index < 64; index++) {
-            this.flameGradient0[index + 64] = index * 1024 + Colors.RED;
-        }
-        for (let index: number = 0; index < 64; index++) {
-            this.flameGradient0[index + 128] = index * 4 + Colors.YELLOW;
-        }
-        for (let index: number = 0; index < 64; index++) {
-            this.flameGradient0[index + 192] = Colors.WHITE;
-        }
-        this.flameGradient1 = new Int32Array(256);
-        for (let index: number = 0; index < 64; index++) {
-            this.flameGradient1[index] = index * 1024;
-        }
-        for (let index: number = 0; index < 64; index++) {
-            this.flameGradient1[index + 64] = index * 4 + Colors.GREEN;
-        }
-        for (let index: number = 0; index < 64; index++) {
-            this.flameGradient1[index + 128] = index * 262144 + Colors.CYAN;
-        }
-        for (let index: number = 0; index < 64; index++) {
-            this.flameGradient1[index + 192] = Colors.WHITE;
-        }
-        this.flameGradient2 = new Int32Array(256);
-        for (let index: number = 0; index < 64; index++) {
-            this.flameGradient2[index] = index * 4;
-        }
-        for (let index: number = 0; index < 64; index++) {
-            this.flameGradient2[index + 64] = index * 262144 + Colors.BLUE;
-        }
-        for (let index: number = 0; index < 64; index++) {
-            this.flameGradient2[index + 128] = index * 1024 + Colors.MAGENTA;
-        }
-        for (let index: number = 0; index < 64; index++) {
-            this.flameGradient2[index + 192] = Colors.WHITE;
-        }
-
-        this.flameGradient = new Int32Array(256);
-        this.flameBuffer0 = new Int32Array(32768);
-        this.flameBuffer1 = new Int32Array(32768);
-        this.updateFlameBuffer(null);
-        this.flameBuffer3 = new Int32Array(32768);
-        this.flameBuffer2 = new Int32Array(32768);
-
-        this.showProgress(10, 'Connecting to fileserver').then((): void => {
-            if (!this.flameActive) {
-                this.flameActive = true;
-                this.flamesInterval = setInterval(this.runFlames.bind(this), 35);
-            }
-        });
+        await this.db?.cachesave(filename, data);
+        return new Jagfile(data);
     }
 
     private async updateTitleScreen(): Promise<void> {
@@ -2105,87 +1176,6 @@ export class Client extends GameShell {
             if (this.mouseClickButton === 1 && this.mouseClickX >= x - 75 && this.mouseClickX <= x + 75 && this.mouseClickY >= y - 20 && this.mouseClickY <= y + 20) {
                 this.titleScreenState = 0;
             }
-        }
-    }
-
-    private async drawTitleScreen(): Promise<void> {
-        await this.loadTitle();
-        this.imageTitle4?.bind();
-        this.imageTitlebox?.draw(0, 0);
-
-        const w: number = 360;
-        const h: number = 200;
-
-        if (this.titleScreenState === 0) {
-            let x: number = (w / 2) | 0;
-            let y: number = ((h / 2) | 0) - 20;
-            this.fontBold12?.drawStringTaggableCenter(x, y, 'Welcome to RuneScape', Colors.YELLOW, true);
-
-            x = ((w / 2) | 0) - 80;
-            y = ((h / 2) | 0) + 20;
-            this.imageTitlebutton?.draw(x - 73, y - 20);
-            this.fontBold12?.drawStringTaggableCenter(x, y + 5, 'New user', Colors.WHITE, true);
-
-            x = ((w / 2) | 0) + 80;
-            this.imageTitlebutton?.draw(x - 73, y - 20);
-            this.fontBold12?.drawStringTaggableCenter(x, y + 5, 'Existing User', Colors.WHITE, true);
-        } else if (this.titleScreenState === 2) {
-            let x: number = ((w / 2) | 0) - 80;
-            let y: number = ((h / 2) | 0) - 40;
-            if (this.loginMessage0.length > 0) {
-                this.fontBold12?.drawStringTaggableCenter(w / 2, y - 15, this.loginMessage0, Colors.YELLOW, true);
-                this.fontBold12?.drawStringTaggableCenter(w / 2, y, this.loginMessage1, Colors.YELLOW, true);
-                y += 30;
-            } else {
-                this.fontBold12?.drawStringTaggableCenter(w / 2, y - 7, this.loginMessage1, Colors.YELLOW, true);
-                y += 30;
-            }
-
-            this.fontBold12?.drawStringTaggable(w / 2 - 90, y, `Username: ${this.usernameInput}${this.titleLoginField === 0 && this.loopCycle % 40 < 20 ? '@yel@|' : ''}`, Colors.WHITE, true);
-            y += 15;
-
-            this.fontBold12?.drawStringTaggable(w / 2 - 88, y, `Password: ${JString.toAsterisks(this.passwordInput)}${this.titleLoginField === 1 && this.loopCycle % 40 < 20 ? '@yel@|' : ''}`, Colors.WHITE, true);
-
-            // x = w / 2 - 80; dead code
-            y = ((h / 2) | 0) + 50;
-            this.imageTitlebutton?.draw(x - 73, y - 20);
-            this.fontBold12?.drawStringTaggableCenter(x, y + 5, 'Login', Colors.WHITE, true);
-
-            x = ((w / 2) | 0) + 80;
-            this.imageTitlebutton?.draw(x - 73, y - 20);
-            this.fontBold12?.drawStringTaggableCenter(x, y + 5, 'Cancel', Colors.WHITE, true);
-        } else if (this.titleScreenState === 3) {
-            this.fontBold12?.drawStringTaggableCenter(w / 2, h / 2 - 60, 'Create a free account', Colors.YELLOW, true);
-
-            const x: number = (w / 2) | 0;
-            let y: number = ((h / 2) | 0) - 35;
-
-            this.fontBold12?.drawStringTaggableCenter((w / 2) | 0, y, 'To create a new account you need to', Colors.WHITE, true);
-            y += 15;
-
-            this.fontBold12?.drawStringTaggableCenter((w / 2) | 0, y, 'go back to the main RuneScape webpage', Colors.WHITE, true);
-            y += 15;
-
-            this.fontBold12?.drawStringTaggableCenter((w / 2) | 0, y, "and choose the red 'create account'", Colors.WHITE, true);
-            y += 15;
-
-            this.fontBold12?.drawStringTaggableCenter((w / 2) | 0, y, 'button at the top right of that page.', Colors.WHITE, true);
-            // y += 15; dead code
-
-            y = ((h / 2) | 0) + 50;
-            this.imageTitlebutton?.draw(x - 73, y - 20);
-            this.fontBold12?.drawStringTaggableCenter(x, y + 5, 'Cancel', Colors.WHITE, true);
-        }
-
-        this.imageTitle4?.draw(214, 186);
-        if (this.redrawTitleBackground) {
-            this.redrawTitleBackground = false;
-            this.imageTitle2?.draw(128, 0);
-            this.imageTitle3?.draw(214, 386);
-            this.imageTitle5?.draw(0, 265);
-            this.imageTitle6?.draw(574, 265);
-            this.imageTitle7?.draw(128, 186);
-            this.imageTitle8?.draw(574, 186);
         }
     }
 
@@ -2426,6 +1416,67 @@ export class Client extends GameShell {
 
             this.loginMessage0 = '';
             this.loginMessage1 = 'Error connecting to server.';
+        }
+    }
+
+    private async logout(): Promise<void> {
+        if (this.netStream) {
+            this.netStream.close();
+        }
+
+        this.netStream = null;
+        this.ingame = false;
+        this.titleScreenState = 0;
+        this.usernameInput = '';
+        this.passwordInput = '';
+
+        InputTracking.setDisabled();
+        this.clearCaches();
+        this.scene?.reset();
+
+        for (let level: number = 0; level < CollisionConstants.LEVELS; level++) {
+            this.levelCollisionMap[level]?.reset();
+        }
+
+        stopMidi(false);
+        this.currentMidi = null;
+        this.nextMusicDelay = 0;
+    }
+
+    private clearCaches(): void {
+        LocType.modelCacheStatic?.clear();
+        LocType.modelCacheDynamic?.clear();
+        NpcType.modelCache?.clear();
+        ObjType.modelCache?.clear();
+        ObjType.iconCache?.clear();
+        PlayerEntity.modelCache?.clear();
+        SpotAnimType.modelCache?.clear();
+    }
+
+    private prepareGameScreen(): void {
+        if (!this.areaChatback) {
+            this.unloadTitle();
+            this.drawArea = null;
+            this.imageTitle2 = null;
+            this.imageTitle3 = null;
+            this.imageTitle4 = null;
+            this.imageTitle0 = null;
+            this.imageTitle1 = null;
+            this.imageTitle5 = null;
+            this.imageTitle6 = null;
+            this.imageTitle7 = null;
+            this.imageTitle8 = null;
+            this.areaChatback = new PixMap(479, 96);
+            this.areaMapback = new PixMap(168, 160);
+            Pix2D.clear();
+            this.imageMapback?.draw(0, 0);
+            this.areaSidebar = new PixMap(190, 261);
+            this.areaViewport = new PixMap(512, 334);
+            Pix2D.clear();
+            this.areaBackbase1 = new PixMap(501, 61);
+            this.areaBackbase2 = new PixMap(288, 40);
+            this.areaBackhmid1 = new PixMap(269, 66);
+            this.redrawTitleBackground = true;
         }
     }
 
@@ -2751,6 +1802,28 @@ export class Client extends GameShell {
         }
     }
 
+    private async tryReconnect() {
+        if (this.idleTimeout > 0) {
+            await this.logout();
+        } else {
+            this.areaViewport?.bind();
+            this.fontPlain12?.drawStringCenter(257, 144, 'Connection lost', Colors.BLACK);
+            this.fontPlain12?.drawStringCenter(256, 143, 'Connection lost', Colors.WHITE);
+            this.fontPlain12?.drawStringCenter(257, 159, 'Please wait - attempting to reestablish', Colors.BLACK);
+            this.fontPlain12?.drawStringCenter(256, 158, 'Please wait - attempting to reestablish', Colors.WHITE);
+            this.areaViewport?.draw(8, 11);
+            this.flagSceneTileX = 0;
+            this.netStream?.close();
+            this.ingame = false;
+
+            await this.tryLogin(this.usernameInput, this.passwordInput, true);
+
+            if (!this.ingame) {
+                await this.logout();
+            }
+        }
+    }
+
     private updateSceneState(): void {
         if (Client.lowMemory && this.sceneState === 2 && World.levelBuilt !== this.currentLevel) {
             this.areaViewport?.bind();
@@ -2795,6 +1868,217 @@ export class Client extends GameShell {
         return 0;
     }
 
+    private buildScene(): void {
+		try {
+            this.minimapLevel = -1;
+            this.locList.clear();
+            this.spotanims.clear();
+            this.projectiles.clear();
+            Pix3D.clearTexels();
+            this.clearCaches();
+            this.scene?.reset();
+
+            for (let level: number = 0; level < CollisionConstants.LEVELS; level++) {
+                this.levelCollisionMap[level]?.reset();
+            }
+
+            const world: World = new World(CollisionConstants.SIZE, CollisionConstants.SIZE, this.levelHeightmap!, this.levelTileFlags!);
+            World.lowMemory = Client.lowMemory;
+
+            const maps: number = this.sceneMapLandData?.length ?? 0;
+
+            if (this.sceneMapIndex) {
+                for (let index: number = 0; index < maps; index++) {
+                    const mapsquareX: number = this.sceneMapIndex[index] >> 8;
+                    const mapsquareZ: number = this.sceneMapIndex[index] & 0xff;
+
+                    // underground pass check
+                    if (mapsquareX === 33 && mapsquareZ >= 71 && mapsquareZ <= 73) {
+                        World.lowMemory = false;
+                        break;
+                    }
+                }
+            }
+
+            if (Client.lowMemory) {
+                this.scene?.setMinLevel(this.currentLevel);
+            } else {
+                this.scene?.setMinLevel(0);
+            }
+
+            if (this.sceneMapIndex && this.sceneMapLandData) {
+                this.out.p1isaac(ClientProt.NO_TIMEOUT);
+
+                for (let i: number = 0; i < maps; i++) {
+                    const x: number = (this.sceneMapIndex[i] >> 8) * 64 - this.sceneBaseTileX;
+                    const z: number = (this.sceneMapIndex[i] & 0xff) * 64 - this.sceneBaseTileZ;
+                    const src: Uint8Array | null = this.sceneMapLandData[i];
+
+                    if (src) {
+                        const data = BZip2.decompress(src, -1, false, true);
+                        world.readLandscape((this.sceneCenterZoneX - 6) * 8, (this.sceneCenterZoneZ - 6) * 8, x, z, data);
+                    } else if (this.sceneCenterZoneZ < 800) {
+                        world.clearLandscape(z, x, 64, 64);
+                    }
+                }
+            }
+
+            if (this.sceneMapIndex && this.sceneMapLocData) {
+                this.out.p1isaac(ClientProt.NO_TIMEOUT);
+
+                for (let i: number = 0; i < maps; i++) {
+                    const x: number = (this.sceneMapIndex[i] >> 8) * 64 - this.sceneBaseTileX;
+                    const z: number = (this.sceneMapIndex[i] & 0xff) * 64 - this.sceneBaseTileZ;
+                    const src: Uint8Array | null = this.sceneMapLocData[i];
+
+                    if (src) {
+                        const data = BZip2.decompress(src, -1, false, true);
+                        world.readLocs(this.scene, this.locList, this.levelCollisionMap, data, x, z);
+                    }
+                }
+            }
+
+            this.out.p1isaac(ClientProt.NO_TIMEOUT);
+            world.build(this.scene, this.levelCollisionMap);
+            this.areaViewport?.bind();
+
+            this.out.p1isaac(ClientProt.NO_TIMEOUT);
+            for (let loc: LocEntity | null = this.locList.head() as LocEntity | null; loc; loc = this.locList.next() as LocEntity | null) {
+                if ((this.levelTileFlags && this.levelTileFlags[1][loc.heightmapNE][loc.heightmapNW] & 0x2) === 2) {
+                    loc.heightmapSW--;
+
+                    if (loc.heightmapSW < 0) {
+                        loc.unlink();
+                    }
+                }
+            }
+
+            for (let x: number = 0; x < CollisionConstants.SIZE; x++) {
+                for (let z: number = 0; z < CollisionConstants.SIZE; z++) {
+                    this.sortObjStacks(x, z);
+                }
+            }
+
+            this.clearAddedLocs();
+        } catch (err) {
+            console.error(err);
+        }
+
+        LocType.modelCacheStatic?.clear();
+        Pix3D.initPool(20);
+    }
+
+    private clearAddedLocs(): void {
+        for (let loc: LocAdd | null = this.addedLocs.head() as LocAdd | null; loc; loc = this.addedLocs.next() as LocAdd | null) {
+            if (loc.duration === -1) {
+                loc.delay = 0;
+                this.storeLoc(loc);
+            } else {
+                loc.unlink();
+            }
+        }
+    }
+
+    private createMinimap(level: number): void {
+        if (!this.imageMinimap) {
+            return;
+        }
+
+        const pixels: Int32Array = this.imageMinimap.pixels;
+        const length: number = pixels.length;
+        for (let i: number = 0; i < length; i++) {
+            pixels[i] = 0;
+        }
+
+        for (let z: number = 1; z < CollisionConstants.SIZE - 1; z++) {
+            let offset: number = (CollisionConstants.SIZE - 1 - z) * 512 * 4 + 24628;
+
+            for (let x: number = 1; x < CollisionConstants.SIZE - 1; x++) {
+                if (this.levelTileFlags && (this.levelTileFlags[level][x][z] & 0x18) === 0) {
+                    this.scene?.drawMinimapTile(level, x, z, pixels, offset, 512);
+                }
+
+                if (level < 3 && this.levelTileFlags && (this.levelTileFlags[level + 1][x][z] & 0x8) !== 0) {
+                    this.scene?.drawMinimapTile(level + 1, x, z, pixels, offset, 512);
+                }
+
+                offset += 4;
+            }
+        }
+
+        const wallRgb: number = ((((Math.random() * 20.0) | 0) + 238 - 10) << 16) + ((((Math.random() * 20.0) | 0) + 238 - 10) << 8) + ((Math.random() * 20.0) | 0) + 238 - 10;
+        const doorRgb: number = (((Math.random() * 20.0) | 0) + 238 - 10) << 16;
+
+        this.imageMinimap.bind();
+
+        for (let z: number = 1; z < CollisionConstants.SIZE - 1; z++) {
+            for (let x: number = 1; x < CollisionConstants.SIZE - 1; x++) {
+                if (this.levelTileFlags && (this.levelTileFlags[level][x][z] & 0x18) === 0) {
+                    this.drawMinimapLoc(x, z, level, wallRgb, doorRgb);
+                }
+
+                if (level < 3 && this.levelTileFlags && (this.levelTileFlags[level + 1][x][z] & 0x8) !== 0) {
+                    this.drawMinimapLoc(x, z, level + 1, wallRgb, doorRgb);
+                }
+            }
+        }
+
+        this.areaViewport?.bind();
+        this.activeMapFunctionCount = 0;
+
+        for (let x: number = 0; x < CollisionConstants.SIZE; x++) {
+            for (let z: number = 0; z < CollisionConstants.SIZE; z++) {
+                let typecode: number = this.scene?.getGroundDecorTypecode(this.currentLevel, x, z) ?? 0;
+                if (typecode === 0) {
+                    continue;
+                }
+
+                typecode = (typecode >> 14) & 0x7fff;
+
+                const func: number = LocType.get(typecode).mapfunction;
+                if (func < 0) {
+                    continue;
+                }
+
+                let stx: number = x;
+                let stz: number = z;
+
+                if (func !== 22 && func !== 29 && func !== 34 && func !== 36 && func !== 46 && func !== 47 && func !== 48) {
+                    const maxX: number = CollisionConstants.SIZE;
+                    const maxZ: number = CollisionConstants.SIZE;
+                    const collisionmap: CollisionMap | null = this.levelCollisionMap[this.currentLevel];
+                    if (collisionmap) {
+                        const flags: Int32Array = collisionmap.flags;
+
+                        for (let i: number = 0; i < 10; i++) {
+                            const rand: number = (Math.random() * 4.0) | 0;
+                            if (rand === 0 && stx > 0 && stx > x - 3 && (flags[CollisionMap.index(stx - 1, stz)] & CollisionFlag.BLOCK_WEST) === CollisionFlag.OPEN) {
+                                stx--;
+                            }
+
+                            if (rand === 1 && stx < maxX - 1 && stx < x + 3 && (flags[CollisionMap.index(stx + 1, stz)] & CollisionFlag.BLOCK_EAST) === CollisionFlag.OPEN) {
+                                stx++;
+                            }
+
+                            if (rand === 2 && stz > 0 && stz > z - 3 && (flags[CollisionMap.index(stx, stz - 1)] & CollisionFlag.BLOCK_SOUTH) === CollisionFlag.OPEN) {
+                                stz--;
+                            }
+
+                            if (rand === 3 && stz < maxZ - 1 && stz < z + 3 && (flags[CollisionMap.index(stx, stz + 1)] & CollisionFlag.BLOCK_NORTH) === CollisionFlag.OPEN) {
+                                stz++;
+                            }
+                        }
+                    }
+                }
+
+                this.activeMapFunctions[this.activeMapFunctionCount] = this.imageMapfunction[func];
+                this.activeMapFunctionX[this.activeMapFunctionCount] = stx;
+                this.activeMapFunctionZ[this.activeMapFunctionCount] = stz;
+                this.activeMapFunctionCount++;
+            }
+        }
+    }
+
     private updateAddedLocs(): void {
         if (this.sceneState !== 2) {
             return;
@@ -2833,73 +2117,1827 @@ export class Client extends GameShell {
         }
     }
 
-    private clearAddedLocs(): void {
-        for (let loc: LocAdd | null = this.addedLocs.head() as LocAdd | null; loc; loc = this.addedLocs.next() as LocAdd | null) {
-            if (loc.duration === -1) {
-                loc.delay = 0;
-                this.storeLoc(loc);
-            } else {
-                loc.unlink();
+    private handleInput(): void {
+        if (this.objDragArea === 0) {
+            this.menuOption[0] = 'Cancel';
+            this.menuAction[0] = 1252;
+            this.menuSize = 1;
+            this.handlePrivateChatInput(this.mouseY);
+            this.lastHoveredInterfaceId = 0;
+
+            // the main viewport area
+            if (this.mouseX > 8 && this.mouseY > 11 && this.mouseX < 520 && this.mouseY < 345) {
+                if (this.viewportInterfaceId === -1) {
+                    this.handleViewportOptions();
+                } else {
+                    this.handleInterfaceInput(Component.instances[this.viewportInterfaceId], this.mouseX, this.mouseY, 8, 11, 0);
+                }
+            }
+
+            if (this.lastHoveredInterfaceId !== this.viewportHoveredInterfaceIndex) {
+                this.viewportHoveredInterfaceIndex = this.lastHoveredInterfaceId;
+            }
+
+            this.lastHoveredInterfaceId = 0;
+
+            // the sidebar/tabs area
+            if (this.mouseX > 562 && this.mouseY > 231 && this.mouseX < 752 && this.mouseY < 492) {
+                if (this.sidebarInterfaceId !== -1) {
+                    this.handleInterfaceInput(Component.instances[this.sidebarInterfaceId], this.mouseX, this.mouseY, 562, 231, 0);
+                } else if (this.tabInterfaceId[this.selectedTab] !== -1) {
+                    this.handleInterfaceInput(Component.instances[this.tabInterfaceId[this.selectedTab]], this.mouseX, this.mouseY, 562, 231, 0);
+                }
+            }
+
+            if (this.lastHoveredInterfaceId !== this.sidebarHoveredInterfaceIndex) {
+                this.redrawSidebar = true;
+                this.sidebarHoveredInterfaceIndex = this.lastHoveredInterfaceId;
+            }
+
+            this.lastHoveredInterfaceId = 0;
+
+            // the chatbox area
+            if (this.mouseX > 22 && this.mouseY > 375 && this.mouseX < 431 && this.mouseY < 471) {
+                if (this.chatInterfaceId === -1) {
+                    this.handleChatMouseInput(this.mouseX - 22, this.mouseY - 375);
+                } else {
+                    this.handleInterfaceInput(Component.instances[this.chatInterfaceId], this.mouseX, this.mouseY, 22, 375, 0);
+                }
+            }
+
+            if (this.chatInterfaceId !== -1 && this.lastHoveredInterfaceId !== this.chatHoveredInterfaceIndex) {
+                this.redrawChatback = true;
+                this.chatHoveredInterfaceIndex = this.lastHoveredInterfaceId;
+            }
+
+            let done: boolean = false;
+            while (!done) {
+                done = true;
+
+                for (let i: number = 0; i < this.menuSize - 1; i++) {
+                    if (this.menuAction[i] < 1000 && this.menuAction[i + 1] > 1000) {
+                        const tmp0: string = this.menuOption[i];
+                        this.menuOption[i] = this.menuOption[i + 1];
+                        this.menuOption[i + 1] = tmp0;
+
+                        const tmp1: number = this.menuAction[i];
+                        this.menuAction[i] = this.menuAction[i + 1];
+                        this.menuAction[i + 1] = tmp1;
+
+                        const tmp2: number = this.menuParamB[i];
+                        this.menuParamB[i] = this.menuParamB[i + 1];
+                        this.menuParamB[i + 1] = tmp2;
+
+                        const tmp3: number = this.menuParamC[i];
+                        this.menuParamC[i] = this.menuParamC[i + 1];
+                        this.menuParamC[i + 1] = tmp3;
+
+                        const tmp4: number = this.menuParamA[i];
+                        this.menuParamA[i] = this.menuParamA[i + 1];
+                        this.menuParamA[i + 1] = tmp4;
+
+                        done = false;
+                    }
+                }
             }
         }
     }
 
-    private appendLoc(duration: number, type: number, rotation: number, layer: number, z: number, shape: number, level: number, x: number, delay: number): void {
-        let loc: LocAdd | null = null;
-        for (let next: LocAdd | null = this.addedLocs.head() as LocAdd | null; next; next = this.addedLocs.next() as LocAdd | null) {
-            if (next.plane === this.currentLevel && next.x === x && next.z === z && next.layer === layer) {
-                loc = next;
-                break;
-            }
-        }
-
-        if (!loc) {
-            loc = new LocAdd();
-            loc.plane = level;
-            loc.layer = layer;
-            loc.x = x;
-            loc.z = z;
-            this.storeLoc(loc);
-            this.addedLocs.addTail(loc);
-        }
-
-        loc.locIndex = type;
-        loc.shape = shape;
-        loc.locAngle = rotation;
-        loc.delay = delay;
-        loc.duration = duration;
-    }
-
-    private storeLoc(loc: LocAdd): void {
-        if (!this.scene) {
+    private handlePrivateChatInput(mouseY: number): void {
+        if (this.splitPrivateChat === 0) {
             return;
         }
 
-        let typecode: number = 0;
-        let otherId: number = -1;
-        let otherShape: number = 0;
-        let otherAngle: number = 0;
-
-        if (loc.layer === LocLayer.WALL) {
-            typecode = this.scene.getWallTypecode(loc.plane, loc.x, loc.z);
-        } else if (loc.layer === LocLayer.WALL_DECOR) {
-            typecode = this.scene.getDecorTypecode(loc.plane, loc.z, loc.x);
-        } else if (loc.layer === LocLayer.GROUND) {
-            typecode = this.scene.getLocTypecode(loc.plane, loc.x, loc.z);
-        } else if (loc.layer === LocLayer.GROUND_DECOR) {
-            typecode = this.scene.getGroundDecorTypecode(loc.plane, loc.x, loc.z);
+        let lineOffset: number = 0;
+        if (this.systemUpdateTimer !== 0) {
+            lineOffset = 1;
         }
 
-        if (typecode !== 0) {
-            const otherInfo: number = this.scene.getInfo(loc.plane, loc.x, loc.z, typecode);
-            otherId = (typecode >> 14) & 0x7fff;
-            otherShape = otherInfo & 0x1f;
-            otherAngle = otherInfo >> 6;
+        for (let i: number = 0; i < 100; i++) {
+            if (this.messageText[i] !== null) {
+                const type: number = this.messageTextType[i];
+                if ((type === 3 || type === 7) && (type === 7 || this.privateChatSetting === 0 || (this.privateChatSetting === 1 && this.isFriend(this.messageTextSender[i])))) {
+                    const y: number = 329 - lineOffset * 13;
+                    if (this.mouseX > 8 && this.mouseX < 520 && mouseY - 11 > y - 10 && mouseY - 11 <= y + 3) {
+                        if (this.rights) {
+                            this.menuOption[this.menuSize] = 'Report abuse @whi@' + this.messageTextSender[i];
+                            this.menuAction[this.menuSize] = 2034;
+                            this.menuSize++;
+                        }
+                        this.menuOption[this.menuSize] = 'Add ignore @whi@' + this.messageTextSender[i];
+                        this.menuAction[this.menuSize] = 2436;
+                        this.menuSize++;
+                        this.menuOption[this.menuSize] = 'Add friend @whi@' + this.messageTextSender[i];
+                        this.menuAction[this.menuSize] = 2406;
+                        this.menuSize++;
+                    }
+
+                    lineOffset++;
+                    if (lineOffset >= 5) {
+                        return;
+                    }
+                }
+
+                if ((type === 5 || type === 6) && this.privateChatSetting < 2) {
+                    lineOffset++;
+                    if (lineOffset >= 5) {
+                        return;
+                    }
+                }
+            }
+        }
+    }
+
+    private handleChatMouseInput(_mouseX: number, mouseY: number): void {
+        let line: number = 0;
+        for (let i: number = 0; i < 100; i++) {
+            if (!this.messageText[i]) {
+                continue;
+            }
+
+            const type: number = this.messageTextType[i];
+            const y: number = this.chatScrollOffset + 70 + 4 - line * 14;
+            if (y < -20) {
+                break;
+            }
+
+            if (type === 0) {
+                line++;
+            }
+
+            if ((type === 1 || type === 2) && (type === 1 || this.publicChatSetting === 0 || (this.publicChatSetting === 1 && this.isFriend(this.messageTextSender[i])))) {
+                if (mouseY > y - 14 && mouseY <= y && this.localPlayer && this.messageTextSender[i] !== this.localPlayer.name) {
+                    if (this.rights) {
+                        this.menuOption[this.menuSize] = 'Report abuse @whi@' + this.messageTextSender[i];
+                        this.menuAction[this.menuSize] = 34;
+                        this.menuSize++;
+                    }
+
+                    this.menuOption[this.menuSize] = 'Add ignore @whi@' + this.messageTextSender[i];
+                    this.menuAction[this.menuSize] = 436;
+                    this.menuSize++;
+                    this.menuOption[this.menuSize] = 'Add friend @whi@' + this.messageTextSender[i];
+                    this.menuAction[this.menuSize] = 406;
+                    this.menuSize++;
+                }
+
+                line++;
+            }
+
+            if ((type === 3 || type === 7) && this.splitPrivateChat === 0 && (type === 7 || this.privateChatSetting === 0 || (this.privateChatSetting === 1 && this.isFriend(this.messageTextSender[i])))) {
+                if (mouseY > y - 14 && mouseY <= y) {
+                    if (this.rights) {
+                        this.menuOption[this.menuSize] = 'Report abuse @whi@' + this.messageTextSender[i];
+                        this.menuAction[this.menuSize] = 34;
+                        this.menuSize++;
+                    }
+
+                    this.menuOption[this.menuSize] = 'Add ignore @whi@' + this.messageTextSender[i];
+                    this.menuAction[this.menuSize] = 436;
+                    this.menuSize++;
+                    this.menuOption[this.menuSize] = 'Add friend @whi@' + this.messageTextSender[i];
+                    this.menuAction[this.menuSize] = 406;
+                    this.menuSize++;
+                }
+
+                line++;
+            }
+
+            if (type === 4 && (this.tradeChatSetting === 0 || (this.tradeChatSetting === 1 && this.isFriend(this.messageTextSender[i])))) {
+                if (mouseY > y - 14 && mouseY <= y) {
+                    this.menuOption[this.menuSize] = 'Accept trade @whi@' + this.messageTextSender[i];
+                    this.menuAction[this.menuSize] = 903;
+                    this.menuSize++;
+                }
+
+                line++;
+            }
+
+            if ((type === 5 || type === 6) && this.splitPrivateChat === 0 && this.privateChatSetting < 2) {
+                line++;
+            }
+
+            if (type === 8 && (this.tradeChatSetting === 0 || (this.tradeChatSetting === 1 && this.isFriend(this.messageTextSender[i])))) {
+                if (mouseY > y - 14 && mouseY <= y) {
+                    this.menuOption[this.menuSize] = 'Accept duel @whi@' + this.messageTextSender[i];
+                    this.menuAction[this.menuSize] = 363;
+                    this.menuSize++;
+                }
+
+                line++;
+            }
+        }
+    }
+
+    private handleViewportOptions(): void {
+        if (this.objSelected === 0 && this.spellSelected === 0) {
+            this.menuOption[this.menuSize] = 'Walk here';
+            this.menuAction[this.menuSize] = 660;
+            this.menuParamB[this.menuSize] = this.mouseX;
+            this.menuParamC[this.menuSize] = this.mouseY;
+            this.menuSize++;
         }
 
-        loc.lastLocIndex = otherId;
-        loc.lastShape = otherShape;
-        loc.lastAngle = otherAngle;
+        let lastTypecode: number = -1;
+        for (let picked: number = 0; picked < Model.pickedCount; picked++) {
+            const typecode: number = Model.picked[picked];
+            const x: number = typecode & 0x7f;
+            const z: number = (typecode >> 7) & 0x7f;
+            const entityType: number = (typecode >> 29) & 0x3;
+            const typeId: number = (typecode >> 14) & 0x7fff;
+
+            if (typecode === lastTypecode) {
+                continue;
+            }
+
+            lastTypecode = typecode;
+
+            if (entityType === 2 && this.scene && this.scene.getInfo(this.currentLevel, x, z, typecode) >= 0) {
+                const loc: LocType = LocType.get(typeId);
+                if (this.objSelected === 1) {
+                    this.menuOption[this.menuSize] = 'Use ' + this.objSelectedName + ' with @cya@' + loc.name;
+                    this.menuAction[this.menuSize] = 450;
+                    this.menuParamA[this.menuSize] = typecode;
+                    this.menuParamB[this.menuSize] = x;
+                    this.menuParamC[this.menuSize] = z;
+                    this.menuSize++;
+                } else if (this.spellSelected !== 1) {
+                    if (loc.op) {
+                        for (let op: number = 4; op >= 0; op--) {
+                            if (loc.op[op]) {
+                                this.menuOption[this.menuSize] = loc.op[op] + ' @cya@' + loc.name;
+                                if (op === 0) {
+                                    this.menuAction[this.menuSize] = 285;
+                                }
+
+                                if (op === 1) {
+                                    this.menuAction[this.menuSize] = 504;
+                                }
+
+                                if (op === 2) {
+                                    this.menuAction[this.menuSize] = 364;
+                                }
+
+                                if (op === 3) {
+                                    this.menuAction[this.menuSize] = 581;
+                                }
+
+                                if (op === 4) {
+                                    this.menuAction[this.menuSize] = 1501;
+                                }
+
+                                this.menuParamA[this.menuSize] = typecode;
+                                this.menuParamB[this.menuSize] = x;
+                                this.menuParamC[this.menuSize] = z;
+                                this.menuSize++;
+                            }
+                        }
+                    }
+
+                    if (process.env.DEV_CLIENT) {
+                        this.menuOption[this.menuSize] = 'Examine @cya@' + loc.name + ' @whi@(@gre@' + loc.id + '@whi@)';
+                    } else {
+                        this.menuOption[this.menuSize] = 'Examine @cya@' + loc.name;
+                    }
+                    this.menuAction[this.menuSize] = 1175;
+                    this.menuParamA[this.menuSize] = typecode;
+                    this.menuParamB[this.menuSize] = x;
+                    this.menuParamC[this.menuSize] = z;
+                    this.menuSize++;
+                } else if ((this.activeSpellFlags & 0x4) === 4) {
+                    this.menuOption[this.menuSize] = this.spellCaption + ' @cya@' + loc.name;
+                    this.menuAction[this.menuSize] = 55;
+                    this.menuParamA[this.menuSize] = typecode;
+                    this.menuParamB[this.menuSize] = x;
+                    this.menuParamC[this.menuSize] = z;
+                    this.menuSize++;
+                }
+            }
+
+            if (entityType === 1) {
+                const npc: NpcEntity | null = this.npcs[typeId];
+                if (npc && npc.npcType && npc.npcType.size === 1 && (npc.x & 0x7f) === 64 && (npc.z & 0x7f) === 64) {
+                    for (let i: number = 0; i < this.npcCount; i++) {
+                        const other: NpcEntity | null = this.npcs[this.npcIds[i]];
+
+                        if (other && other !== npc && other.npcType && other.npcType.size === 1 && other.x === npc.x && other.z === npc.z) {
+                            this.addNpcOptions(other.npcType, this.npcIds[i], x, z);
+                        }
+                    }
+                }
+
+                if (npc && npc.npcType) {
+                    this.addNpcOptions(npc.npcType, typeId, x, z);
+                }
+            }
+
+            if (entityType === 0) {
+                const player: PlayerEntity | null = this.players[typeId];
+                if (player && (player.x & 0x7f) === 64 && (player.z & 0x7f) === 64) {
+                    for (let i: number = 0; i < this.npcCount; i++) {
+                        const other: NpcEntity | null = this.npcs[this.npcIds[i]];
+
+                        if (other && other.npcType && other.npcType.size === 1 && other.x === player.x && other.z === player.z) {
+                            this.addNpcOptions(other.npcType, this.npcIds[i], x, z);
+                        }
+                    }
+
+                    for (let i: number = 0; i < this.playerCount; i++) {
+                        const other: PlayerEntity | null = this.players[this.playerIds[i]];
+
+                        if (other && other !== player && other.x === player.x && other.z === player.z) {
+                            this.addPlayerOptions(other, this.playerIds[i], x, z);
+                        }
+                    }
+                }
+
+                if (player) {
+                    this.addPlayerOptions(player, typeId, x, z);
+                }
+            }
+
+            if (entityType === 3) {
+                const objs: LinkList | null = this.objStacks[this.currentLevel][x][z];
+                if (!objs) {
+                    continue;
+                }
+
+                for (let obj: ObjStackEntity | null = objs.tail() as ObjStackEntity | null; obj; obj = objs.prev() as ObjStackEntity | null) {
+                    const type: ObjType = ObjType.get(obj.index);
+                    if (this.objSelected === 1) {
+                        this.menuOption[this.menuSize] = 'Use ' + this.objSelectedName + ' with @lre@' + type.name;
+                        this.menuAction[this.menuSize] = 217;
+                        this.menuParamA[this.menuSize] = obj.index;
+                        this.menuParamB[this.menuSize] = x;
+                        this.menuParamC[this.menuSize] = z;
+                        this.menuSize++;
+                    } else if (this.spellSelected !== 1) {
+                        for (let op: number = 4; op >= 0; op--) {
+                            if (type.op && type.op[op]) {
+                                this.menuOption[this.menuSize] = type.op[op] + ' @lre@' + type.name;
+                                if (op === 0) {
+                                    this.menuAction[this.menuSize] = 224;
+                                }
+
+                                if (op === 1) {
+                                    this.menuAction[this.menuSize] = 993;
+                                }
+
+                                if (op === 2) {
+                                    this.menuAction[this.menuSize] = 99;
+                                }
+
+                                if (op === 3) {
+                                    this.menuAction[this.menuSize] = 746;
+                                }
+
+                                if (op === 4) {
+                                    this.menuAction[this.menuSize] = 877;
+                                }
+
+                                this.menuParamA[this.menuSize] = obj.index;
+                                this.menuParamB[this.menuSize] = x;
+                                this.menuParamC[this.menuSize] = z;
+                                this.menuSize++;
+                            } else if (op === 2) {
+                                this.menuOption[this.menuSize] = 'Take @lre@' + type.name;
+                                this.menuAction[this.menuSize] = 99;
+                                this.menuParamA[this.menuSize] = obj.index;
+                                this.menuParamB[this.menuSize] = x;
+                                this.menuParamC[this.menuSize] = z;
+                                this.menuSize++;
+                            }
+                        }
+
+                        if (process.env.DEV_CLIENT) {
+                            this.menuOption[this.menuSize] = 'Examine @lre@' + type.name + ' @whi@(@gre@' + type.id + '@whi@)';
+                        } else {
+                            this.menuOption[this.menuSize] = 'Examine @lre@' + type.name;
+                        }
+                        this.menuAction[this.menuSize] = 1102;
+                        this.menuParamA[this.menuSize] = obj.index;
+                        this.menuParamB[this.menuSize] = x;
+                        this.menuParamC[this.menuSize] = z;
+                        this.menuSize++;
+                    } else if ((this.activeSpellFlags & 0x1) === 1) {
+                        this.menuOption[this.menuSize] = this.spellCaption + ' @lre@' + type.name;
+                        this.menuAction[this.menuSize] = 965;
+                        this.menuParamA[this.menuSize] = obj.index;
+                        this.menuParamB[this.menuSize] = x;
+                        this.menuParamC[this.menuSize] = z;
+                        this.menuSize++;
+                    }
+                }
+            }
+        }
+    }
+
+    private async handleMouseInput(): Promise<void> {
+        if (this.objDragArea !== 0) {
+            return;
+        }
+
+        let button: number = this.mouseClickButton;
+        if (this.spellSelected === 1 && this.mouseClickX >= 520 && this.mouseClickY >= 165 && this.mouseClickX <= 788 && this.mouseClickY <= 230) {
+            button = 0;
+        }
+
+        if (this.menuVisible) {
+            if (button !== 1) {
+                let x: number = this.mouseX;
+                let y: number = this.mouseY;
+
+                if (this.menuArea === 0) {
+                    x -= 8;
+                    y -= 11;
+                } else if (this.menuArea === 1) {
+                    x -= 562;
+                    y -= 231;
+                } else if (this.menuArea === 2) {
+                    x -= 22;
+                    y -= 375;
+                }
+
+                if (x < this.menuX - 10 || x > this.menuX + this.menuWidth + 10 || y < this.menuY - 10 || y > this.menuY + this.menuHeight + 10) {
+                    this.menuVisible = false;
+                    if (this.menuArea === 1) {
+                        this.redrawSidebar = true;
+                    }
+                    if (this.menuArea === 2) {
+                        this.redrawChatback = true;
+                    }
+                }
+            }
+
+            if (button === 1) {
+                const menuX: number = this.menuX;
+                const menuY: number = this.menuY;
+                const menuWidth: number = this.menuWidth;
+
+                let clickX: number = this.mouseClickX;
+                let clickY: number = this.mouseClickY;
+
+                if (this.menuArea === 0) {
+                    clickX -= 8;
+                    clickY -= 11;
+                } else if (this.menuArea === 1) {
+                    clickX -= 562;
+                    clickY -= 231;
+                } else if (this.menuArea === 2) {
+                    clickX -= 22;
+                    clickY -= 375;
+                }
+
+                let option: number = -1;
+                for (let i: number = 0; i < this.menuSize; i++) {
+                    const optionY: number = menuY + (this.menuSize - 1 - i) * 15 + 31;
+                    if (clickX > menuX && clickX < menuX + menuWidth && clickY > optionY - 13 && clickY < optionY + 3) {
+                        option = i;
+                    }
+                }
+
+                if (option !== -1) {
+                    await this.useMenuOption(option);
+                }
+
+                this.menuVisible = false;
+                if (this.menuArea === 1) {
+                    this.redrawSidebar = true;
+                } else if (this.menuArea === 2) {
+                    this.redrawChatback = true;
+                }
+            }
+        } else {
+            if (button === 1 && this.menuSize > 0) {
+                const action: number = this.menuAction[this.menuSize - 1];
+
+                if (action === 602 || action === 596 || action === 22 || action === 892 || action === 415 || action === 405 || action === 38 || action === 422 || action === 478 || action === 347 || action === 188) {
+                    const slot: number = this.menuParamB[this.menuSize - 1];
+                    const comId: number = this.menuParamC[this.menuSize - 1];
+                    const com: Component = Component.instances[comId];
+
+                    if (com.draggable) {
+                        this.objGrabThreshold = false;
+                        this.objDragCycles = 0;
+                        this.objDragInterfaceId = comId;
+                        this.objDragSlot = slot;
+                        this.objDragArea = 2;
+                        this.objGrabX = this.mouseClickX;
+                        this.objGrabY = this.mouseClickY;
+
+                        if (Component.instances[comId].layer === this.viewportInterfaceId) {
+                            this.objDragArea = 1;
+                        }
+
+                        if (Component.instances[comId].layer === this.chatInterfaceId) {
+                            this.objDragArea = 3;
+                        }
+
+                        return;
+                    }
+                }
+            }
+
+            if (button === 1 && (this.mouseButtonsOption === 1 || this.isAddFriendOption(this.menuSize - 1)) && this.menuSize > 2) {
+                button = 2;
+            }
+
+            if (button === 1 && this.menuSize > 0) {
+                await this.useMenuOption(this.menuSize - 1);
+            }
+
+            if (button !== 2 || this.menuSize <= 0) {
+                return;
+            }
+
+            this.showContextMenu();
+        }
+    }
+
+    handleMinimapInput(): void {
+        if (this.mouseClickButton === 1 && this.localPlayer) {
+            let x: number = this.mouseClickX - 21 - 561;
+            let y: number = this.mouseClickY - 9 - 5;
+
+            if (x >= 0 && y >= 0 && x < 146 && y < 151) {
+                x -= 73;
+                y -= 75;
+
+                const yaw: number = (this.orbitCameraYaw + this.minimapAnticheatAngle) & 0x7ff;
+                let sinYaw: number = Pix3D.sin[yaw];
+                let cosYaw: number = Pix3D.cos[yaw];
+
+                sinYaw = (sinYaw * (this.minimapZoom + 256)) >> 8;
+                cosYaw = (cosYaw * (this.minimapZoom + 256)) >> 8;
+
+                const relX: number = (y * sinYaw + x * cosYaw) >> 11;
+                const relY: number = (y * cosYaw - x * sinYaw) >> 11;
+
+                const tileX: number = (this.localPlayer.x + relX) >> 7;
+                const tileZ: number = (this.localPlayer.z - relY) >> 7;
+
+                if (this.tryMove(this.localPlayer.routeFlagX[0], this.localPlayer.routeFlagZ[0], tileX, tileZ, 1, 0, 0, 0, 0, 0, true)) {
+                    // the additional 14-bytes in MOVE_MINIMAPCLICK
+                    this.out.p1(x);
+                    this.out.p1(y);
+                    this.out.p2(this.orbitCameraYaw);
+                    this.out.p1(57);
+                    this.out.p1(this.minimapAnticheatAngle);
+                    this.out.p1(this.minimapZoom);
+                    this.out.p1(89);
+                    this.out.p2(this.localPlayer.x);
+                    this.out.p2(this.localPlayer.z);
+                    this.out.p1(this.tryMoveNearest);
+                    this.out.p1(63);
+                }
+            }
+        }
+    }
+
+    private handleTabInput(): void {
+        if (this.mouseClickButton === 1) {
+            if (this.mouseClickX >= 549 && this.mouseClickX <= 583 && this.mouseClickY >= 195 && this.mouseClickY < 231 && this.tabInterfaceId[0] !== -1) {
+                this.redrawSidebar = true;
+                this.selectedTab = 0;
+                this.redrawSideicons = true;
+            } else if (this.mouseClickX >= 579 && this.mouseClickX <= 609 && this.mouseClickY >= 194 && this.mouseClickY < 231 && this.tabInterfaceId[1] !== -1) {
+                this.redrawSidebar = true;
+                this.selectedTab = 1;
+                this.redrawSideicons = true;
+            } else if (this.mouseClickX >= 607 && this.mouseClickX <= 637 && this.mouseClickY >= 194 && this.mouseClickY < 231 && this.tabInterfaceId[2] !== -1) {
+                this.redrawSidebar = true;
+                this.selectedTab = 2;
+                this.redrawSideicons = true;
+            } else if (this.mouseClickX >= 635 && this.mouseClickX <= 679 && this.mouseClickY >= 194 && this.mouseClickY < 229 && this.tabInterfaceId[3] !== -1) {
+                this.redrawSidebar = true;
+                this.selectedTab = 3;
+                this.redrawSideicons = true;
+            } else if (this.mouseClickX >= 676 && this.mouseClickX <= 706 && this.mouseClickY >= 194 && this.mouseClickY < 231 && this.tabInterfaceId[4] !== -1) {
+                this.redrawSidebar = true;
+                this.selectedTab = 4;
+                this.redrawSideicons = true;
+            } else if (this.mouseClickX >= 704 && this.mouseClickX <= 734 && this.mouseClickY >= 194 && this.mouseClickY < 231 && this.tabInterfaceId[5] !== -1) {
+                this.redrawSidebar = true;
+                this.selectedTab = 5;
+                this.redrawSideicons = true;
+            } else if (this.mouseClickX >= 732 && this.mouseClickX <= 766 && this.mouseClickY >= 195 && this.mouseClickY < 231 && this.tabInterfaceId[6] !== -1) {
+                this.redrawSidebar = true;
+                this.selectedTab = 6;
+                this.redrawSideicons = true;
+            } else if (this.mouseClickX >= 550 && this.mouseClickX <= 584 && this.mouseClickY >= 492 && this.mouseClickY < 528 && this.tabInterfaceId[7] !== -1) {
+                this.redrawSidebar = true;
+                this.selectedTab = 7;
+                this.redrawSideicons = true;
+            } else if (this.mouseClickX >= 582 && this.mouseClickX <= 612 && this.mouseClickY >= 492 && this.mouseClickY < 529 && this.tabInterfaceId[8] !== -1) {
+                this.redrawSidebar = true;
+                this.selectedTab = 8;
+                this.redrawSideicons = true;
+            } else if (this.mouseClickX >= 609 && this.mouseClickX <= 639 && this.mouseClickY >= 492 && this.mouseClickY < 529 && this.tabInterfaceId[9] !== -1) {
+                this.redrawSidebar = true;
+                this.selectedTab = 9;
+                this.redrawSideicons = true;
+            } else if (this.mouseClickX >= 637 && this.mouseClickX <= 681 && this.mouseClickY >= 493 && this.mouseClickY < 528 && this.tabInterfaceId[10] !== -1) {
+                this.redrawSidebar = true;
+                this.selectedTab = 10;
+                this.redrawSideicons = true;
+            } else if (this.mouseClickX >= 679 && this.mouseClickX <= 709 && this.mouseClickY >= 492 && this.mouseClickY < 529 && this.tabInterfaceId[11] !== -1) {
+                this.redrawSidebar = true;
+                this.selectedTab = 11;
+                this.redrawSideicons = true;
+            } else if (this.mouseClickX >= 706 && this.mouseClickX <= 736 && this.mouseClickY >= 492 && this.mouseClickY < 529 && this.tabInterfaceId[12] !== -1) {
+                this.redrawSidebar = true;
+                this.selectedTab = 12;
+                this.redrawSideicons = true;
+            } else if (this.mouseClickX >= 734 && this.mouseClickX <= 768 && this.mouseClickY >= 492 && this.mouseClickY < 528 && this.tabInterfaceId[13] !== -1) {
+                this.redrawSidebar = true;
+                this.selectedTab = 13;
+                this.redrawSideicons = true;
+            }
+
+            Client.cyclelogic1++;
+            if (Client.cyclelogic1 > 150) {
+                Client.cyclelogic1 = 0;
+                this.out.p1isaac(ClientProt.ANTICHEAT_CYCLELOGIC1);
+                this.out.p1(43);
+            }
+        }
+    }
+
+    private handleChatSettingsInput(): void {
+        if (this.mouseClickButton === 1) {
+            if (this.mouseClickX >= 8 && this.mouseClickX <= 108 && this.mouseClickY >= 490 && this.mouseClickY <= 522) {
+                this.publicChatSetting = (this.publicChatSetting + 1) % 4;
+                this.redrawPrivacySettings = true;
+                this.redrawChatback = true;
+
+                this.out.p1isaac(ClientProt.CHAT_SETMODE);
+                this.out.p1(this.publicChatSetting);
+                this.out.p1(this.privateChatSetting);
+                this.out.p1(this.tradeChatSetting);
+            } else if (this.mouseClickX >= 137 && this.mouseClickX <= 237 && this.mouseClickY >= 490 && this.mouseClickY <= 522) {
+                this.privateChatSetting = (this.privateChatSetting + 1) % 3;
+                this.redrawPrivacySettings = true;
+                this.redrawChatback = true;
+
+                this.out.p1isaac(ClientProt.CHAT_SETMODE);
+                this.out.p1(this.publicChatSetting);
+                this.out.p1(this.privateChatSetting);
+                this.out.p1(this.tradeChatSetting);
+            } else if (this.mouseClickX >= 275 && this.mouseClickX <= 375 && this.mouseClickY >= 490 && this.mouseClickY <= 522) {
+                this.tradeChatSetting = (this.tradeChatSetting + 1) % 3;
+                this.redrawPrivacySettings = true;
+                this.redrawChatback = true;
+
+                this.out.p1isaac(ClientProt.CHAT_SETMODE);
+                this.out.p1(this.publicChatSetting);
+                this.out.p1(this.privateChatSetting);
+                this.out.p1(this.tradeChatSetting);
+            } else if (this.mouseClickX >= 416 && this.mouseClickX <= 516 && this.mouseClickY >= 490 && this.mouseClickY <= 522) {
+                this.closeInterfaces();
+
+                this.reportAbuseInput = '';
+                this.reportAbuseMuteOption = false;
+
+                for (let i: number = 0; i < Component.instances.length; i++) {
+                    if (Component.instances[i] && Component.instances[i].clientCode === 600) {
+                        this.reportAbuseInterfaceID = this.viewportInterfaceId = Component.instances[i].layer;
+                        return;
+                    }
+                }
+            }
+        }
+    }
+
+    private closeInterfaces(): void {
+        this.out.p1isaac(ClientProt.CLOSE_MODAL);
+
+        if (this.sidebarInterfaceId !== -1) {
+            this.sidebarInterfaceId = -1;
+            this.redrawSidebar = true;
+            this.pressedContinueOption = false;
+            this.redrawSideicons = true;
+        }
+
+        if (this.chatInterfaceId !== -1) {
+            this.chatInterfaceId = -1;
+            this.redrawChatback = true;
+            this.pressedContinueOption = false;
+        }
+
+        this.viewportInterfaceId = -1;
+    }
+
+    private updateEntityChats(): void {
+        for (let i: number = -1; i < this.playerCount; i++) {
+            let index: number;
+            if (i === -1) {
+                index = Constants.LOCAL_PLAYER_INDEX;
+            } else {
+                index = this.playerIds[i];
+            }
+
+            const player: PlayerEntity | null = this.players[index];
+            if (player && player.chatTimer > 0) {
+                player.chatTimer--;
+
+                if (player.chatTimer === 0) {
+                    player.chat = null;
+                }
+            }
+        }
+
+        for (let i: number = 0; i < this.npcCount; i++) {
+            const index: number = this.npcIds[i];
+            const npc: NpcEntity | null = this.npcs[index];
+
+            if (npc && npc.chatTimer > 0) {
+                npc.chatTimer--;
+
+                if (npc.chatTimer === 0) {
+                    npc.chat = null;
+                }
+            }
+        }
+    }
+
+    private updateOrbitCamera(): void {
+        if (!this.localPlayer) {
+            return; // custom
+        }
+        const orbitX: number = this.localPlayer.x + this.cameraAnticheatOffsetX;
+        const orbitZ: number = this.localPlayer.z + this.cameraAnticheatOffsetZ;
+        if (this.orbitCameraX - orbitX < -500 || this.orbitCameraX - orbitX > 500 || this.orbitCameraZ - orbitZ < -500 || this.orbitCameraZ - orbitZ > 500) {
+            this.orbitCameraX = orbitX;
+            this.orbitCameraZ = orbitZ;
+        }
+        if (this.orbitCameraX !== orbitX) {
+            this.orbitCameraX += ((orbitX - this.orbitCameraX) / 16) | 0;
+        }
+        if (this.orbitCameraZ !== orbitZ) {
+            this.orbitCameraZ += ((orbitZ - this.orbitCameraZ) / 16) | 0;
+        }
+        if (this.actionKey[1] === 1) {
+            this.orbitCameraYawVelocity += ((-this.orbitCameraYawVelocity - 24) / 2) | 0;
+        } else if (this.actionKey[2] === 1) {
+            this.orbitCameraYawVelocity += ((24 - this.orbitCameraYawVelocity) / 2) | 0;
+        } else {
+            this.orbitCameraYawVelocity = (this.orbitCameraYawVelocity / 2) | 0;
+        }
+        if (this.actionKey[3] === 1) {
+            this.orbitCameraPitchVelocity += ((12 - this.orbitCameraPitchVelocity) / 2) | 0;
+        } else if (this.actionKey[4] === 1) {
+            this.orbitCameraPitchVelocity += ((-this.orbitCameraPitchVelocity - 12) / 2) | 0;
+        } else {
+            this.orbitCameraPitchVelocity = (this.orbitCameraPitchVelocity / 2) | 0;
+        }
+        this.orbitCameraYaw = ((this.orbitCameraYaw + this.orbitCameraYawVelocity / 2) | 0) & 0x7ff;
+        this.orbitCameraPitch += (this.orbitCameraPitchVelocity / 2) | 0;
+        if (this.orbitCameraPitch < 128) {
+            this.orbitCameraPitch = 128;
+        }
+        if (this.orbitCameraPitch > 383) {
+            this.orbitCameraPitch = 383;
+        }
+
+        const orbitTileX: number = this.orbitCameraX >> 7;
+        const orbitTileZ: number = this.orbitCameraZ >> 7;
+        const orbitY: number = this.getHeightmapY(this.currentLevel, this.orbitCameraX, this.orbitCameraZ);
+        let maxY: number = 0;
+
+        if (this.levelHeightmap) {
+            if (orbitTileX > 3 && orbitTileZ > 3 && orbitTileX < 100 && orbitTileZ < 100) {
+                for (let x: number = orbitTileX - 4; x <= orbitTileX + 4; x++) {
+                    for (let z: number = orbitTileZ - 4; z <= orbitTileZ + 4; z++) {
+                        let level: number = this.currentLevel;
+                        if (level < 3 && this.levelTileFlags && (this.levelTileFlags[1][x][z] & 0x2) === 2) {
+                            level++;
+                        }
+
+                        const y: number = orbitY - this.levelHeightmap[level][x][z];
+                        if (y > maxY) {
+                            maxY = y;
+                        }
+                    }
+                }
+            }
+        }
+
+        let clamp: number = maxY * 192;
+        if (clamp > 98048) {
+            clamp = 98048;
+        }
+
+        if (clamp < 32768) {
+            clamp = 32768;
+        }
+
+        if (clamp > this.cameraPitchClamp) {
+            this.cameraPitchClamp += ((clamp - this.cameraPitchClamp) / 24) | 0;
+        } else if (clamp < this.cameraPitchClamp) {
+            this.cameraPitchClamp += ((clamp - this.cameraPitchClamp) / 80) | 0;
+        }
+    }
+
+    private applyCutscene(): void {
+        let x: number = this.cutsceneSrcLocalTileX * 128 + 64;
+        let z: number = this.cutsceneSrcLocalTileZ * 128 + 64;
+        let y: number = this.getHeightmapY(this.currentLevel, this.cutsceneSrcLocalTileX, this.cutsceneSrcLocalTileZ) - this.cutsceneSrcHeight;
+
+        if (this.cameraX < x) {
+            this.cameraX += this.cutsceneMoveSpeed + ((((x - this.cameraX) * this.cutsceneMoveAcceleration) / 1000) | 0);
+            if (this.cameraX > x) {
+                this.cameraX = x;
+            }
+        }
+
+        if (this.cameraX > x) {
+            this.cameraX -= this.cutsceneMoveSpeed + ((((this.cameraX - x) * this.cutsceneMoveAcceleration) / 1000) | 0);
+            if (this.cameraX < x) {
+                this.cameraX = x;
+            }
+        }
+
+        if (this.cameraY < y) {
+            this.cameraY += this.cutsceneMoveSpeed + ((((y - this.cameraY) * this.cutsceneMoveAcceleration) / 1000) | 0);
+            if (this.cameraY > y) {
+                this.cameraY = y;
+            }
+        }
+
+        if (this.cameraY > y) {
+            this.cameraY -= this.cutsceneMoveSpeed + ((((this.cameraY - y) * this.cutsceneMoveAcceleration) / 1000) | 0);
+            if (this.cameraY < y) {
+                this.cameraY = y;
+            }
+        }
+
+        if (this.cameraZ < z) {
+            this.cameraZ += this.cutsceneMoveSpeed + ((((z - this.cameraZ) * this.cutsceneMoveAcceleration) / 1000) | 0);
+            if (this.cameraZ > z) {
+                this.cameraZ = z;
+            }
+        }
+
+        if (this.cameraZ > z) {
+            this.cameraZ -= this.cutsceneMoveSpeed + ((((this.cameraZ - z) * this.cutsceneMoveAcceleration) / 1000) | 0);
+            if (this.cameraZ < z) {
+                this.cameraZ = z;
+            }
+        }
+
+        x = this.cutsceneDstLocalTileX * 128 + 64;
+        z = this.cutsceneDstLocalTileZ * 128 + 64;
+        y = this.getHeightmapY(this.currentLevel, this.cutsceneDstLocalTileX, this.cutsceneDstLocalTileZ) - this.cutsceneDstHeight;
+
+        const deltaX: number = x - this.cameraX;
+        const deltaY: number = y - this.cameraY;
+        const deltaZ: number = z - this.cameraZ;
+
+        const distance: number = Math.sqrt(deltaX * deltaX + deltaZ * deltaZ) | 0;
+        let pitch: number = ((Math.atan2(deltaY, distance) * 325.949) | 0) & 0x7ff;
+        const yaw: number = ((Math.atan2(deltaX, deltaZ) * -325.949) | 0) & 0x7ff;
+
+        if (pitch < 128) {
+            pitch = 128;
+        }
+
+        if (pitch > 383) {
+            pitch = 383;
+        }
+
+        if (this.cameraPitch < pitch) {
+            this.cameraPitch += this.cutsceneRotateSpeed + ((((pitch - this.cameraPitch) * this.cutsceneRotateAcceleration) / 1000) | 0);
+            if (this.cameraPitch > pitch) {
+                this.cameraPitch = pitch;
+            }
+        }
+
+        if (this.cameraPitch > pitch) {
+            this.cameraPitch -= this.cutsceneRotateSpeed + ((((this.cameraPitch - pitch) * this.cutsceneRotateAcceleration) / 1000) | 0);
+            if (this.cameraPitch < pitch) {
+                this.cameraPitch = pitch;
+            }
+        }
+
+        let deltaYaw: number = yaw - this.cameraYaw;
+        if (deltaYaw > 1024) {
+            deltaYaw -= 2048;
+        }
+
+        if (deltaYaw < -1024) {
+            deltaYaw += 2048;
+        }
+
+        if (deltaYaw > 0) {
+            this.cameraYaw += this.cutsceneRotateSpeed + (((deltaYaw * this.cutsceneRotateAcceleration) / 1000) | 0);
+            this.cameraYaw &= 0x7ff;
+        }
+
+        if (deltaYaw < 0) {
+            this.cameraYaw -= this.cutsceneRotateSpeed + (((-deltaYaw * this.cutsceneRotateAcceleration) / 1000) | 0);
+            this.cameraYaw &= 0x7ff;
+        }
+
+        let tmp: number = yaw - this.cameraYaw;
+        if (tmp > 1024) {
+            tmp -= 2048;
+        }
+
+        if (tmp < -1024) {
+            tmp += 2048;
+        }
+
+        if ((tmp < 0 && deltaYaw > 0) || (tmp > 0 && deltaYaw < 0)) {
+            this.cameraYaw = yaw;
+        }
+    }
+
+    private async handleInputKey(): Promise<void> {
+        // eslint-disable-next-line no-constant-condition
+        while (true) {
+            let key: number;
+            do {
+                // eslint-disable-next-line no-constant-condition
+                while (true) {
+                    key = this.pollKey();
+                    if (key === -1) {
+                        return;
+                    }
+
+                    if (this.viewportInterfaceId !== -1 && this.viewportInterfaceId === this.reportAbuseInterfaceID) {
+                        if (key === 8 && this.reportAbuseInput.length > 0) {
+                            this.reportAbuseInput = this.reportAbuseInput.substring(0, this.reportAbuseInput.length - 1);
+                        }
+                        break;
+                    }
+
+                    if (this.showSocialInput) {
+                        if (key >= 32 && key <= 122 && this.socialInput.length < 80) {
+                            this.socialInput = this.socialInput + String.fromCharCode(key);
+                            this.redrawChatback = true;
+                        }
+
+                        if (key === 8 && this.socialInput.length > 0) {
+                            this.socialInput = this.socialInput.substring(0, this.socialInput.length - 1);
+                            this.redrawChatback = true;
+                        }
+
+                        if (key === 13 || key === 10) {
+                            this.showSocialInput = false;
+                            this.redrawChatback = true;
+
+                            let username: bigint;
+                            if (this.socialAction === 1) {
+                                username = JString.toBase37(this.socialInput);
+                                this.addFriend(username);
+                            }
+
+                            if (this.socialAction === 2 && this.friendCount > 0) {
+                                username = JString.toBase37(this.socialInput);
+                                this.removeFriend(username);
+                            }
+
+                            if (this.socialAction === 3 && this.socialInput.length > 0 && this.socialName37) {
+                                this.out.p1isaac(ClientProt.MESSAGE_PRIVATE);
+                                this.out.p1(0);
+                                const start: number = this.out.pos;
+
+                                this.out.p8(this.socialName37);
+                                WordPack.pack(this.out, this.socialInput);
+                                this.out.psize1(this.out.pos - start);
+
+                                this.socialInput = JString.toSentenceCase(this.socialInput);
+                                this.socialInput = WordFilter.filter(this.socialInput);
+                                this.addMessage(6, this.socialInput, JString.formatName(JString.fromBase37(this.socialName37)));
+
+                                if (this.privateChatSetting === 2) {
+                                    this.privateChatSetting = 1;
+                                    this.redrawPrivacySettings = true;
+
+                                    this.out.p1isaac(ClientProt.CHAT_SETMODE);
+                                    this.out.p1(this.publicChatSetting);
+                                    this.out.p1(this.privateChatSetting);
+                                    this.out.p1(this.tradeChatSetting);
+                                }
+                            }
+
+                            if (this.socialAction === 4 && this.ignoreCount < 100) {
+                                username = JString.toBase37(this.socialInput);
+                                this.addIgnore(username);
+                            }
+
+                            if (this.socialAction === 5 && this.ignoreCount > 0) {
+                                username = JString.toBase37(this.socialInput);
+                                this.removeIgnore(username);
+                            }
+                        }
+                    } else if (this.chatbackInputOpen) {
+                        if (key >= 48 && key <= 57 && this.chatbackInput.length < 10) {
+                            this.chatbackInput = this.chatbackInput + String.fromCharCode(key);
+                            this.redrawChatback = true;
+                        }
+
+                        if (key === 8 && this.chatbackInput.length > 0) {
+                            this.chatbackInput = this.chatbackInput.substring(0, this.chatbackInput.length - 1);
+                            this.redrawChatback = true;
+                        }
+
+                        if (key === 13 || key === 10) {
+                            if (this.chatbackInput.length > 0) {
+                                let value: number = 0;
+                                try {
+                                    value = parseInt(this.chatbackInput, 10);
+                                } catch (e) {
+                                    /* empty */
+                                }
+                                this.out.p1isaac(ClientProt.RESUME_P_COUNTDIALOG);
+                                this.out.p4(value);
+                            }
+                            this.chatbackInputOpen = false;
+                            this.redrawChatback = true;
+                        }
+                    } else if (this.chatInterfaceId === -1) {
+                        // CUSTOM: the original client checked `key <= 122`
+                        // however we support "debugprocs" (came much later) and they need to start with a special character
+                        if (key >= 32 && (key <= 122 || (this.chatTyped.startsWith('::') && key <= 126)) && this.chatTyped.length < 80) {
+                            this.chatTyped = this.chatTyped + String.fromCharCode(key);
+                            this.redrawChatback = true;
+                        }
+
+                        if (key === 8 && this.chatTyped.length > 0) {
+                            this.chatTyped = this.chatTyped.substring(0, this.chatTyped.length - 1);
+                            this.redrawChatback = true;
+                        }
+
+                        if ((key === 13 || key === 10) && this.chatTyped.length > 0) {
+                            if (this.chatTyped.startsWith('::')) {
+                                if (this.chatTyped === '::fpson') {
+                                    // authentic in later revs
+                                    this.displayFps = true;
+                                } else if (this.chatTyped === '::fpsoff') {
+                                    // authentic in later revs
+                                    this.displayFps = false;
+                                } else if (this.chatTyped.startsWith('::fps ')) {
+                                    // custom ::fps command for setting a target framerate
+                                    try {
+                                        const desiredFps = parseInt(this.chatTyped.substring(6)) || 50;
+                                        this.setTargetedFramerate(desiredFps);
+                                    } catch (e) { }
+                                } else {
+                                    this.out.p1isaac(ClientProt.CLIENT_CHEAT);
+                                    this.out.p1(this.chatTyped.length - 1);
+                                    this.out.pjstr(this.chatTyped.substring(2));
+                                }
+                            } else {
+                                let color: number = 0;
+                                if (this.chatTyped.startsWith('yellow:')) {
+                                    color = 0;
+                                    this.chatTyped = this.chatTyped.substring(7);
+                                } else if (this.chatTyped.startsWith('red:')) {
+                                    color = 1;
+                                    this.chatTyped = this.chatTyped.substring(4);
+                                } else if (this.chatTyped.startsWith('green:')) {
+                                    color = 2;
+                                    this.chatTyped = this.chatTyped.substring(6);
+                                } else if (this.chatTyped.startsWith('cyan:')) {
+                                    color = 3;
+                                    this.chatTyped = this.chatTyped.substring(5);
+                                } else if (this.chatTyped.startsWith('purple:')) {
+                                    color = 4;
+                                    this.chatTyped = this.chatTyped.substring(7);
+                                } else if (this.chatTyped.startsWith('white:')) {
+                                    color = 5;
+                                    this.chatTyped = this.chatTyped.substring(6);
+                                } else if (this.chatTyped.startsWith('flash1:')) {
+                                    color = 6;
+                                    this.chatTyped = this.chatTyped.substring(7);
+                                } else if (this.chatTyped.startsWith('flash2:')) {
+                                    color = 7;
+                                    this.chatTyped = this.chatTyped.substring(7);
+                                } else if (this.chatTyped.startsWith('flash3:')) {
+                                    color = 8;
+                                    this.chatTyped = this.chatTyped.substring(7);
+                                } else if (this.chatTyped.startsWith('glow1:')) {
+                                    color = 9;
+                                    this.chatTyped = this.chatTyped.substring(6);
+                                } else if (this.chatTyped.startsWith('glow2:')) {
+                                    color = 10;
+                                    this.chatTyped = this.chatTyped.substring(6);
+                                } else if (this.chatTyped.startsWith('glow3:')) {
+                                    color = 11;
+                                    this.chatTyped = this.chatTyped.substring(6);
+                                }
+
+                                let effect: number = 0;
+                                if (this.chatTyped.startsWith('wave:')) {
+                                    effect = 1;
+                                    this.chatTyped = this.chatTyped.substring(5);
+                                }
+                                if (this.chatTyped.startsWith('scroll:')) {
+                                    effect = 2;
+                                    this.chatTyped = this.chatTyped.substring(7);
+                                }
+
+                                this.out.p1isaac(ClientProt.MESSAGE_PUBLIC);
+                                this.out.p1(0);
+                                const start: number = this.out.pos;
+                                this.out.p1(color);
+                                this.out.p1(effect);
+                                WordPack.pack(this.out, this.chatTyped);
+                                this.out.psize1(this.out.pos - start);
+
+                                this.chatTyped = JString.toSentenceCase(this.chatTyped);
+                                this.chatTyped = WordFilter.filter(this.chatTyped);
+
+                                if (this.localPlayer && this.localPlayer.name) {
+                                    this.localPlayer.chat = this.chatTyped;
+                                    this.localPlayer.chatColor = color;
+                                    this.localPlayer.chatStyle = effect;
+                                    this.localPlayer.chatTimer = 150;
+                                    this.addMessage(2, this.localPlayer.chat, this.localPlayer.name);
+                                }
+
+                                if (this.publicChatSetting === 2) {
+                                    this.publicChatSetting = 3;
+                                    this.redrawPrivacySettings = true;
+                                    this.out.p1isaac(ClientProt.CHAT_SETMODE);
+                                    this.out.p1(this.publicChatSetting);
+                                    this.out.p1(this.privateChatSetting);
+                                    this.out.p1(this.tradeChatSetting);
+                                }
+                            }
+
+                            this.chatTyped = '';
+                            this.redrawChatback = true;
+                        }
+                    }
+                }
+            } while ((key < 97 || key > 122) && (key < 65 || key > 90) && (key < 48 || key > 57) && key !== 32);
+
+            if (this.reportAbuseInput.length < 12) {
+                this.reportAbuseInput = this.reportAbuseInput + String.fromCharCode(key);
+            }
+        }
+    }
+
+    private updatePlayers(): void {
+        for (let i: number = -1; i < this.playerCount; i++) {
+            let index: number;
+            if (i === -1) {
+                index = Constants.LOCAL_PLAYER_INDEX;
+            } else {
+                index = this.playerIds[i];
+            }
+
+            const player: PlayerEntity | null = this.players[index];
+            if (player) {
+                this.updateEntity(player);
+            }
+        }
+
+        Client.cyclelogic6++;
+        if (Client.cyclelogic6 > 1406) {
+            Client.cyclelogic6 = 0;
+
+            this.out.p1isaac(ClientProt.ANTICHEAT_CYCLELOGIC6);
+            this.out.p1(0);
+            const start: number = this.out.pos;
+            this.out.p1(162);
+            this.out.p1(22);
+            if (((Math.random() * 2.0) | 0) === 0) {
+                this.out.p1(84);
+            }
+            this.out.p2(31824);
+            this.out.p2(13490);
+            if (((Math.random() * 2.0) | 0) === 0) {
+                this.out.p1(123);
+            }
+            if (((Math.random() * 2.0) | 0) === 0) {
+                this.out.p1(134);
+            }
+            this.out.p1(100);
+            this.out.p1(94);
+            this.out.p2(35521);
+            this.out.psize1(this.out.pos - start);
+        }
+    }
+
+    private updateNpcs(): void {
+        for (let i: number = 0; i < this.npcCount; i++) {
+            const id: number = this.npcIds[i];
+            const npc: NpcEntity | null = this.npcs[id];
+            if (npc && npc.npcType) {
+                this.updateEntity(npc);
+            }
+        }
+    }
+
+    private updateEntity(entity: PathingEntity): void {
+        if (entity.x < 128 || entity.z < 128 || entity.x >= 13184 || entity.z >= 13184) {
+            entity.primarySeqId = -1;
+            entity.spotanimId = -1;
+            entity.forceMoveEndCycle = 0;
+            entity.forceMoveStartCycle = 0;
+            entity.x = entity.routeFlagX[0] * 128 + entity.size * 64;
+            entity.z = entity.routeFlagZ[0] * 128 + entity.size * 64;
+            entity.routeLength = 0;
+        }
+
+        if (entity === this.localPlayer && (entity.x < 1536 || entity.z < 1536 || entity.x >= 11776 || entity.z >= 11776)) {
+            entity.primarySeqId = -1;
+            entity.spotanimId = -1;
+            entity.forceMoveEndCycle = 0;
+            entity.forceMoveStartCycle = 0;
+            entity.x = entity.routeFlagX[0] * 128 + entity.size * 64;
+            entity.z = entity.routeFlagZ[0] * 128 + entity.size * 64;
+            entity.routeLength = 0;
+        }
+
+        if (entity.forceMoveEndCycle > this.loopCycle) {
+            this.updateForceMovement(entity);
+        } else if (entity.forceMoveStartCycle >= this.loopCycle) {
+            this.startForceMovement(entity);
+        } else {
+            this.updateMovement(entity);
+        }
+
+        this.updateFacingDirection(entity);
+        this.updateSequences(entity);
+    }
+
+    private updateForceMovement(entity: PathingEntity): void {
+        const delta: number = entity.forceMoveEndCycle - this.loopCycle;
+        const dstX: number = entity.forceMoveStartSceneTileX * 128 + entity.size * 64;
+        const dstZ: number = entity.forceMoveStartSceneTileZ * 128 + entity.size * 64;
+
+        entity.x += ((dstX - entity.x) / delta) | 0;
+        entity.z += ((dstZ - entity.z) / delta) | 0;
+
+        entity.seqTrigger = 0;
+
+        if (entity.forceMoveFaceDirection === 0) {
+            entity.dstYaw = 1024;
+        }
+
+        if (entity.forceMoveFaceDirection === 1) {
+            entity.dstYaw = 1536;
+        }
+
+        if (entity.forceMoveFaceDirection === 2) {
+            entity.dstYaw = 0;
+        }
+
+        if (entity.forceMoveFaceDirection === 3) {
+            entity.dstYaw = 512;
+        }
+    }
+
+    private startForceMovement(entity: PathingEntity): void {
+        if (entity.forceMoveStartCycle === this.loopCycle || entity.primarySeqId === -1 || entity.primarySeqDelay !== 0 || entity.primarySeqCycle + 1 > SeqType.instances[entity.primarySeqId].seqDelay![entity.primarySeqFrame]) {
+            const duration: number = entity.forceMoveStartCycle - entity.forceMoveEndCycle;
+            const delta: number = this.loopCycle - entity.forceMoveEndCycle;
+            const dx0: number = entity.forceMoveStartSceneTileX * 128 + entity.size * 64;
+            const dz0: number = entity.forceMoveStartSceneTileZ * 128 + entity.size * 64;
+            const dx1: number = entity.forceMoveEndSceneTileX * 128 + entity.size * 64;
+            const dz1: number = entity.forceMoveEndSceneTileZ * 128 + entity.size * 64;
+            entity.x = ((dx0 * (duration - delta) + dx1 * delta) / duration) | 0;
+            entity.z = ((dz0 * (duration - delta) + dz1 * delta) / duration) | 0;
+        }
+
+        entity.seqTrigger = 0;
+
+        if (entity.forceMoveFaceDirection === 0) {
+            entity.dstYaw = 1024;
+        }
+
+        if (entity.forceMoveFaceDirection === 1) {
+            entity.dstYaw = 1536;
+        }
+
+        if (entity.forceMoveFaceDirection === 2) {
+            entity.dstYaw = 0;
+        }
+
+        if (entity.forceMoveFaceDirection === 3) {
+            entity.dstYaw = 512;
+        }
+
+        entity.yaw = entity.dstYaw;
+    }
+
+    private updateMovement(entity: PathingEntity): void {
+        entity.secondarySeqId = entity.seqStandId;
+
+        if (entity.routeLength === 0) {
+            entity.seqTrigger = 0;
+            return;
+        }
+
+        if (entity.primarySeqId !== -1 && entity.primarySeqDelay === 0) {
+            const seq: SeqType = SeqType.instances[entity.primarySeqId];
+            if (!seq.walkmerge) {
+                entity.seqTrigger++;
+                return;
+            }
+        }
+
+        const x: number = entity.x;
+        const z: number = entity.z;
+        const dstX: number = entity.routeFlagX[entity.routeLength - 1] * 128 + entity.size * 64;
+        const dstZ: number = entity.routeFlagZ[entity.routeLength - 1] * 128 + entity.size * 64;
+
+        if (dstX - x <= 256 && dstX - x >= -256 && dstZ - z <= 256 && dstZ - z >= -256) {
+            if (x < dstX) {
+                if (z < dstZ) {
+                    entity.dstYaw = 1280;
+                } else if (z > dstZ) {
+                    entity.dstYaw = 1792;
+                } else {
+                    entity.dstYaw = 1536;
+                }
+            } else if (x > dstX) {
+                if (z < dstZ) {
+                    entity.dstYaw = 768;
+                } else if (z > dstZ) {
+                    entity.dstYaw = 256;
+                } else {
+                    entity.dstYaw = 512;
+                }
+            } else if (z < dstZ) {
+                entity.dstYaw = 1024;
+            } else {
+                entity.dstYaw = 0;
+            }
+
+            let deltaYaw: number = (entity.dstYaw - entity.yaw) & 0x7ff;
+            if (deltaYaw > 1024) {
+                deltaYaw -= 2048;
+            }
+
+            let seqId: number = entity.seqTurnAroundId;
+            if (deltaYaw >= -256 && deltaYaw <= 256) {
+                seqId = entity.seqWalkId;
+            } else if (deltaYaw >= 256 && deltaYaw < 768) {
+                seqId = entity.seqTurnRightId;
+            } else if (deltaYaw >= -768 && deltaYaw <= -256) {
+                seqId = entity.seqTurnLeftId;
+            }
+
+            if (seqId === -1) {
+                seqId = entity.seqWalkId;
+            }
+
+            entity.secondarySeqId = seqId;
+            let moveSpeed: number = 4;
+            if (entity.yaw !== entity.dstYaw && entity.targetId === -1) {
+                moveSpeed = 2;
+            }
+
+            if (entity.routeLength > 2) {
+                moveSpeed = 6;
+            }
+
+            if (entity.routeLength > 3) {
+                moveSpeed = 8;
+            }
+
+            if (entity.seqTrigger > 0 && entity.routeLength > 1) {
+                moveSpeed = 8;
+                entity.seqTrigger--;
+            }
+
+            if (entity.routeRun[entity.routeLength - 1]) {
+                moveSpeed <<= 0x1;
+            }
+
+            if (moveSpeed >= 8 && entity.secondarySeqId === entity.seqWalkId && entity.seqRunId !== -1) {
+                entity.secondarySeqId = entity.seqRunId;
+            }
+
+            if (x < dstX) {
+                entity.x += moveSpeed;
+                if (entity.x > dstX) {
+                    entity.x = dstX;
+                }
+            } else if (x > dstX) {
+                entity.x -= moveSpeed;
+                if (entity.x < dstX) {
+                    entity.x = dstX;
+                }
+            }
+            if (z < dstZ) {
+                entity.z += moveSpeed;
+                if (entity.z > dstZ) {
+                    entity.z = dstZ;
+                }
+            } else if (z > dstZ) {
+                entity.z -= moveSpeed;
+                if (entity.z < dstZ) {
+                    entity.z = dstZ;
+                }
+            }
+
+            if (entity.x === dstX && entity.z === dstZ) {
+                entity.routeLength--;
+            }
+        } else {
+            entity.x = dstX;
+            entity.z = dstZ;
+        }
+    }
+
+    private updateFacingDirection(e: PathingEntity): void {
+        if (e.targetId !== -1 && e.targetId < 32768) {
+            const npc: NpcEntity | null = this.npcs[e.targetId];
+            if (npc) {
+                const dstX: number = e.x - npc.x;
+                const dstZ: number = e.z - npc.z;
+
+                if (dstX !== 0 || dstZ !== 0) {
+                    e.dstYaw = ((Math.atan2(dstX, dstZ) * 325.949) | 0) & 0x7ff;
+                }
+            }
+        }
+
+        if (e.targetId >= 32768) {
+            let index: number = e.targetId - 32768;
+            if (index === this.localPid) {
+                index = Constants.LOCAL_PLAYER_INDEX;
+            }
+
+            const player: PlayerEntity | null = this.players[index];
+            if (player) {
+                const dstX: number = e.x - player.x;
+                const dstZ: number = e.z - player.z;
+
+                if (dstX !== 0 || dstZ !== 0) {
+                    e.dstYaw = ((Math.atan2(dstX, dstZ) * 325.949) | 0) & 0x7ff;
+                }
+            }
+        }
+
+        if ((e.targetTileX !== 0 || e.targetTileZ !== 0) && (e.routeLength === 0 || e.seqTrigger > 0)) {
+            const dstX: number = e.x - (e.targetTileX - this.sceneBaseTileX - this.sceneBaseTileX) * 64;
+            const dstZ: number = e.z - (e.targetTileZ - this.sceneBaseTileZ - this.sceneBaseTileZ) * 64;
+
+            if (dstX !== 0 || dstZ !== 0) {
+                e.dstYaw = ((Math.atan2(dstX, dstZ) * 325.949) | 0) & 0x7ff;
+            }
+
+            e.targetTileX = 0;
+            e.targetTileZ = 0;
+        }
+
+        const remainingYaw: number = (e.dstYaw - e.yaw) & 0x7ff;
+
+        if (remainingYaw !== 0) {
+            if (remainingYaw < 32 || remainingYaw > 2016) {
+                e.yaw = e.dstYaw;
+            } else if (remainingYaw > 1024) {
+                e.yaw -= 32;
+            } else {
+                e.yaw += 32;
+            }
+
+            e.yaw &= 0x7ff;
+
+            if (e.secondarySeqId === e.seqStandId && e.yaw !== e.dstYaw) {
+                if (e.seqTurnId !== -1) {
+                    e.secondarySeqId = e.seqTurnId;
+                    return;
+                }
+
+                e.secondarySeqId = e.seqWalkId;
+            }
+        }
+    }
+
+    private updateSequences(e: PathingEntity): void {
+        e.seqStretches = false;
+
+        let seq: SeqType | null;
+        if (e.secondarySeqId !== -1) {
+            seq = SeqType.instances[e.secondarySeqId];
+            e.secondarySeqCycle++;
+            if (seq.seqDelay && e.secondarySeqFrame < seq.seqFrameCount && e.secondarySeqCycle > seq.seqDelay[e.secondarySeqFrame]) {
+                e.secondarySeqCycle = 0;
+                e.secondarySeqFrame++;
+            }
+            if (e.secondarySeqFrame >= seq.seqFrameCount) {
+                e.secondarySeqCycle = 0;
+                e.secondarySeqFrame = 0;
+            }
+        }
+
+        if (e.primarySeqId !== -1 && e.primarySeqDelay === 0) {
+            seq = SeqType.instances[e.primarySeqId];
+            e.primarySeqCycle++;
+            while (seq.seqDelay && e.primarySeqFrame < seq.seqFrameCount && e.primarySeqCycle > seq.seqDelay[e.primarySeqFrame]) {
+                e.primarySeqCycle -= seq.seqDelay[e.primarySeqFrame];
+                e.primarySeqFrame++;
+            }
+
+            if (e.primarySeqFrame >= seq.seqFrameCount) {
+                e.primarySeqFrame -= seq.replayoff;
+                e.primarySeqLoop++;
+                if (e.primarySeqLoop >= seq.replaycount) {
+                    e.primarySeqId = -1;
+                }
+                if (e.primarySeqFrame < 0 || e.primarySeqFrame >= seq.seqFrameCount) {
+                    e.primarySeqId = -1;
+                }
+            }
+
+            e.seqStretches = seq.stretches;
+        }
+
+        if (e.primarySeqDelay > 0) {
+            e.primarySeqDelay--;
+        }
+
+        if (e.spotanimId !== -1 && this.loopCycle >= e.spotanimLastCycle) {
+            if (e.spotanimFrame < 0) {
+                e.spotanimFrame = 0;
+            }
+
+            seq = SpotAnimType.instances[e.spotanimId].seq;
+            e.spotanimCycle++;
+            while (seq && seq.seqDelay && e.spotanimFrame < seq.seqFrameCount && e.spotanimCycle > seq.seqDelay[e.spotanimFrame]) {
+                e.spotanimCycle -= seq.seqDelay[e.spotanimFrame];
+                e.spotanimFrame++;
+            }
+
+            if (seq && e.spotanimFrame >= seq.seqFrameCount) {
+                if (e.spotanimFrame < 0 || e.spotanimFrame >= seq.seqFrameCount) {
+                    e.spotanimId = -1;
+                }
+            }
+        }
+    }
+
+    private async loadTitle(): Promise<void> {
+        if (!this.imageTitle2) {
+            this.drawArea = null;
+            this.areaChatback = null;
+            this.areaMapback = null;
+            this.areaSidebar = null;
+            this.areaViewport = null;
+            this.areaBackbase1 = null;
+            this.areaBackbase2 = null;
+            this.areaBackhmid1 = null;
+
+            this.imageTitle0 = new PixMap(128, 265);
+            Pix2D.clear();
+
+            this.imageTitle1 = new PixMap(128, 265);
+            Pix2D.clear();
+
+            this.imageTitle2 = new PixMap(533, 186);
+            Pix2D.clear();
+
+            this.imageTitle3 = new PixMap(360, 146);
+            Pix2D.clear();
+
+            this.imageTitle4 = new PixMap(360, 200);
+            Pix2D.clear();
+
+            this.imageTitle5 = new PixMap(214, 267);
+            Pix2D.clear();
+
+            this.imageTitle6 = new PixMap(215, 267);
+            Pix2D.clear();
+
+            this.imageTitle7 = new PixMap(86, 79);
+            Pix2D.clear();
+
+            this.imageTitle8 = new PixMap(87, 79);
+            Pix2D.clear();
+
+            if (this.titleArchive) {
+                await this.loadTitleBackground();
+                this.loadTitleImages();
+            }
+            this.redrawTitleBackground = true;
+        }
+    }
+
+    private async loadTitleBackground(): Promise<void> {
+        if (!this.titleArchive) {
+            return;
+        }
+        const background: Pix24 = await Pix24.fromJpeg(this.titleArchive, 'title');
+
+        this.imageTitle0?.bind();
+        background.blitOpaque(0, 0);
+
+        this.imageTitle1?.bind();
+        background.blitOpaque(-661, 0);
+
+        this.imageTitle2?.bind();
+        background.blitOpaque(-128, 0);
+
+        this.imageTitle3?.bind();
+        background.blitOpaque(-214, -386);
+
+        this.imageTitle4?.bind();
+        background.blitOpaque(-214, -186);
+
+        this.imageTitle5?.bind();
+        background.blitOpaque(0, -265);
+
+        this.imageTitle6?.bind();
+        background.blitOpaque(-128, -186);
+
+        this.imageTitle7?.bind();
+        background.blitOpaque(-128, -186);
+
+        this.imageTitle8?.bind();
+        background.blitOpaque(-574, -186);
+
+        // draw right side (mirror image)
+        background.flipHorizontally();
+
+        this.imageTitle0?.bind();
+        background.blitOpaque(394, 0);
+
+        this.imageTitle1?.bind();
+        background.blitOpaque(-267, 0);
+
+        this.imageTitle2?.bind();
+        background.blitOpaque(266, 0);
+
+        this.imageTitle3?.bind();
+        background.blitOpaque(180, -386);
+
+        this.imageTitle4?.bind();
+        background.blitOpaque(180, -186);
+
+        this.imageTitle5?.bind();
+        background.blitOpaque(394, -265);
+
+        this.imageTitle6?.bind();
+        background.blitOpaque(-180, -265);
+
+        this.imageTitle7?.bind();
+        background.blitOpaque(212, -186);
+
+        this.imageTitle8?.bind();
+        background.blitOpaque(-180, -186);
+
+        const logo: Pix24 = Pix24.fromArchive(this.titleArchive, 'logo');
+        this.imageTitle2?.bind();
+        logo.draw(((this.width / 2) | 0) - ((logo.width2d / 2) | 0) - 128, 18);
+    }
+
+    private loadTitleImages(): void {
+        if (!this.titleArchive) {
+            return;
+        }
+        this.imageTitlebox = Pix8.fromArchive(this.titleArchive, 'titlebox');
+        this.imageTitlebutton = Pix8.fromArchive(this.titleArchive, 'titlebutton');
+        for (let i: number = 0; i < 12; i++) {
+            this.imageRunes[i] = Pix8.fromArchive(this.titleArchive, 'runes', i);
+        }
+        this.imageFlamesLeft = new Pix24(128, 265);
+        this.imageFlamesRight = new Pix24(128, 265);
+
+        if (this.imageTitle0) arraycopy(this.imageTitle0.pixels, 0, this.imageFlamesLeft.pixels, 0, 33920);
+        if (this.imageTitle1) arraycopy(this.imageTitle1.pixels, 0, this.imageFlamesRight.pixels, 0, 33920);
+
+        this.flameGradient0 = new Int32Array(256);
+        for (let index: number = 0; index < 64; index++) {
+            this.flameGradient0[index] = index * 262144;
+        }
+        for (let index: number = 0; index < 64; index++) {
+            this.flameGradient0[index + 64] = index * 1024 + Colors.RED;
+        }
+        for (let index: number = 0; index < 64; index++) {
+            this.flameGradient0[index + 128] = index * 4 + Colors.YELLOW;
+        }
+        for (let index: number = 0; index < 64; index++) {
+            this.flameGradient0[index + 192] = Colors.WHITE;
+        }
+        this.flameGradient1 = new Int32Array(256);
+        for (let index: number = 0; index < 64; index++) {
+            this.flameGradient1[index] = index * 1024;
+        }
+        for (let index: number = 0; index < 64; index++) {
+            this.flameGradient1[index + 64] = index * 4 + Colors.GREEN;
+        }
+        for (let index: number = 0; index < 64; index++) {
+            this.flameGradient1[index + 128] = index * 262144 + Colors.CYAN;
+        }
+        for (let index: number = 0; index < 64; index++) {
+            this.flameGradient1[index + 192] = Colors.WHITE;
+        }
+        this.flameGradient2 = new Int32Array(256);
+        for (let index: number = 0; index < 64; index++) {
+            this.flameGradient2[index] = index * 4;
+        }
+        for (let index: number = 0; index < 64; index++) {
+            this.flameGradient2[index + 64] = index * 262144 + Colors.BLUE;
+        }
+        for (let index: number = 0; index < 64; index++) {
+            this.flameGradient2[index + 128] = index * 1024 + Colors.MAGENTA;
+        }
+        for (let index: number = 0; index < 64; index++) {
+            this.flameGradient2[index + 192] = Colors.WHITE;
+        }
+
+        this.flameGradient = new Int32Array(256);
+        this.flameBuffer0 = new Int32Array(32768);
+        this.flameBuffer1 = new Int32Array(32768);
+        this.updateFlameBuffer(null);
+        this.flameBuffer3 = new Int32Array(32768);
+        this.flameBuffer2 = new Int32Array(32768);
+
+        this.showProgress(10, 'Connecting to fileserver').then((): void => {
+            if (!this.flameActive) {
+                this.flameActive = true;
+                this.flamesInterval = setInterval(this.runFlames.bind(this), 35);
+            }
+        });
+    }
+
+    private async drawTitleScreen(): Promise<void> {
+        await this.loadTitle();
+        this.imageTitle4?.bind();
+        this.imageTitlebox?.draw(0, 0);
+
+        const w: number = 360;
+        const h: number = 200;
+
+        if (this.titleScreenState === 0) {
+            let x: number = (w / 2) | 0;
+            let y: number = ((h / 2) | 0) - 20;
+            this.fontBold12?.drawStringTaggableCenter(x, y, 'Welcome to RuneScape', Colors.YELLOW, true);
+
+            x = ((w / 2) | 0) - 80;
+            y = ((h / 2) | 0) + 20;
+            this.imageTitlebutton?.draw(x - 73, y - 20);
+            this.fontBold12?.drawStringTaggableCenter(x, y + 5, 'New user', Colors.WHITE, true);
+
+            x = ((w / 2) | 0) + 80;
+            this.imageTitlebutton?.draw(x - 73, y - 20);
+            this.fontBold12?.drawStringTaggableCenter(x, y + 5, 'Existing User', Colors.WHITE, true);
+        } else if (this.titleScreenState === 2) {
+            let x: number = ((w / 2) | 0) - 80;
+            let y: number = ((h / 2) | 0) - 40;
+            if (this.loginMessage0.length > 0) {
+                this.fontBold12?.drawStringTaggableCenter(w / 2, y - 15, this.loginMessage0, Colors.YELLOW, true);
+                this.fontBold12?.drawStringTaggableCenter(w / 2, y, this.loginMessage1, Colors.YELLOW, true);
+                y += 30;
+            } else {
+                this.fontBold12?.drawStringTaggableCenter(w / 2, y - 7, this.loginMessage1, Colors.YELLOW, true);
+                y += 30;
+            }
+
+            this.fontBold12?.drawStringTaggable(w / 2 - 90, y, `Username: ${this.usernameInput}${this.titleLoginField === 0 && this.loopCycle % 40 < 20 ? '@yel@|' : ''}`, Colors.WHITE, true);
+            y += 15;
+
+            this.fontBold12?.drawStringTaggable(w / 2 - 88, y, `Password: ${JString.toAsterisks(this.passwordInput)}${this.titleLoginField === 1 && this.loopCycle % 40 < 20 ? '@yel@|' : ''}`, Colors.WHITE, true);
+
+            // x = w / 2 - 80; dead code
+            y = ((h / 2) | 0) + 50;
+            this.imageTitlebutton?.draw(x - 73, y - 20);
+            this.fontBold12?.drawStringTaggableCenter(x, y + 5, 'Login', Colors.WHITE, true);
+
+            x = ((w / 2) | 0) + 80;
+            this.imageTitlebutton?.draw(x - 73, y - 20);
+            this.fontBold12?.drawStringTaggableCenter(x, y + 5, 'Cancel', Colors.WHITE, true);
+        } else if (this.titleScreenState === 3) {
+            this.fontBold12?.drawStringTaggableCenter(w / 2, h / 2 - 60, 'Create a free account', Colors.YELLOW, true);
+
+            const x: number = (w / 2) | 0;
+            let y: number = ((h / 2) | 0) - 35;
+
+            this.fontBold12?.drawStringTaggableCenter((w / 2) | 0, y, 'To create a new account you need to', Colors.WHITE, true);
+            y += 15;
+
+            this.fontBold12?.drawStringTaggableCenter((w / 2) | 0, y, 'go back to the main RuneScape webpage', Colors.WHITE, true);
+            y += 15;
+
+            this.fontBold12?.drawStringTaggableCenter((w / 2) | 0, y, "and choose the red 'create account'", Colors.WHITE, true);
+            y += 15;
+
+            this.fontBold12?.drawStringTaggableCenter((w / 2) | 0, y, 'button at the top right of that page.', Colors.WHITE, true);
+            // y += 15; dead code
+
+            y = ((h / 2) | 0) + 50;
+            this.imageTitlebutton?.draw(x - 73, y - 20);
+            this.fontBold12?.drawStringTaggableCenter(x, y + 5, 'Cancel', Colors.WHITE, true);
+        }
+
+        this.imageTitle4?.draw(214, 186);
+        if (this.redrawTitleBackground) {
+            this.redrawTitleBackground = false;
+            this.imageTitle2?.draw(128, 0);
+            this.imageTitle3?.draw(214, 386);
+            this.imageTitle5?.draw(0, 265);
+            this.imageTitle6?.draw(574, 265);
+            this.imageTitle7?.draw(128, 186);
+            this.imageTitle8?.draw(574, 186);
+        }
     }
 
     private drawGame(): void {
@@ -3286,56 +4324,349 @@ export class Client extends GameShell {
         this.cameraYaw = cameraYaw;
     }
 
-    private clearCaches(): void {
-        LocType.modelCacheStatic?.clear();
-        LocType.modelCacheDynamic?.clear();
-        NpcType.modelCache?.clear();
-        ObjType.modelCache?.clear();
-        ObjType.iconCache?.clear();
-        PlayerEntity.modelCache?.clear();
-        SpotAnimType.modelCache?.clear();
-    }
-
-    private projectFromEntity(entity: PathingEntity, height: number): void {
-        this.projectFromGround(entity.x, height, entity.z);
-    }
-
-    private projectFromGround(x: number, height: number, z: number): void {
-        if (x < 128 || z < 128 || x > 13056 || z > 13056) {
-            this.projectX = -1;
-            this.projectY = -1;
+    private pushPlayers(): void {
+        if (!this.localPlayer) {
             return;
         }
 
-        const y: number = this.getHeightmapY(this.currentLevel, x, z) - height;
-        this.project(x, y, z);
+        if (this.localPlayer.x >> 7 === this.flagSceneTileX && this.localPlayer.z >> 7 === this.flagSceneTileZ) {
+            this.flagSceneTileX = 0;
+        }
+
+        for (let i: number = -1; i < this.playerCount; i++) {
+            let player: PlayerEntity | null;
+            let id: number;
+            if (i === -1) {
+                player = this.localPlayer;
+                id = Constants.LOCAL_PLAYER_INDEX << 14;
+            } else {
+                player = this.players[this.playerIds[i]];
+                id = this.playerIds[i] << 14;
+            }
+
+            if (!player || !player.isVisibleNow()) {
+                continue;
+            }
+
+            player.lowMemory = ((Client.lowMemory && this.playerCount > 50) || this.playerCount > 200) && i !== -1 && player.secondarySeqId === player.seqStandId;
+            const stx: number = player.x >> 7;
+            const stz: number = player.z >> 7;
+
+            if (stx < 0 || stx >= CollisionConstants.SIZE || stz < 0 || stz >= CollisionConstants.SIZE) {
+                continue;
+            }
+
+            if (!player.locModel || this.loopCycle < player.locStartCycle || this.loopCycle >= player.locStopCycle) {
+                if ((player.x & 0x7f) === 64 && (player.z & 0x7f) === 64) {
+                    if (this.tileLastOccupiedCycle[stx][stz] === this.sceneCycle) {
+                        continue;
+                    }
+
+                    this.tileLastOccupiedCycle[stx][stz] = this.sceneCycle;
+                }
+
+                player.y = this.getHeightmapY(this.currentLevel, player.x, player.z);
+                this.scene?.addTemporary(this.currentLevel, player.x, player.y, player.z, null, player, id, player.yaw, 60, player.seqStretches);
+            } else {
+                player.lowMemory = false;
+                player.y = this.getHeightmapY(this.currentLevel, player.x, player.z);
+                this.scene?.addTemporary2(this.currentLevel, player.x, player.y, player.z, player.minTileX, player.minTileZ, player.maxTileX, player.maxTileZ, null, player, id, player.yaw);
+            }
+        }
     }
 
-    private project(x: number, y: number, z: number): void {
-        let dx: number = x - this.cameraX;
-        let dy: number = y - this.cameraY;
-        let dz: number = z - this.cameraZ;
+    private pushNpcs(): void {
+        for (let i: number = 0; i < this.npcCount; i++) {
+            const npc: NpcEntity | null = this.npcs[this.npcIds[i]];
+            const typecode: number = ((this.npcIds[i] << 14) + 0x1fff_ffff + 1) | 0;
 
-        const sinPitch: number = Pix3D.sin[this.cameraPitch];
-        const cosPitch: number = Pix3D.cos[this.cameraPitch];
-        const sinYaw: number = Pix3D.sin[this.cameraYaw];
-        const cosYaw: number = Pix3D.cos[this.cameraYaw];
+            if (!npc || !npc.isVisibleNow()) {
+                continue;
+            }
 
-        let tmp: number = (dz * sinYaw + dx * cosYaw) >> 16;
-        dz = (dz * cosYaw - dx * sinYaw) >> 16;
-        dx = tmp;
+            const x: number = npc.x >> 7;
+            const z: number = npc.z >> 7;
 
-        tmp = (dy * cosPitch - dz * sinPitch) >> 16;
-        dz = (dy * sinPitch + dz * cosPitch) >> 16;
-        dy = tmp;
+            if (x < 0 || x >= CollisionConstants.SIZE || z < 0 || z >= CollisionConstants.SIZE) {
+                continue;
+            }
 
-        if (dz >= 50) {
-            this.projectX = Pix3D.centerX + (((dx << 9) / dz) | 0);
-            this.projectY = Pix3D.centerY + (((dy << 9) / dz) | 0);
-        } else {
-            this.projectX = -1;
-            this.projectY = -1;
+            if (npc.size === 1 && (npc.x & 0x7f) === 64 && (npc.z & 0x7f) === 64) {
+                if (this.tileLastOccupiedCycle[x][z] === this.sceneCycle) {
+                    continue;
+                }
+
+                this.tileLastOccupiedCycle[x][z] = this.sceneCycle;
+            }
+
+            this.scene?.addTemporary(this.currentLevel, npc.x, this.getHeightmapY(this.currentLevel, npc.x, npc.z), npc.z, null, npc, typecode, npc.yaw, (npc.size - 1) * 64 + 60, npc.seqStretches);
         }
+    }
+
+    private pushProjectiles(): void {
+        for (let proj: ProjectileEntity | null = this.projectiles.head() as ProjectileEntity | null; proj; proj = this.projectiles.next() as ProjectileEntity | null) {
+            if (proj.projLevel !== this.currentLevel || this.loopCycle > proj.lastCycle) {
+                proj.unlink();
+            } else if (this.loopCycle >= proj.startCycle) {
+                if (proj.projTarget > 0) {
+                    const npc: NpcEntity | null = this.npcs[proj.projTarget - 1];
+                    if (npc) {
+                        proj.updateVelocity(npc.x, this.getHeightmapY(proj.projLevel, npc.x, npc.z) - proj.projOffsetY, npc.z, this.loopCycle);
+                    }
+                }
+
+                if (proj.projTarget < 0) {
+                    const index: number = -proj.projTarget - 1;
+                    let player: PlayerEntity | null;
+                    if (index === this.localPid) {
+                        player = this.localPlayer;
+                    } else {
+                        player = this.players[index];
+                    }
+                    if (player) {
+                        proj.updateVelocity(player.x, this.getHeightmapY(proj.projLevel, player.x, player.z) - proj.projOffsetY, player.z, this.loopCycle);
+                    }
+                }
+
+                proj.update(this.sceneDelta);
+                this.scene?.addTemporary(this.currentLevel, proj.x | 0, proj.y | 0, proj.z | 0, null, proj, -1, proj.yaw, 60, false);
+            }
+        }
+    }
+
+    private pushSpotanims(): void {
+        for (let entity: SpotAnimEntity | null = this.spotanims.head() as SpotAnimEntity | null; entity; entity = this.spotanims.next() as SpotAnimEntity | null) {
+            if (entity.spotLevel !== this.currentLevel || entity.seqComplete) {
+                entity.unlink();
+            } else if (this.loopCycle >= entity.startCycle) {
+                entity.update(this.sceneDelta);
+                if (entity.seqComplete) {
+                    entity.unlink();
+                } else {
+                    this.scene?.addTemporary(entity.spotLevel, entity.x, entity.y, entity.z, null, entity, -1, 0, 60, false);
+                }
+            }
+        }
+    }
+
+    private pushLocs(): void {
+        for (let loc: LocEntity | null = this.locList.head() as LocEntity | null; loc; loc = this.locList.next() as LocEntity | null) {
+            let append: boolean = false;
+            loc.seqCycle += this.sceneDelta;
+            if (loc.seqFrame === -1) {
+                loc.seqFrame = 0;
+                append = true;
+            }
+
+            if (loc.seq.seqDelay) {
+                while (loc.seqCycle > loc.seq.seqDelay[loc.seqFrame]) {
+                    loc.seqCycle -= loc.seq.seqDelay[loc.seqFrame] + 1;
+                    loc.seqFrame++;
+
+                    append = true;
+
+                    if (loc.seqFrame >= loc.seq.seqFrameCount) {
+                        loc.seqFrame -= loc.seq.replayoff;
+
+                        if (loc.seqFrame < 0 || loc.seqFrame >= loc.seq.seqFrameCount) {
+                            loc.unlink();
+                            append = false;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            if (append && this.scene) {
+                const level: number = loc.heightmapSW;
+                const x: number = loc.heightmapNE;
+                const z: number = loc.heightmapNW;
+
+                let typecode: number = 0;
+                if (loc.heightmapSE === 0) {
+                    typecode = this.scene.getWallTypecode(level, x, z);
+                } else if (loc.heightmapSE === 1) {
+                    typecode = this.scene.getDecorTypecode(level, z, x);
+                } else if (loc.heightmapSE === 2) {
+                    typecode = this.scene.getLocTypecode(level, x, z);
+                } else if (loc.heightmapSE === 3) {
+                    typecode = this.scene.getGroundDecorTypecode(level, x, z);
+                }
+
+                if (this.levelHeightmap && typecode !== 0 && ((typecode >> 14) & 0x7fff) === loc.index) {
+                    const heightmapSW: number = this.levelHeightmap[level][x][z];
+                    const heightmapSE: number = this.levelHeightmap[level][x + 1][z];
+                    const heightmapNE: number = this.levelHeightmap[level][x + 1][z + 1];
+                    const heightmapNW: number = this.levelHeightmap[level][x][z + 1];
+
+                    const type: LocType = LocType.get(loc.index);
+                    let seqId: number = -1;
+                    if (loc.seqFrame !== -1 && loc.seq.seqFrames) {
+                        seqId = loc.seq.seqFrames[loc.seqFrame];
+                    }
+
+                    if (loc.heightmapSE === 2) {
+                        const info: number = this.scene.getInfo(level, x, z, typecode);
+                        let shape: number = info & 0x1f;
+                        const rotation: number = info >> 6;
+
+                        if (shape === LocShape.CENTREPIECE_DIAGONAL.id) {
+                            shape = LocShape.CENTREPIECE_STRAIGHT.id;
+                        }
+
+                        this.scene?.setLocModel(level, x, z, type.getModel(shape, rotation, heightmapSW, heightmapSE, heightmapNE, heightmapNW, seqId));
+                    } else if (loc.heightmapSE === 1) {
+                        this.scene?.setWallDecorationModel(level, x, z, type.getModel(LocShape.WALLDECOR_STRAIGHT_NOOFFSET.id, 0, heightmapSW, heightmapSE, heightmapNE, heightmapNW, seqId));
+                    } else if (loc.heightmapSE === 0) {
+                        const info: number = this.scene.getInfo(level, x, z, typecode);
+                        const shape: number = info & 0x1f;
+                        const rotation: number = info >> 6;
+
+                        if (shape === LocShape.WALL_L.id) {
+                            const nextRotation: number = (rotation + 1) & 0x3;
+                            this.scene?.setWallModels(
+                                x,
+                                z,
+                                level,
+                                type.getModel(LocShape.WALL_L.id, rotation + 4, heightmapSW, heightmapSE, heightmapNE, heightmapNW, seqId),
+                                type.getModel(LocShape.WALL_L.id, nextRotation, heightmapSW, heightmapSE, heightmapNE, heightmapNW, seqId)
+                            );
+                        } else {
+                            this.scene?.setWallModel(level, x, z, type.getModel(shape, rotation, heightmapSW, heightmapSE, heightmapNE, heightmapNW, seqId));
+                        }
+                    } else if (loc.heightmapSE === 3) {
+                        const info: number = this.scene.getInfo(level, x, z, typecode);
+                        const rotation: number = info >> 6;
+                        this.scene?.setGroundDecorationModel(level, x, z, type.getModel(LocShape.GROUND_DECOR.id, rotation, heightmapSW, heightmapSE, heightmapNE, heightmapNW, seqId));
+                    }
+                } else {
+                    loc.unlink();
+                }
+            }
+        }
+    }
+
+    private orbitCamera(targetX: number, targetY: number, targetZ: number, yaw: number, pitch: number, distance: number): void {
+        const invPitch: number = (2048 - pitch) & 0x7ff;
+        const invYaw: number = (2048 - yaw) & 0x7ff;
+        let x: number = 0;
+        let z: number = 0;
+        let y: number = distance;
+        let sin: number;
+        let cos: number;
+        let tmp: number;
+
+        if (invPitch !== 0) {
+            sin = Pix3D.sin[invPitch];
+            cos = Pix3D.cos[invPitch];
+            tmp = (z * cos - distance * sin) >> 16;
+            y = (z * sin + distance * cos) >> 16;
+            z = tmp;
+        }
+
+        if (invYaw !== 0) {
+            sin = Pix3D.sin[invYaw];
+            cos = Pix3D.cos[invYaw];
+            tmp = (y * sin + x * cos) >> 16;
+            y = (y * cos - x * sin) >> 16;
+            x = tmp;
+        }
+
+        this.cameraX = targetX - x;
+        this.cameraY = targetY - z;
+        this.cameraZ = targetZ - y;
+        this.cameraPitch = pitch;
+        this.cameraYaw = yaw;
+    }
+
+    private getTopLevelCutscene(): number {
+        if (!this.levelTileFlags) {
+            return 0; // custom
+        }
+        const y: number = this.getHeightmapY(this.currentLevel, this.cameraX, this.cameraZ);
+        return y - this.cameraY >= 800 || (this.levelTileFlags[this.currentLevel][this.cameraX >> 7][this.cameraZ >> 7] & 0x4) === 0 ? 3 : this.currentLevel;
+    }
+
+    private getTopLevel(): number {
+        let top: number = 3;
+        if (this.cameraPitch < 310 && this.localPlayer) {
+            let cameraLocalTileX: number = this.cameraX >> 7;
+            let cameraLocalTileZ: number = this.cameraZ >> 7;
+            const playerLocalTileX: number = this.localPlayer.x >> 7;
+            const playerLocalTileZ: number = this.localPlayer.z >> 7;
+            if (this.levelTileFlags && (this.levelTileFlags[this.currentLevel][cameraLocalTileX][cameraLocalTileZ] & 0x4) !== 0) {
+                top = this.currentLevel;
+            }
+            let tileDeltaX: number;
+            if (playerLocalTileX > cameraLocalTileX) {
+                tileDeltaX = playerLocalTileX - cameraLocalTileX;
+            } else {
+                tileDeltaX = cameraLocalTileX - playerLocalTileX;
+            }
+            let tileDeltaZ: number;
+            if (playerLocalTileZ > cameraLocalTileZ) {
+                tileDeltaZ = playerLocalTileZ - cameraLocalTileZ;
+            } else {
+                tileDeltaZ = cameraLocalTileZ - playerLocalTileZ;
+            }
+            let delta: number;
+            let accumulator: number;
+            if (tileDeltaX > tileDeltaZ) {
+                delta = ((tileDeltaZ * 65536) / tileDeltaX) | 0;
+                accumulator = 32768;
+                while (cameraLocalTileX !== playerLocalTileX) {
+                    if (cameraLocalTileX < playerLocalTileX) {
+                        cameraLocalTileX++;
+                    } else if (cameraLocalTileX > playerLocalTileX) {
+                        cameraLocalTileX--;
+                    }
+                    if (this.levelTileFlags && (this.levelTileFlags[this.currentLevel][cameraLocalTileX][cameraLocalTileZ] & 0x4) !== 0) {
+                        top = this.currentLevel;
+                    }
+                    accumulator += delta;
+                    if (accumulator >= 65536) {
+                        accumulator -= 65536;
+                        if (cameraLocalTileZ < playerLocalTileZ) {
+                            cameraLocalTileZ++;
+                        } else if (cameraLocalTileZ > playerLocalTileZ) {
+                            cameraLocalTileZ--;
+                        }
+                        if (this.levelTileFlags && (this.levelTileFlags[this.currentLevel][cameraLocalTileX][cameraLocalTileZ] & 0x4) !== 0) {
+                            top = this.currentLevel;
+                        }
+                    }
+                }
+            } else {
+                delta = ((tileDeltaX * 65536) / tileDeltaZ) | 0;
+                accumulator = 32768;
+                while (cameraLocalTileZ !== playerLocalTileZ) {
+                    if (cameraLocalTileZ < playerLocalTileZ) {
+                        cameraLocalTileZ++;
+                    } else if (cameraLocalTileZ > playerLocalTileZ) {
+                        cameraLocalTileZ--;
+                    }
+                    if (this.levelTileFlags && (this.levelTileFlags[this.currentLevel][cameraLocalTileX][cameraLocalTileZ] & 0x4) !== 0) {
+                        top = this.currentLevel;
+                    }
+                    accumulator += delta;
+                    if (accumulator >= 65536) {
+                        accumulator -= 65536;
+                        if (cameraLocalTileX < playerLocalTileX) {
+                            cameraLocalTileX++;
+                        } else if (cameraLocalTileX > playerLocalTileX) {
+                            cameraLocalTileX--;
+                        }
+                        if (this.levelTileFlags && (this.levelTileFlags[this.currentLevel][cameraLocalTileX][cameraLocalTileZ] & 0x4) !== 0) {
+                            top = this.currentLevel;
+                        }
+                    }
+                }
+            }
+        }
+        if (this.localPlayer && this.levelTileFlags && (this.levelTileFlags[this.currentLevel][this.localPlayer.x >> 7][this.localPlayer.z >> 7] & 0x4) !== 0) {
+            top = this.currentLevel;
+        }
+        return top;
     }
 
     private draw2DEntityElements(): void {
@@ -3533,6 +4864,108 @@ export class Client extends GameShell {
         }
     }
 
+    private projectFromEntity(entity: PathingEntity, height: number): void {
+        this.projectFromGround(entity.x, height, entity.z);
+    }
+
+    private projectFromGround(x: number, height: number, z: number): void {
+        if (x < 128 || z < 128 || x > 13056 || z > 13056) {
+            this.projectX = -1;
+            this.projectY = -1;
+            return;
+        }
+
+        const y: number = this.getHeightmapY(this.currentLevel, x, z) - height;
+        this.project(x, y, z);
+    }
+
+    private project(x: number, y: number, z: number): void {
+        let dx: number = x - this.cameraX;
+        let dy: number = y - this.cameraY;
+        let dz: number = z - this.cameraZ;
+
+        const sinPitch: number = Pix3D.sin[this.cameraPitch];
+        const cosPitch: number = Pix3D.cos[this.cameraPitch];
+        const sinYaw: number = Pix3D.sin[this.cameraYaw];
+        const cosYaw: number = Pix3D.cos[this.cameraYaw];
+
+        let tmp: number = (dz * sinYaw + dx * cosYaw) >> 16;
+        dz = (dz * cosYaw - dx * sinYaw) >> 16;
+        dx = tmp;
+
+        tmp = (dy * cosPitch - dz * sinPitch) >> 16;
+        dz = (dy * sinPitch + dz * cosPitch) >> 16;
+        dy = tmp;
+
+        if (dz >= 50) {
+            this.projectX = Pix3D.centerX + (((dx << 9) / dz) | 0);
+            this.projectY = Pix3D.centerY + (((dy << 9) / dz) | 0);
+        } else {
+            this.projectX = -1;
+            this.projectY = -1;
+        }
+    }
+
+    private getHeightmapY(level: number, sceneX: number, sceneZ: number): number {
+        if (!this.levelHeightmap) {
+            return 0; // custom
+        }
+        const tileX: number = Math.min(sceneX >> 7, CollisionConstants.SIZE - 1);
+        const tileZ: number = Math.min(sceneZ >> 7, CollisionConstants.SIZE - 1);
+        let realLevel: number = level;
+        if (level < 3 && this.levelTileFlags && (this.levelTileFlags[1][tileX][tileZ] & 0x2) === 2) {
+            realLevel = level + 1;
+        }
+
+        const tileLocalX: number = sceneX & 0x7f;
+        const tileLocalZ: number = sceneZ & 0x7f;
+        const y00: number = (this.levelHeightmap[realLevel][tileX][tileZ] * (128 - tileLocalX) + this.levelHeightmap[realLevel][tileX + 1][tileZ] * tileLocalX) >> 7;
+        const y11: number = (this.levelHeightmap[realLevel][tileX][tileZ + 1] * (128 - tileLocalX) + this.levelHeightmap[realLevel][tileX + 1][tileZ + 1] * tileLocalX) >> 7;
+        return (y00 * (128 - tileLocalZ) + y11 * tileLocalZ) >> 7;
+    }
+
+    private updateTextures(cycle: number): void {
+        if (!Client.lowMemory) {
+            if (Pix3D.textureCycle[17] >= cycle) {
+                const texture: Pix8 | null = Pix3D.textures[17];
+                if (!texture) {
+                    return;
+                }
+                const bottom: number = texture.width2d * texture.height2d - 1;
+                const adjustment: number = texture.width2d * this.sceneDelta * 2;
+
+                const src: Int8Array = texture.pixels;
+                const dst: Int8Array = this.textureBuffer;
+                for (let i: number = 0; i <= bottom; i++) {
+                    dst[i] = src[(i - adjustment) & bottom];
+                }
+
+                texture.pixels = dst;
+                this.textureBuffer = src;
+                Pix3D.pushTexture(17);
+            }
+
+            if (Pix3D.textureCycle[24] >= cycle) {
+                const texture: Pix8 | null = Pix3D.textures[24];
+                if (!texture) {
+                    return;
+                }
+                const bottom: number = texture.width2d * texture.height2d - 1;
+                const adjustment: number = texture.width2d * this.sceneDelta * 2;
+
+                const src: Int8Array = texture.pixels;
+                const dst: Int8Array = this.textureBuffer;
+                for (let i: number = 0; i <= bottom; i++) {
+                    dst[i] = src[(i - adjustment) & bottom];
+                }
+
+                texture.pixels = dst;
+                this.textureBuffer = src;
+                Pix3D.pushTexture(24);
+            }
+        }
+    }
+
     private draw3DEntityElements(): void {
         this.drawPrivateMessages();
         if (this.crossMode === 1) {
@@ -3716,325 +5149,63 @@ export class Client extends GameShell {
         }
     }
 
-    private drawSidebar(): void {
-        this.areaSidebar?.bind();
-        if (this.areaSidebarOffsets) {
-            Pix3D.lineOffset = this.areaSidebarOffsets;
+    private drawTooltip(): void {
+        if (this.menuSize < 2 && this.objSelected === 0 && this.spellSelected === 0) {
+            return;
         }
-        this.imageInvback?.draw(0, 0);
-        if (this.sidebarInterfaceId !== -1) {
-            this.drawInterface(Component.instances[this.sidebarInterfaceId], 0, 0, 0);
-        } else if (this.tabInterfaceId[this.selectedTab] !== -1) {
-            this.drawInterface(Component.instances[this.tabInterfaceId[this.selectedTab]], 0, 0, 0);
-        }
-        if (this.menuVisible && this.menuArea === 1) {
-            this.drawMenu();
-        }
-        this.areaSidebar?.draw(562, 231);
-        this.areaViewport?.bind();
-        if (this.areaViewportOffsets) {
-            Pix3D.lineOffset = this.areaViewportOffsets;
-        }
-    }
 
-    private drawChatback(): void {
-        this.areaChatback?.bind();
-        if (this.areaChatbackOffsets) {
-            Pix3D.lineOffset = this.areaChatbackOffsets;
-        }
-        this.imageChatback?.draw(0, 0);
-        if (this.showSocialInput) {
-            this.fontBold12?.drawStringCenter(239, 40, this.socialMessage, Colors.BLACK);
-            this.fontBold12?.drawStringCenter(239, 60, this.socialInput + '*', Colors.DARKBLUE);
-        } else if (this.chatbackInputOpen) {
-            this.fontBold12?.drawStringCenter(239, 40, 'Enter amount:', Colors.BLACK);
-            this.fontBold12?.drawStringCenter(239, 60, this.chatbackInput + '*', Colors.DARKBLUE);
-        } else if (this.modalMessage) {
-            this.fontBold12?.drawStringCenter(239, 40, this.modalMessage, Colors.BLACK);
-            this.fontBold12?.drawStringCenter(239, 60, 'Click to continue', Colors.DARKBLUE);
-        } else if (this.chatInterfaceId !== -1) {
-            this.drawInterface(Component.instances[this.chatInterfaceId], 0, 0, 0);
-        } else if (this.stickyChatInterfaceId === -1) {
-            let font: PixFont | null = this.fontPlain12;
-            let line: number = 0;
-            Pix2D.setBounds(0, 0, 463, 77);
-            for (let i: number = 0; i < 100; i++) {
-                const message: string | null = this.messageText[i];
-                if (!message) {
-                    continue;
-                }
-                const type: number = this.messageTextType[i];
-                const offset: number = this.chatScrollOffset + 70 - line * 14;
-                if (type === 0) {
-                    if (offset > 0 && offset < 110) {
-                        font?.drawString(4, offset, message, Colors.BLACK);
-                    }
-                    line++;
-                }
-                if (type === 1) {
-                    if (offset > 0 && offset < 110) {
-                        font?.drawString(4, offset, this.messageTextSender[i] + ':', Colors.WHITE);
-                        font?.drawString(font.stringWidth(this.messageTextSender[i]) + 12, offset, message, Colors.BLUE);
-                    }
-                    line++;
-                }
-                if (type === 2 && (this.publicChatSetting === 0 || (this.publicChatSetting === 1 && this.isFriend(this.messageTextSender[i])))) {
-                    if (offset > 0 && offset < 110) {
-                        font?.drawString(4, offset, this.messageTextSender[i] + ':', Colors.BLACK);
-                        font?.drawString(font.stringWidth(this.messageTextSender[i]) + 12, offset, message, Colors.BLUE);
-                    }
-                    line++;
-                }
-                if ((type === 3 || type === 7) && this.splitPrivateChat === 0 && (type === 7 || this.privateChatSetting === 0 || (this.privateChatSetting === 1 && this.isFriend(this.messageTextSender[i])))) {
-                    if (offset > 0 && offset < 110) {
-                        font?.drawString(4, offset, 'From ' + this.messageTextSender[i] + ':', Colors.BLACK);
-                        font?.drawString(font.stringWidth('From ' + this.messageTextSender[i]) + 12, offset, message, Colors.DARKRED);
-                    }
-                    line++;
-                }
-                if (type === 4 && (this.tradeChatSetting === 0 || (this.tradeChatSetting === 1 && this.isFriend(this.messageTextSender[i])))) {
-                    if (offset > 0 && offset < 110) {
-                        font?.drawString(4, offset, this.messageTextSender[i] + ' ' + this.messageText[i], Colors.TRADE_MESSAGE);
-                    }
-                    line++;
-                }
-                if (type === 5 && this.splitPrivateChat === 0 && this.privateChatSetting < 2) {
-                    if (offset > 0 && offset < 110) {
-                        font?.drawString(4, offset, message, Colors.DARKRED);
-                    }
-                    line++;
-                }
-                if (type === 6 && this.splitPrivateChat === 0 && this.privateChatSetting < 2) {
-                    if (offset > 0 && offset < 110) {
-                        font?.drawString(4, offset, 'To ' + this.messageTextSender[i] + ':', Colors.BLACK);
-                        font?.drawString(font.stringWidth('To ' + this.messageTextSender[i]) + 12, offset, message, Colors.DARKRED);
-                    }
-                    line++;
-                }
-                if (type === 8 && (this.tradeChatSetting === 0 || (this.tradeChatSetting === 1 && this.isFriend(this.messageTextSender[i])))) {
-                    if (offset > 0 && offset < 110) {
-                        font?.drawString(4, offset, this.messageTextSender[i] + ' ' + this.messageText[i], Colors.DUEL_MESSAGE);
-                    }
-                    line++;
-                }
-            }
-            Pix2D.resetBounds();
-            this.chatScrollHeight = line * 14 + 7;
-            if (this.chatScrollHeight < 78) {
-                this.chatScrollHeight = 78;
-            }
-            this.drawScrollbar(463, 0, this.chatScrollHeight - this.chatScrollOffset - 77, this.chatScrollHeight, 77);
-            font?.drawString(4, 90, JString.formatName(this.usernameInput) + ':', Colors.BLACK);
-            font?.drawString(font.stringWidth(this.usernameInput + ': ') + 6, 90, this.chatTyped + '*', Colors.BLUE);
-            Pix2D.drawHorizontalLine(0, 77, Colors.BLACK, 479);
+        let tooltip: string;
+        if (this.objSelected === 1 && this.menuSize < 2) {
+            tooltip = 'Use ' + this.objSelectedName + ' with...';
+        } else if (this.spellSelected === 1 && this.menuSize < 2) {
+            tooltip = this.spellCaption + '...';
         } else {
-            this.drawInterface(Component.instances[this.stickyChatInterfaceId], 0, 0, 0);
+            tooltip = this.menuOption[this.menuSize - 1];
         }
-        if (this.menuVisible && this.menuArea === 2) {
-            this.drawMenu();
+
+        if (this.menuSize > 2) {
+            tooltip = tooltip + '@whi@ / ' + (this.menuSize - 2) + ' more options';
         }
-        this.areaChatback?.draw(22, 375);
-        this.areaViewport?.bind();
-        if (this.areaViewportOffsets) {
-            Pix3D.lineOffset = this.areaViewportOffsets;
-        }
+
+        this.fontBold12?.drawStringTooltip(4, 15, tooltip, Colors.WHITE, true, (this.loopCycle / 1000) | 0);
     }
 
-    private drawMinimap(): void {
-        this.areaMapback?.bind();
-        if (!this.localPlayer) {
-            return;
+    private drawMenu(): void {
+        const x: number = this.menuX;
+        const y: number = this.menuY;
+        const w: number = this.menuWidth;
+        const h: number = this.menuHeight;
+        const background: number = Colors.OPTIONS_MENU;
+
+        // the menu area square.
+        Pix2D.fillRect2d(x, y, w, h, background);
+        Pix2D.fillRect2d(x + 1, y + 1, w - 2, 16, Colors.BLACK);
+        Pix2D.drawRect(x + 1, y + 18, w - 2, h - 19, Colors.BLACK);
+
+        // the menu title header at the top.
+        this.fontBold12?.drawString(x + 3, y + 14, 'Choose Option', background);
+        let mouseX: number = this.mouseX;
+        let mouseY: number = this.mouseY;
+        if (this.menuArea === 0) {
+            mouseX -= 8;
+            mouseY -= 11;
+        }
+        if (this.menuArea === 1) {
+            mouseX -= 562;
+            mouseY -= 231;
+        }
+        if (this.menuArea === 2) {
+            mouseX -= 22;
+            mouseY -= 375;
         }
 
-        const angle: number = (this.orbitCameraYaw + this.minimapAnticheatAngle) & 0x7ff;
-        let anchorX: number = ((this.localPlayer.x / 32) | 0) + 48;
-        let anchorY: number = 464 - ((this.localPlayer.z / 32) | 0);
-
-        this.imageMinimap?.drawRotatedMasked(21, 9, 146, 151, this.minimapMaskLineOffsets, this.minimapMaskLineLengths, anchorX, anchorY, angle, this.minimapZoom + 256);
-        this.imageCompass?.drawRotatedMasked(0, 0, 33, 33, this.compassMaskLineOffsets, this.compassMaskLineLengths, 25, 25, this.orbitCameraYaw, 256);
-        for (let i: number = 0; i < this.activeMapFunctionCount; i++) {
-            anchorX = this.activeMapFunctionX[i] * 4 + 2 - ((this.localPlayer.x / 32) | 0);
-            anchorY = this.activeMapFunctionZ[i] * 4 + 2 - ((this.localPlayer.z / 32) | 0);
-            this.drawOnMinimap(anchorY, this.activeMapFunctions[i], anchorX);
-        }
-
-        for (let ltx: number = 0; ltx < CollisionConstants.SIZE; ltx++) {
-            for (let ltz: number = 0; ltz < CollisionConstants.SIZE; ltz++) {
-                const stack: LinkList | null = this.objStacks[this.currentLevel][ltx][ltz];
-                if (stack) {
-                    anchorX = ltx * 4 + 2 - ((this.localPlayer.x / 32) | 0);
-                    anchorY = ltz * 4 + 2 - ((this.localPlayer.z / 32) | 0);
-                    this.drawOnMinimap(anchorY, this.imageMapdot0, anchorX);
-                }
+        for (let i: number = 0; i < this.menuSize; i++) {
+            const optionY: number = y + (this.menuSize - 1 - i) * 15 + 31;
+            let rgb: number = Colors.WHITE;
+            if (mouseX > x && mouseX < x + w && mouseY > optionY - 13 && mouseY < optionY + 3) {
+                rgb = Colors.YELLOW;
             }
-        }
-
-        for (let i: number = 0; i < this.npcCount; i++) {
-            const npc: NpcEntity | null = this.npcs[this.npcIds[i]];
-            if (npc && npc.isVisibleNow() && npc.npcType && npc.npcType.minimap) {
-                anchorX = ((npc.x / 32) | 0) - ((this.localPlayer.x / 32) | 0);
-                anchorY = ((npc.z / 32) | 0) - ((this.localPlayer.z / 32) | 0);
-                this.drawOnMinimap(anchorY, this.imageMapdot1, anchorX);
-            }
-        }
-
-        for (let i: number = 0; i < this.playerCount; i++) {
-            const player: PlayerEntity | null = this.players[this.playerIds[i]];
-            if (player && player.isVisibleNow() && player.name) {
-                anchorX = ((player.x / 32) | 0) - ((this.localPlayer.x / 32) | 0);
-                anchorY = ((player.z / 32) | 0) - ((this.localPlayer.z / 32) | 0);
-
-                let friend: boolean = false;
-                const name37: bigint = JString.toBase37(player.name);
-                for (let j: number = 0; j < this.friendCount; j++) {
-                    if (name37 === this.friendName37[j] && this.friendWorld[j] !== 0) {
-                        friend = true;
-                        break;
-                    }
-                }
-
-                if (friend) {
-                    this.drawOnMinimap(anchorY, this.imageMapdot3, anchorX);
-                } else {
-                    this.drawOnMinimap(anchorY, this.imageMapdot2, anchorX);
-                }
-            }
-        }
-
-        if (this.flagSceneTileX !== 0) {
-            anchorX = this.flagSceneTileX * 4 + 2 - ((this.localPlayer.x / 32) | 0);
-            anchorY = this.flagSceneTileZ * 4 + 2 - ((this.localPlayer.z / 32) | 0);
-            this.drawOnMinimap(anchorY, this.imageMapflag, anchorX);
-        }
-        // the white square local player position in the center of the minimap.
-        Pix2D.fillRect2d(93, 82, 3, 3, Colors.WHITE);
-        this.areaViewport?.bind();
-    }
-
-    private drawOnMinimap(dy: number, image: Pix24 | null, dx: number): void {
-        if (!image) {
-            return;
-        }
-
-        const angle: number = (this.orbitCameraYaw + this.minimapAnticheatAngle) & 0x7ff;
-        const distance: number = dx * dx + dy * dy;
-        if (distance > 6400) {
-            return;
-        }
-
-        let sinAngle: number = Pix3D.sin[angle];
-        let cosAngle: number = Pix3D.cos[angle];
-
-        sinAngle = ((sinAngle * 256) / (this.minimapZoom + 256)) | 0;
-        cosAngle = ((cosAngle * 256) / (this.minimapZoom + 256)) | 0;
-
-        const x: number = (dy * sinAngle + dx * cosAngle) >> 16;
-        const y: number = (dy * cosAngle - dx * sinAngle) >> 16;
-
-        if (distance > 2500 && this.imageMapback) {
-            image.drawMasked(x + 94 - ((image.cropW / 2) | 0), 83 - y - ((image.cropH / 2) | 0), this.imageMapback);
-        } else {
-            image.draw(x + 94 - ((image.cropW / 2) | 0), 83 - y - ((image.cropH / 2) | 0));
-        }
-    }
-
-    private createMinimap(level: number): void {
-        if (!this.imageMinimap) {
-            return;
-        }
-
-        const pixels: Int32Array = this.imageMinimap.pixels;
-        const length: number = pixels.length;
-        for (let i: number = 0; i < length; i++) {
-            pixels[i] = 0;
-        }
-
-        for (let z: number = 1; z < CollisionConstants.SIZE - 1; z++) {
-            let offset: number = (CollisionConstants.SIZE - 1 - z) * 512 * 4 + 24628;
-
-            for (let x: number = 1; x < CollisionConstants.SIZE - 1; x++) {
-                if (this.levelTileFlags && (this.levelTileFlags[level][x][z] & 0x18) === 0) {
-                    this.scene?.drawMinimapTile(level, x, z, pixels, offset, 512);
-                }
-
-                if (level < 3 && this.levelTileFlags && (this.levelTileFlags[level + 1][x][z] & 0x8) !== 0) {
-                    this.scene?.drawMinimapTile(level + 1, x, z, pixels, offset, 512);
-                }
-
-                offset += 4;
-            }
-        }
-
-        const wallRgb: number = ((((Math.random() * 20.0) | 0) + 238 - 10) << 16) + ((((Math.random() * 20.0) | 0) + 238 - 10) << 8) + ((Math.random() * 20.0) | 0) + 238 - 10;
-        const doorRgb: number = (((Math.random() * 20.0) | 0) + 238 - 10) << 16;
-
-        this.imageMinimap.bind();
-
-        for (let z: number = 1; z < CollisionConstants.SIZE - 1; z++) {
-            for (let x: number = 1; x < CollisionConstants.SIZE - 1; x++) {
-                if (this.levelTileFlags && (this.levelTileFlags[level][x][z] & 0x18) === 0) {
-                    this.drawMinimapLoc(x, z, level, wallRgb, doorRgb);
-                }
-
-                if (level < 3 && this.levelTileFlags && (this.levelTileFlags[level + 1][x][z] & 0x8) !== 0) {
-                    this.drawMinimapLoc(x, z, level + 1, wallRgb, doorRgb);
-                }
-            }
-        }
-
-        this.areaViewport?.bind();
-        this.activeMapFunctionCount = 0;
-
-        for (let x: number = 0; x < CollisionConstants.SIZE; x++) {
-            for (let z: number = 0; z < CollisionConstants.SIZE; z++) {
-                let typecode: number = this.scene?.getGroundDecorTypecode(this.currentLevel, x, z) ?? 0;
-                if (typecode === 0) {
-                    continue;
-                }
-
-                typecode = (typecode >> 14) & 0x7fff;
-
-                const func: number = LocType.get(typecode).mapfunction;
-                if (func < 0) {
-                    continue;
-                }
-
-                let stx: number = x;
-                let stz: number = z;
-
-                if (func !== 22 && func !== 29 && func !== 34 && func !== 36 && func !== 46 && func !== 47 && func !== 48) {
-                    const maxX: number = CollisionConstants.SIZE;
-                    const maxZ: number = CollisionConstants.SIZE;
-                    const collisionmap: CollisionMap | null = this.levelCollisionMap[this.currentLevel];
-                    if (collisionmap) {
-                        const flags: Int32Array = collisionmap.flags;
-
-                        for (let i: number = 0; i < 10; i++) {
-                            const rand: number = (Math.random() * 4.0) | 0;
-                            if (rand === 0 && stx > 0 && stx > x - 3 && (flags[CollisionMap.index(stx - 1, stz)] & CollisionFlag.BLOCK_WEST) === CollisionFlag.OPEN) {
-                                stx--;
-                            }
-
-                            if (rand === 1 && stx < maxX - 1 && stx < x + 3 && (flags[CollisionMap.index(stx + 1, stz)] & CollisionFlag.BLOCK_EAST) === CollisionFlag.OPEN) {
-                                stx++;
-                            }
-
-                            if (rand === 2 && stz > 0 && stz > z - 3 && (flags[CollisionMap.index(stx, stz - 1)] & CollisionFlag.BLOCK_SOUTH) === CollisionFlag.OPEN) {
-                                stz--;
-                            }
-
-                            if (rand === 3 && stz < maxZ - 1 && stz < z + 3 && (flags[CollisionMap.index(stx, stz + 1)] & CollisionFlag.BLOCK_NORTH) === CollisionFlag.OPEN) {
-                                stz++;
-                            }
-                        }
-                    }
-                }
-
-                this.activeMapFunctions[this.activeMapFunctionCount] = this.imageMapfunction[func];
-                this.activeMapFunctionX[this.activeMapFunctionCount] = stx;
-                this.activeMapFunctionZ[this.activeMapFunctionCount] = stz;
-                this.activeMapFunctionCount++;
-            }
+            this.fontBold12?.drawStringTaggable(x + 3, optionY, this.menuOption[i], rgb, true);
         }
     }
 
@@ -4180,1001 +5351,6 @@ export class Client extends GameShell {
         }
     }
 
-    private drawTooltip(): void {
-        if (this.menuSize < 2 && this.objSelected === 0 && this.spellSelected === 0) {
-            return;
-        }
-
-        let tooltip: string;
-        if (this.objSelected === 1 && this.menuSize < 2) {
-            tooltip = 'Use ' + this.objSelectedName + ' with...';
-        } else if (this.spellSelected === 1 && this.menuSize < 2) {
-            tooltip = this.spellCaption + '...';
-        } else {
-            tooltip = this.menuOption[this.menuSize - 1];
-        }
-
-        if (this.menuSize > 2) {
-            tooltip = tooltip + '@whi@ / ' + (this.menuSize - 2) + ' more options';
-        }
-
-        this.fontBold12?.drawStringTooltip(4, 15, tooltip, Colors.WHITE, true, (this.loopCycle / 1000) | 0);
-    }
-
-    private drawMenu(): void {
-        const x: number = this.menuX;
-        const y: number = this.menuY;
-        const w: number = this.menuWidth;
-        const h: number = this.menuHeight;
-        const background: number = Colors.OPTIONS_MENU;
-
-        // the menu area square.
-        Pix2D.fillRect2d(x, y, w, h, background);
-        Pix2D.fillRect2d(x + 1, y + 1, w - 2, 16, Colors.BLACK);
-        Pix2D.drawRect(x + 1, y + 18, w - 2, h - 19, Colors.BLACK);
-
-        // the menu title header at the top.
-        this.fontBold12?.drawString(x + 3, y + 14, 'Choose Option', background);
-        let mouseX: number = this.mouseX;
-        let mouseY: number = this.mouseY;
-        if (this.menuArea === 0) {
-            mouseX -= 8;
-            mouseY -= 11;
-        }
-        if (this.menuArea === 1) {
-            mouseX -= 562;
-            mouseY -= 231;
-        }
-        if (this.menuArea === 2) {
-            mouseX -= 22;
-            mouseY -= 375;
-        }
-
-        for (let i: number = 0; i < this.menuSize; i++) {
-            const optionY: number = y + (this.menuSize - 1 - i) * 15 + 31;
-            let rgb: number = Colors.WHITE;
-            if (mouseX > x && mouseX < x + w && mouseY > optionY - 13 && mouseY < optionY + 3) {
-                rgb = Colors.YELLOW;
-            }
-            this.fontBold12?.drawStringTaggable(x + 3, optionY, this.menuOption[i], rgb, true);
-        }
-    }
-
-    private async handleMouseInput(): Promise<void> {
-        if (this.objDragArea !== 0) {
-            return;
-        }
-
-        let button: number = this.mouseClickButton;
-        if (this.spellSelected === 1 && this.mouseClickX >= 520 && this.mouseClickY >= 165 && this.mouseClickX <= 788 && this.mouseClickY <= 230) {
-            button = 0;
-        }
-
-        if (this.menuVisible) {
-            if (button !== 1) {
-                let x: number = this.mouseX;
-                let y: number = this.mouseY;
-
-                if (this.menuArea === 0) {
-                    x -= 8;
-                    y -= 11;
-                } else if (this.menuArea === 1) {
-                    x -= 562;
-                    y -= 231;
-                } else if (this.menuArea === 2) {
-                    x -= 22;
-                    y -= 375;
-                }
-
-                if (x < this.menuX - 10 || x > this.menuX + this.menuWidth + 10 || y < this.menuY - 10 || y > this.menuY + this.menuHeight + 10) {
-                    this.menuVisible = false;
-                    if (this.menuArea === 1) {
-                        this.redrawSidebar = true;
-                    }
-                    if (this.menuArea === 2) {
-                        this.redrawChatback = true;
-                    }
-                }
-            }
-
-            if (button === 1) {
-                const menuX: number = this.menuX;
-                const menuY: number = this.menuY;
-                const menuWidth: number = this.menuWidth;
-
-                let clickX: number = this.mouseClickX;
-                let clickY: number = this.mouseClickY;
-
-                if (this.menuArea === 0) {
-                    clickX -= 8;
-                    clickY -= 11;
-                } else if (this.menuArea === 1) {
-                    clickX -= 562;
-                    clickY -= 231;
-                } else if (this.menuArea === 2) {
-                    clickX -= 22;
-                    clickY -= 375;
-                }
-
-                let option: number = -1;
-                for (let i: number = 0; i < this.menuSize; i++) {
-                    const optionY: number = menuY + (this.menuSize - 1 - i) * 15 + 31;
-                    if (clickX > menuX && clickX < menuX + menuWidth && clickY > optionY - 13 && clickY < optionY + 3) {
-                        option = i;
-                    }
-                }
-
-                if (option !== -1) {
-                    await this.useMenuOption(option);
-                }
-
-                this.menuVisible = false;
-                if (this.menuArea === 1) {
-                    this.redrawSidebar = true;
-                } else if (this.menuArea === 2) {
-                    this.redrawChatback = true;
-                }
-            }
-        } else {
-            if (button === 1 && this.menuSize > 0) {
-                const action: number = this.menuAction[this.menuSize - 1];
-
-                if (action === 602 || action === 596 || action === 22 || action === 892 || action === 415 || action === 405 || action === 38 || action === 422 || action === 478 || action === 347 || action === 188) {
-                    const slot: number = this.menuParamB[this.menuSize - 1];
-                    const comId: number = this.menuParamC[this.menuSize - 1];
-                    const com: Component = Component.instances[comId];
-
-                    if (com.draggable) {
-                        this.objGrabThreshold = false;
-                        this.objDragCycles = 0;
-                        this.objDragInterfaceId = comId;
-                        this.objDragSlot = slot;
-                        this.objDragArea = 2;
-                        this.objGrabX = this.mouseClickX;
-                        this.objGrabY = this.mouseClickY;
-
-                        if (Component.instances[comId].layer === this.viewportInterfaceId) {
-                            this.objDragArea = 1;
-                        }
-
-                        if (Component.instances[comId].layer === this.chatInterfaceId) {
-                            this.objDragArea = 3;
-                        }
-
-                        return;
-                    }
-                }
-            }
-
-            if (button === 1 && (this.mouseButtonsOption === 1 || this.isAddFriendOption(this.menuSize - 1)) && this.menuSize > 2) {
-                button = 2;
-            }
-
-            if (button === 1 && this.menuSize > 0) {
-                await this.useMenuOption(this.menuSize - 1);
-            }
-
-            if (button !== 2 || this.menuSize <= 0) {
-                return;
-            }
-
-            this.showContextMenu();
-        }
-    }
-
-    handleMinimapInput(): void {
-        if (this.mouseClickButton === 1 && this.localPlayer) {
-            let x: number = this.mouseClickX - 21 - 561;
-            let y: number = this.mouseClickY - 9 - 5;
-
-            if (x >= 0 && y >= 0 && x < 146 && y < 151) {
-                x -= 73;
-                y -= 75;
-
-                const yaw: number = (this.orbitCameraYaw + this.minimapAnticheatAngle) & 0x7ff;
-                let sinYaw: number = Pix3D.sin[yaw];
-                let cosYaw: number = Pix3D.cos[yaw];
-
-                sinYaw = (sinYaw * (this.minimapZoom + 256)) >> 8;
-                cosYaw = (cosYaw * (this.minimapZoom + 256)) >> 8;
-
-                const relX: number = (y * sinYaw + x * cosYaw) >> 11;
-                const relY: number = (y * cosYaw - x * sinYaw) >> 11;
-
-                const tileX: number = (this.localPlayer.x + relX) >> 7;
-                const tileZ: number = (this.localPlayer.z - relY) >> 7;
-
-                if (this.tryMove(this.localPlayer.routeFlagX[0], this.localPlayer.routeFlagZ[0], tileX, tileZ, 1, 0, 0, 0, 0, 0, true)) {
-                    // the additional 14-bytes in MOVE_MINIMAPCLICK
-                    this.out.p1(x);
-                    this.out.p1(y);
-                    this.out.p2(this.orbitCameraYaw);
-                    this.out.p1(57);
-                    this.out.p1(this.minimapAnticheatAngle);
-                    this.out.p1(this.minimapZoom);
-                    this.out.p1(89);
-                    this.out.p2(this.localPlayer.x);
-                    this.out.p2(this.localPlayer.z);
-                    this.out.p1(this.tryMoveNearest);
-                    this.out.p1(63);
-                }
-            }
-        }
-    }
-
-    private isAddFriendOption(option: number): boolean {
-        if (option < 0) {
-            return false;
-        }
-        let action: number = this.menuAction[option];
-        if (action >= 2000) {
-            action -= 2000;
-        }
-        return action === 406;
-    }
-
-    private async useMenuOption(optionId: number): Promise<void> {
-        if (optionId < 0) {
-            return;
-        }
-
-        if (this.chatbackInputOpen) {
-            this.chatbackInputOpen = false;
-            this.redrawChatback = true;
-        }
-
-        let action: number = this.menuAction[optionId];
-        const a: number = this.menuParamA[optionId];
-        const b: number = this.menuParamB[optionId];
-        const c: number = this.menuParamC[optionId];
-
-        if (action >= 2000) {
-            action -= 2000;
-        }
-
-        if (action === 903 || action === 363) {
-            let option: string = this.menuOption[optionId];
-            const tag: number = option.indexOf('@whi@');
-
-            if (tag !== -1) {
-                option = option.substring(tag + 5).trim();
-                const name: string = JString.formatName(JString.fromBase37(JString.toBase37(option)));
-                let found: boolean = false;
-
-                for (let i: number = 0; i < this.playerCount; i++) {
-                    const player: PlayerEntity | null = this.players[this.playerIds[i]];
-
-                    if (player && player.name && player.name.toLowerCase() === name.toLowerCase() && this.localPlayer) {
-                        this.tryMove(this.localPlayer.routeFlagX[0], this.localPlayer.routeFlagZ[0], player.routeFlagX[0], player.routeFlagZ[0], 2, 1, 1, 0, 0, 0, false);
-
-                        if (action === 903) {
-                            this.out.p1isaac(ClientProt.OPPLAYER4);
-                        } else if (action === 363) {
-                            this.out.p1isaac(ClientProt.OPPLAYER1);
-                        }
-
-                        this.out.p2(this.playerIds[i]);
-                        found = true;
-                        break;
-                    }
-                }
-
-                if (!found) {
-                    this.addMessage(0, 'Unable to find ' + name, '');
-                }
-            }
-        } else if (action === 450 && this.interactWithLoc(ClientProt.OPLOCU, b, c, a)) {
-            this.out.p2(this.objInterface);
-            this.out.p2(this.objSelectedSlot);
-            this.out.p2(this.objSelectedInterface);
-        } else if (action === 405 || action === 38 || action === 422 || action === 478 || action === 347) {
-            if (action === 478) {
-                if ((b & 0x3) === 0) {
-                    Client.oplogic5++;
-                }
-
-                if (Client.oplogic5 >= 90) {
-                    this.out.p1isaac(ClientProt.ANTICHEAT_OPLOGIC5);
-                }
-
-                this.out.p1isaac(ClientProt.OPHELD4);
-            } else if (action === 347) {
-                this.out.p1isaac(ClientProt.OPHELD5);
-            } else if (action === 422) {
-                this.out.p1isaac(ClientProt.OPHELD3);
-            } else if (action === 405) {
-                Client.oplogic3 += a;
-                if (Client.oplogic3 >= 97) {
-                    this.out.p1isaac(ClientProt.ANTICHEAT_OPLOGIC3);
-                    this.out.p3(14953816);
-                }
-
-                this.out.p1isaac(ClientProt.OPHELD1);
-            } else if (action === 38) {
-                this.out.p1isaac(ClientProt.OPHELD2);
-            }
-
-            this.out.p2(a);
-            this.out.p2(b);
-            this.out.p2(c);
-            this.selectedCycle = 0;
-            this.selectedInterface = c;
-            this.selectedItem = b;
-            this.selectedArea = 2;
-
-            if (Component.instances[c].layer === this.viewportInterfaceId) {
-                this.selectedArea = 1;
-            }
-
-            if (Component.instances[c].layer === this.chatInterfaceId) {
-                this.selectedArea = 3;
-            }
-        } else if (action === 728 || action === 542 || action === 6 || action === 963 || action === 245) {
-            const npc: NpcEntity | null = this.npcs[a];
-            if (npc && this.localPlayer) {
-                this.tryMove(this.localPlayer.routeFlagX[0], this.localPlayer.routeFlagZ[0], npc.routeFlagX[0], npc.routeFlagZ[0], 2, 1, 1, 0, 0, 0, false);
-
-                this.crossX = this.mouseClickX;
-                this.crossY = this.mouseClickY;
-                this.crossMode = 2;
-                this.crossCycle = 0;
-
-                if (action === 542) {
-                    this.out.p1isaac(ClientProt.OPNPC2);
-                } else if (action === 6) {
-                    if ((a & 0x3) === 0) {
-                        Client.oplogic2++;
-                    }
-
-                    if (Client.oplogic2 >= 124) {
-                        this.out.p1isaac(ClientProt.ANTICHEAT_OPLOGIC2);
-                        this.out.p4(0);
-                    }
-
-                    this.out.p1isaac(ClientProt.OPNPC3);
-                } else if (action === 963) {
-                    this.out.p1isaac(ClientProt.OPNPC4);
-                } else if (action === 728) {
-                    this.out.p1isaac(ClientProt.OPNPC1);
-                } else if (action === 245) {
-                    if ((a & 0x3) === 0) {
-                        Client.oplogic4++;
-                    }
-
-                    if (Client.oplogic4 >= 85) {
-                        this.out.p1isaac(ClientProt.ANTICHEAT_OPLOGIC4);
-                        this.out.p2(39596);
-                    }
-
-                    this.out.p1isaac(ClientProt.OPNPC5);
-                }
-
-                this.out.p2(a);
-            }
-        } else if (action === 217) {
-            if (this.localPlayer) {
-                const success: boolean = this.tryMove(this.localPlayer.routeFlagX[0], this.localPlayer.routeFlagZ[0], b, c, 2, 0, 0, 0, 0, 0, false);
-                if (!success) {
-                    this.tryMove(this.localPlayer.routeFlagX[0], this.localPlayer.routeFlagZ[0], b, c, 2, 1, 1, 0, 0, 0, false);
-                }
-
-                this.crossX = this.mouseClickX;
-                this.crossY = this.mouseClickY;
-                this.crossMode = 2;
-                this.crossCycle = 0;
-
-                this.out.p1isaac(ClientProt.OPOBJU);
-                this.out.p2(b + this.sceneBaseTileX);
-                this.out.p2(c + this.sceneBaseTileZ);
-                this.out.p2(a);
-                this.out.p2(this.objInterface);
-                this.out.p2(this.objSelectedSlot);
-                this.out.p2(this.objSelectedInterface);
-            }
-        } else if (action === 1175) {
-            // loc examine
-            const locId: number = (a >> 14) & 0x7fff;
-            const loc: LocType = LocType.get(locId);
-
-            let examine: string;
-            if (!loc.desc) {
-                examine = "It's a " + loc.name + '.';
-            } else {
-                examine = loc.desc;
-            }
-
-            this.addMessage(0, examine, '');
-        } else if (action === 285) {
-            this.interactWithLoc(ClientProt.OPLOC1, b, c, a);
-        } else if (action === 881) {
-            this.out.p1isaac(ClientProt.OPHELDU);
-            this.out.p2(a);
-            this.out.p2(b);
-            this.out.p2(c);
-            this.out.p2(this.objInterface);
-            this.out.p2(this.objSelectedSlot);
-            this.out.p2(this.objSelectedInterface);
-
-            this.selectedCycle = 0;
-            this.selectedInterface = c;
-            this.selectedItem = b;
-            this.selectedArea = 2;
-
-            if (Component.instances[c].layer === this.viewportInterfaceId) {
-                this.selectedArea = 1;
-            }
-
-            if (Component.instances[c].layer === this.chatInterfaceId) {
-                this.selectedArea = 3;
-            }
-        } else if (action === 391) {
-            this.out.p1isaac(ClientProt.OPHELDT);
-            this.out.p2(a);
-            this.out.p2(b);
-            this.out.p2(c);
-            this.out.p2(this.activeSpellId);
-
-            this.selectedCycle = 0;
-            this.selectedInterface = c;
-            this.selectedItem = b;
-            this.selectedArea = 2;
-
-            if (Component.instances[c].layer === this.viewportInterfaceId) {
-                this.selectedArea = 1;
-            }
-
-            if (Component.instances[c].layer === this.chatInterfaceId) {
-                this.selectedArea = 3;
-            }
-        } else if (action === 660) {
-            if (this.menuVisible) {
-                this.scene?.click(b - 8, c - 11);
-            } else {
-                this.scene?.click(this.mouseClickX - 8, this.mouseClickY - 11);
-            }
-        } else if (action === 188) {
-            // select obj interface
-            this.objSelected = 1;
-            this.objSelectedSlot = b;
-            this.objSelectedInterface = c;
-            this.objInterface = a;
-            this.objSelectedName = ObjType.get(a).name;
-            this.spellSelected = 0;
-            return;
-        } else if (action === 44) {
-            if (!this.pressedContinueOption) {
-                this.out.p1isaac(ClientProt.RESUME_PAUSEBUTTON);
-                this.out.p2(c);
-                this.pressedContinueOption = true;
-            }
-        } else if (action === 1773) {
-            // inv obj examine
-            const obj: ObjType = ObjType.get(a);
-            let examine: string;
-
-            if (c >= 100000) {
-                examine = c + ' x ' + obj.name;
-            } else if (!obj.desc) {
-                examine = "It's a " + obj.name + '.';
-            } else {
-                examine = obj.desc;
-            }
-            this.addMessage(0, examine, '');
-        } else if (action === 900) {
-            const npc: NpcEntity | null = this.npcs[a];
-
-            if (npc && this.localPlayer) {
-                this.tryMove(this.localPlayer.routeFlagX[0], this.localPlayer.routeFlagZ[0], npc.routeFlagX[0], npc.routeFlagZ[0], 2, 1, 1, 0, 0, 0, false);
-                this.crossX = this.mouseClickX;
-                this.crossY = this.mouseClickY;
-                this.crossMode = 2;
-                this.crossCycle = 0;
-
-                this.out.p1isaac(ClientProt.OPNPCU);
-                this.out.p2(a);
-                this.out.p2(this.objInterface);
-                this.out.p2(this.objSelectedSlot);
-                this.out.p2(this.objSelectedInterface);
-            }
-        } else if (action === 1373 || action === 1544 || action === 151 || action === 1101) {
-            const player: PlayerEntity | null = this.players[a];
-            if (player && this.localPlayer) {
-                this.tryMove(this.localPlayer.routeFlagX[0], this.localPlayer.routeFlagZ[0], player.routeFlagX[0], player.routeFlagZ[0], 2, 1, 1, 0, 0, 0, false);
-
-                this.crossX = this.mouseClickX;
-                this.crossY = this.mouseClickY;
-                this.crossMode = 2;
-                this.crossCycle = 0;
-
-                if (action === 1101) {
-                    this.out.p1isaac(ClientProt.OPPLAYER1);
-                } else if (action === 151) {
-                    Client.oplogic8++;
-                    if (Client.oplogic8 >= 90) {
-                        this.out.p1isaac(ClientProt.ANTICHEAT_OPLOGIC8);
-                        this.out.p2(31114);
-                    }
-
-                    this.out.p1isaac(ClientProt.OPPLAYER2);
-                } else if (action === 1373) {
-                    this.out.p1isaac(ClientProt.OPPLAYER4);
-                } else if (action === 1544) {
-                    this.out.p1isaac(ClientProt.OPPLAYER3);
-                }
-
-                this.out.p2(a);
-            }
-        } else if (action === 265) {
-            const npc: NpcEntity | null = this.npcs[a];
-            if (npc && this.localPlayer) {
-                this.tryMove(this.localPlayer.routeFlagX[0], this.localPlayer.routeFlagZ[0], npc.routeFlagX[0], npc.routeFlagZ[0], 2, 1, 1, 0, 0, 0, false);
-
-                this.crossX = this.mouseClickX;
-                this.crossY = this.mouseClickY;
-                this.crossMode = 2;
-                this.crossCycle = 0;
-
-                this.out.p1isaac(ClientProt.OPNPCT);
-                this.out.p2(a);
-                this.out.p2(this.activeSpellId);
-            }
-        } else if (action === 679) {
-            const option: string = this.menuOption[optionId];
-            const tag: number = option.indexOf('@whi@');
-
-            if (tag !== -1) {
-                const name37: bigint = JString.toBase37(option.substring(tag + 5).trim());
-                let friend: number = -1;
-                for (let i: number = 0; i < this.friendCount; i++) {
-                    if (this.friendName37[i] === name37) {
-                        friend = i;
-                        break;
-                    }
-                }
-
-                if (friend !== -1 && this.friendWorld[friend] > 0) {
-                    this.redrawChatback = true;
-                    this.chatbackInputOpen = false;
-                    this.showSocialInput = true;
-                    this.socialInput = '';
-                    this.socialAction = 3;
-                    this.socialName37 = this.friendName37[friend];
-                    this.socialMessage = 'Enter message to send to ' + this.friendName[friend];
-                }
-            }
-        } else if (action === 55) {
-            if (this.interactWithLoc(ClientProt.OPLOCT, b, c, a)) {
-                this.out.p2(this.activeSpellId);
-            }
-        } else if (action === 224 || action === 993 || action === 99 || action === 746 || action === 877) {
-            if (this.localPlayer) {
-                const success: boolean = this.tryMove(this.localPlayer.routeFlagX[0], this.localPlayer.routeFlagZ[0], b, c, 2, 0, 0, 0, 0, 0, false);
-                if (!success) {
-                    this.tryMove(this.localPlayer.routeFlagX[0], this.localPlayer.routeFlagZ[0], b, c, 2, 1, 1, 0, 0, 0, false);
-                }
-
-                this.crossX = this.mouseClickX;
-                this.crossY = this.mouseClickY;
-                this.crossMode = 2;
-                this.crossCycle = 0;
-
-                if (action === 224) {
-                    this.out.p1isaac(ClientProt.OPOBJ1);
-                } else if (action === 746) {
-                    this.out.p1isaac(ClientProt.OPOBJ4);
-                } else if (action === 877) {
-                    this.out.p1isaac(ClientProt.OPOBJ5);
-                } else if (action === 99) {
-                    this.out.p1isaac(ClientProt.OPOBJ3);
-                } else if (action === 993) {
-                    this.out.p1isaac(ClientProt.OPOBJ2);
-                }
-
-                this.out.p2(b + this.sceneBaseTileX);
-                this.out.p2(c + this.sceneBaseTileZ);
-                this.out.p2(a);
-            }
-        } else if (action === 1607) {
-            // npc examine
-            const npc: NpcEntity | null = this.npcs[a];
-            if (npc && npc.npcType) {
-                let examine: string;
-
-                if (!npc.npcType.desc) {
-                    examine = "It's a " + npc.npcType.name + '.';
-                } else {
-                    examine = npc.npcType.desc;
-                }
-
-                this.addMessage(0, examine, '');
-            }
-        } else if (action === 504) {
-            this.interactWithLoc(ClientProt.OPLOC2, b, c, a);
-        } else if (action === 930) {
-            const com: Component = Component.instances[c];
-            this.spellSelected = 1;
-            this.activeSpellId = c;
-            this.activeSpellFlags = com.actionTarget;
-            this.objSelected = 0;
-
-            let prefix: string | null = com.actionVerb;
-            if (prefix && prefix.indexOf(' ') !== -1) {
-                prefix = prefix.substring(0, prefix.indexOf(' '));
-            }
-
-            let suffix: string | null = com.actionVerb;
-            if (suffix && suffix.indexOf(' ') !== -1) {
-                suffix = suffix.substring(suffix.indexOf(' ') + 1);
-            }
-
-            this.spellCaption = prefix + ' ' + com.action + ' ' + suffix;
-            if (this.activeSpellFlags === 16) {
-                this.redrawSidebar = true;
-                this.selectedTab = 3;
-                this.redrawSideicons = true;
-            }
-
-            return;
-        } else if (action === 951) {
-            const com: Component = Component.instances[c];
-            let notify: boolean = true;
-
-            if (com.clientCode > 0) {
-                notify = this.handleInterfaceAction(com);
-            }
-
-            if (notify) {
-                this.out.p1isaac(ClientProt.IF_BUTTON);
-                this.out.p2(c);
-            }
-        } else if (action === 602 || action === 596 || action === 22 || action === 892 || action === 415) {
-            if (action === 22) {
-                this.out.p1isaac(ClientProt.INV_BUTTON3);
-            } else if (action === 415) {
-                if ((c & 0x3) === 0) {
-                    Client.oplogic7++;
-                }
-
-                if (Client.oplogic7 >= 55) {
-                    this.out.p1isaac(ClientProt.ANTICHEAT_OPLOGIC7);
-                    this.out.p4(0);
-                }
-
-                this.out.p1isaac(ClientProt.INV_BUTTON5);
-            } else if (action === 602) {
-                this.out.p1isaac(ClientProt.INV_BUTTON1);
-            } else if (action === 892) {
-                if ((b & 0x3) === 0) {
-                    Client.oplogic9++;
-                }
-
-                if (Client.oplogic9 >= 130) {
-                    this.out.p1isaac(ClientProt.ANTICHEAT_OPLOGIC9);
-                    this.out.p1(177);
-                }
-
-                this.out.p1isaac(ClientProt.INV_BUTTON4);
-            } else if (action === 596) {
-                this.out.p1isaac(ClientProt.INV_BUTTON2);
-            }
-
-            this.out.p2(a);
-            this.out.p2(b);
-            this.out.p2(c);
-
-            this.selectedCycle = 0;
-            this.selectedInterface = c;
-            this.selectedItem = b;
-            this.selectedArea = 2;
-
-            if (Component.instances[c].layer === this.viewportInterfaceId) {
-                this.selectedArea = 1;
-            }
-
-            if (Component.instances[c].layer === this.chatInterfaceId) {
-                this.selectedArea = 3;
-            }
-        } else if (action === 581) {
-            if ((a & 0x3) === 0) {
-                Client.oplogic1++;
-            }
-
-            if (Client.oplogic1 >= 99) {
-                this.out.p1isaac(ClientProt.ANTICHEAT_OPLOGIC1);
-                this.out.p4(0);
-            }
-
-            this.interactWithLoc(ClientProt.OPLOC4, b, c, a);
-        } else if (action === 965) {
-            if (this.localPlayer) {
-                const success: boolean = this.tryMove(this.localPlayer.routeFlagX[0], this.localPlayer.routeFlagZ[0], b, c, 2, 0, 0, 0, 0, 0, false);
-                if (!success) {
-                    this.tryMove(this.localPlayer.routeFlagX[0], this.localPlayer.routeFlagZ[0], b, c, 2, 1, 1, 0, 0, 0, false);
-                }
-                this.crossX = this.mouseClickX;
-                this.crossY = this.mouseClickY;
-                this.crossMode = 2;
-                this.crossCycle = 0;
-
-                this.out.p1isaac(ClientProt.OPOBJT);
-                this.out.p2(b + this.sceneBaseTileX);
-                this.out.p2(c + this.sceneBaseTileZ);
-                this.out.p2(a);
-                this.out.p2(this.activeSpellId);
-            }
-        } else if (action === 1501) {
-            Client.oplogic6 += this.sceneBaseTileZ;
-            if (Client.oplogic6 >= 92) {
-                this.out.p1isaac(ClientProt.ANTICHEAT_OPLOGIC6);
-                this.out.p4(0);
-            }
-
-            this.interactWithLoc(ClientProt.OPLOC5, b, c, a);
-        } else if (action === 364) {
-            this.interactWithLoc(ClientProt.OPLOC3, b, c, a);
-        } else if (action === 1102) {
-            // obj examine
-            const obj: ObjType = ObjType.get(a);
-            let examine: string;
-
-            if (!obj.desc) {
-                examine = "It's a " + obj.name + '.';
-            } else {
-                examine = obj.desc;
-            }
-            this.addMessage(0, examine, '');
-        } else if (action === 960) {
-            this.out.p1isaac(ClientProt.IF_BUTTON);
-            this.out.p2(c);
-
-            const com: Component = Component.instances[c];
-            if (com.script && com.script[0] && com.script[0][0] === 5) {
-                const varp: number = com.script[0][1];
-                if (com.scriptOperand && this.varps[varp] !== com.scriptOperand[0]) {
-                    this.varps[varp] = com.scriptOperand[0];
-                    await this.updateVarp(varp);
-                    this.redrawSidebar = true;
-                }
-            }
-        } else if (action === 34) {
-            // reportabuse input
-            const option: string = this.menuOption[optionId];
-            const tag: number = option.indexOf('@whi@');
-
-            if (tag !== -1) {
-                this.closeInterfaces();
-
-                this.reportAbuseInput = option.substring(tag + 5).trim();
-                this.reportAbuseMuteOption = false;
-
-                for (let i: number = 0; i < Component.instances.length; i++) {
-                    if (Component.instances[i] && Component.instances[i].clientCode === ClientCode.CC_REPORT_INPUT) {
-                        this.reportAbuseInterfaceID = this.viewportInterfaceId = Component.instances[i].layer;
-                        break;
-                    }
-                }
-            }
-        } else if (action === 947) {
-            // close interfaces
-            this.closeInterfaces();
-        } else if (action === 367) {
-            const player: PlayerEntity | null = this.players[a];
-            if (player && this.localPlayer) {
-                this.tryMove(this.localPlayer.routeFlagX[0], this.localPlayer.routeFlagZ[0], player.routeFlagX[0], player.routeFlagZ[0], 2, 1, 1, 0, 0, 0, false);
-
-                this.crossX = this.mouseClickX;
-                this.crossY = this.mouseClickY;
-                this.crossMode = 2;
-                this.crossCycle = 0;
-
-                this.out.p1isaac(ClientProt.OPPLAYERU);
-                this.out.p2(a);
-                this.out.p2(this.objInterface);
-                this.out.p2(this.objSelectedSlot);
-                this.out.p2(this.objSelectedInterface);
-            }
-        } else if (action === 465) {
-            this.out.p1isaac(ClientProt.IF_BUTTON);
-            this.out.p2(c);
-
-            const com: Component = Component.instances[c];
-            if (com.script && com.script[0] && com.script[0][0] === 5) {
-                const varp: number = com.script[0][1];
-                this.varps[varp] = 1 - this.varps[varp];
-                await this.updateVarp(varp);
-                this.redrawSidebar = true;
-            }
-        } else if (action === 406 || action === 436 || action === 557 || action === 556) {
-            const option: string = this.menuOption[optionId];
-            const tag: number = option.indexOf('@whi@');
-
-            if (tag !== -1) {
-                const username: bigint = JString.toBase37(option.substring(tag + 5).trim());
-                if (action === 406) {
-                    this.addFriend(username);
-                } else if (action === 436) {
-                    this.addIgnore(username);
-                } else if (action === 557) {
-                    this.removeFriend(username);
-                } else if (action === 556) {
-                    this.removeIgnore(username);
-                }
-            }
-        } else if (action === 651) {
-            const player: PlayerEntity | null = this.players[a];
-
-            if (player && this.localPlayer) {
-                this.tryMove(this.localPlayer.routeFlagX[0], this.localPlayer.routeFlagZ[0], player.routeFlagX[0], player.routeFlagZ[0], 2, 1, 1, 0, 0, 0, false);
-
-                this.crossX = this.mouseClickX;
-                this.crossY = this.mouseClickY;
-                this.crossMode = 2;
-                this.crossCycle = 0;
-
-                this.out.p1isaac(ClientProt.OPPLAYERT);
-                this.out.p2(a);
-                this.out.p2(this.activeSpellId);
-            }
-        }
-
-        this.objSelected = 0;
-        this.spellSelected = 0;
-    }
-
-    private handleInterfaceAction(com: Component): boolean {
-        const clientCode: number = com.clientCode;
-        if (clientCode === ClientCode.CC_ADD_FRIEND) {
-            this.redrawChatback = true;
-            this.chatbackInputOpen = false;
-            this.showSocialInput = true;
-            this.socialInput = '';
-            this.socialAction = 1;
-            this.socialMessage = 'Enter name of friend to add to list';
-        }
-
-        if (clientCode === ClientCode.CC_DEL_FRIEND) {
-            this.redrawChatback = true;
-            this.chatbackInputOpen = false;
-            this.showSocialInput = true;
-            this.socialInput = '';
-            this.socialAction = 2;
-            this.socialMessage = 'Enter name of friend to delete from list';
-        }
-
-        if (clientCode === ClientCode.CC_LOGOUT) {
-            this.idleTimeout = 250;
-            return true;
-        }
-
-        if (clientCode === ClientCode.CC_ADD_IGNORE) {
-            this.redrawChatback = true;
-            this.chatbackInputOpen = false;
-            this.showSocialInput = true;
-            this.socialInput = '';
-            this.socialAction = 4;
-            this.socialMessage = 'Enter name of player to add to list';
-        }
-
-        if (clientCode === ClientCode.CC_DEL_IGNORE) {
-            this.redrawChatback = true;
-            this.chatbackInputOpen = false;
-            this.showSocialInput = true;
-            this.socialInput = '';
-            this.socialAction = 5;
-            this.socialMessage = 'Enter name of player to delete from list';
-        }
-
-        // physical parts
-        if (clientCode >= ClientCode.CC_CHANGE_HEAD_L && clientCode <= ClientCode.CC_CHANGE_FEET_R) {
-            const part: number = ((clientCode - 300) / 2) | 0;
-            const direction: number = clientCode & 0x1;
-            let kit: number = this.designIdentikits[part];
-
-            if (kit !== -1) {
-                // eslint-disable-next-line no-constant-condition
-                while (true) {
-                    if (direction === 0) {
-                        kit--;
-                        if (kit < 0) {
-                            kit = IdkType.totalCount - 1;
-                        }
-                    }
-
-                    if (direction === 1) {
-                        kit++;
-                        if (kit >= IdkType.totalCount) {
-                            kit = 0;
-                        }
-                    }
-
-                    if (!IdkType.instances[kit].disableKit && IdkType.instances[kit].bodyPart === part + (this.designGenderMale ? 0 : 7)) {
-                        this.designIdentikits[part] = kit;
-                        this.updateDesignModel = true;
-                        break;
-                    }
-                }
-            }
-        }
-
-        // recoloring parts
-        if (clientCode >= ClientCode.CC_RECOLOUR_HAIR_L && clientCode <= ClientCode.CC_RECOLOUR_SKIN_R) {
-            const part: number = ((clientCode - 314) / 2) | 0;
-            const direction: number = clientCode & 0x1;
-            let color: number = this.designColors[part];
-
-            if (direction === 0) {
-                color--;
-                if (color < 0) {
-                    color = PlayerEntity.DESIGN_IDK_COLORS[part].length - 1;
-                }
-            }
-
-            if (direction === 1) {
-                color++;
-                if (color >= PlayerEntity.DESIGN_IDK_COLORS[part].length) {
-                    color = 0;
-                }
-            }
-
-            this.designColors[part] = color;
-            this.updateDesignModel = true;
-        }
-
-        if (clientCode === ClientCode.CC_SWITCH_TO_MALE && !this.designGenderMale) {
-            this.designGenderMale = true;
-            this.validateCharacterDesign();
-        }
-
-        if (clientCode === ClientCode.CC_SWITCH_TO_FEMALE && this.designGenderMale) {
-            this.designGenderMale = false;
-            this.validateCharacterDesign();
-        }
-
-        if (clientCode === ClientCode.CC_ACCEPT_DESIGN) {
-            this.out.p1isaac(ClientProt.IF_PLAYERDESIGN);
-            this.out.p1(this.designGenderMale ? 0 : 1);
-            for (let i: number = 0; i < 7; i++) {
-                this.out.p1(this.designIdentikits[i]);
-            }
-            for (let i: number = 0; i < 5; i++) {
-                this.out.p1(this.designColors[i]);
-            }
-            return true;
-        }
-
-        if (clientCode === ClientCode.CC_MOD_MUTE) {
-            this.reportAbuseMuteOption = !this.reportAbuseMuteOption;
-        }
-
-        // reportabuse rules options
-        if (clientCode >= ClientCode.CC_REPORT_RULE1 && clientCode <= ClientCode.CC_REPORT_RULE12) {
-            this.closeInterfaces();
-
-            if (this.reportAbuseInput.length > 0) {
-                this.out.p1isaac(ClientProt.REPORT_ABUSE);
-                this.out.p8(JString.toBase37(this.reportAbuseInput));
-                this.out.p1(clientCode - 601);
-                this.out.p1(this.reportAbuseMuteOption ? 1 : 0);
-            }
-        }
-        return false;
-    }
-
-    private validateCharacterDesign(): void {
-        this.updateDesignModel = true;
-
-        for (let i: number = 0; i < 7; i++) {
-            this.designIdentikits[i] = -1;
-
-            for (let j: number = 0; j < IdkType.totalCount; j++) {
-                if (!IdkType.instances[j].disableKit && IdkType.instances[j].bodyPart === i + (this.designGenderMale ? 0 : 7)) {
-                    this.designIdentikits[i] = j;
-                    break;
-                }
-            }
-        }
-    }
-
     private interactWithLoc(opcode: number, x: number, z: number, typecode: number): boolean {
         if (!this.localPlayer || !this.scene) {
             return false;
@@ -5223,734 +5399,266 @@ export class Client extends GameShell {
         return true;
     }
 
-    private handleTabInput(): void {
-        if (this.mouseClickButton === 1) {
-            if (this.mouseClickX >= 549 && this.mouseClickX <= 583 && this.mouseClickY >= 195 && this.mouseClickY < 231 && this.tabInterfaceId[0] !== -1) {
-                this.redrawSidebar = true;
-                this.selectedTab = 0;
-                this.redrawSideicons = true;
-            } else if (this.mouseClickX >= 579 && this.mouseClickX <= 609 && this.mouseClickY >= 194 && this.mouseClickY < 231 && this.tabInterfaceId[1] !== -1) {
-                this.redrawSidebar = true;
-                this.selectedTab = 1;
-                this.redrawSideicons = true;
-            } else if (this.mouseClickX >= 607 && this.mouseClickX <= 637 && this.mouseClickY >= 194 && this.mouseClickY < 231 && this.tabInterfaceId[2] !== -1) {
-                this.redrawSidebar = true;
-                this.selectedTab = 2;
-                this.redrawSideicons = true;
-            } else if (this.mouseClickX >= 635 && this.mouseClickX <= 679 && this.mouseClickY >= 194 && this.mouseClickY < 229 && this.tabInterfaceId[3] !== -1) {
-                this.redrawSidebar = true;
-                this.selectedTab = 3;
-                this.redrawSideicons = true;
-            } else if (this.mouseClickX >= 676 && this.mouseClickX <= 706 && this.mouseClickY >= 194 && this.mouseClickY < 231 && this.tabInterfaceId[4] !== -1) {
-                this.redrawSidebar = true;
-                this.selectedTab = 4;
-                this.redrawSideicons = true;
-            } else if (this.mouseClickX >= 704 && this.mouseClickX <= 734 && this.mouseClickY >= 194 && this.mouseClickY < 231 && this.tabInterfaceId[5] !== -1) {
-                this.redrawSidebar = true;
-                this.selectedTab = 5;
-                this.redrawSideicons = true;
-            } else if (this.mouseClickX >= 732 && this.mouseClickX <= 766 && this.mouseClickY >= 195 && this.mouseClickY < 231 && this.tabInterfaceId[6] !== -1) {
-                this.redrawSidebar = true;
-                this.selectedTab = 6;
-                this.redrawSideicons = true;
-            } else if (this.mouseClickX >= 550 && this.mouseClickX <= 584 && this.mouseClickY >= 492 && this.mouseClickY < 528 && this.tabInterfaceId[7] !== -1) {
-                this.redrawSidebar = true;
-                this.selectedTab = 7;
-                this.redrawSideicons = true;
-            } else if (this.mouseClickX >= 582 && this.mouseClickX <= 612 && this.mouseClickY >= 492 && this.mouseClickY < 529 && this.tabInterfaceId[8] !== -1) {
-                this.redrawSidebar = true;
-                this.selectedTab = 8;
-                this.redrawSideicons = true;
-            } else if (this.mouseClickX >= 609 && this.mouseClickX <= 639 && this.mouseClickY >= 492 && this.mouseClickY < 529 && this.tabInterfaceId[9] !== -1) {
-                this.redrawSidebar = true;
-                this.selectedTab = 9;
-                this.redrawSideicons = true;
-            } else if (this.mouseClickX >= 637 && this.mouseClickX <= 681 && this.mouseClickY >= 493 && this.mouseClickY < 528 && this.tabInterfaceId[10] !== -1) {
-                this.redrawSidebar = true;
-                this.selectedTab = 10;
-                this.redrawSideicons = true;
-            } else if (this.mouseClickX >= 679 && this.mouseClickX <= 709 && this.mouseClickY >= 492 && this.mouseClickY < 529 && this.tabInterfaceId[11] !== -1) {
-                this.redrawSidebar = true;
-                this.selectedTab = 11;
-                this.redrawSideicons = true;
-            } else if (this.mouseClickX >= 706 && this.mouseClickX <= 736 && this.mouseClickY >= 492 && this.mouseClickY < 529 && this.tabInterfaceId[12] !== -1) {
-                this.redrawSidebar = true;
-                this.selectedTab = 12;
-                this.redrawSideicons = true;
-            } else if (this.mouseClickX >= 734 && this.mouseClickX <= 768 && this.mouseClickY >= 492 && this.mouseClickY < 528 && this.tabInterfaceId[13] !== -1) {
-                this.redrawSidebar = true;
-                this.selectedTab = 13;
-                this.redrawSideicons = true;
-            }
+    private tryMove(srcX: number, srcZ: number, dx: number, dz: number, type: number, locWidth: number, locLength: number, locAngle: number, locShape: number, forceapproach: number, tryNearest: boolean): boolean {
+        const collisionMap: CollisionMap | null = this.levelCollisionMap[this.currentLevel];
+        if (!collisionMap) {
+            return false;
+        }
 
-            Client.cyclelogic1++;
-            if (Client.cyclelogic1 > 150) {
-                Client.cyclelogic1 = 0;
-                this.out.p1isaac(ClientProt.ANTICHEAT_CYCLELOGIC1);
-                this.out.p1(43);
+        const sceneWidth: number = CollisionConstants.SIZE;
+        const sceneLength: number = CollisionConstants.SIZE;
+
+        for (let x: number = 0; x < sceneWidth; x++) {
+            for (let z: number = 0; z < sceneLength; z++) {
+                const index: number = CollisionMap.index(x, z);
+                this.bfsDirection[index] = 0;
+                this.bfsCost[index] = 99999999;
             }
         }
-    }
 
-    private async handleInputKey(): Promise<void> {
-        // eslint-disable-next-line no-constant-condition
-        while (true) {
-            let key: number;
-            do {
-                // eslint-disable-next-line no-constant-condition
-                while (true) {
-                    key = this.pollKey();
-                    if (key === -1) {
-                        return;
+        let x: number = srcX;
+        let z: number = srcZ;
+
+        const srcIndex: number = CollisionMap.index(srcX, srcZ);
+        this.bfsDirection[srcIndex] = 99;
+        this.bfsCost[srcIndex] = 0;
+
+        let steps: number = 0;
+        let length: number = 0;
+
+        this.bfsStepX[steps] = srcX;
+        this.bfsStepZ[steps++] = srcZ;
+
+        let arrived: boolean = false;
+        let bufferSize: number = this.bfsStepX.length;
+        const flags: Int32Array = collisionMap.flags;
+
+        while (length !== steps) {
+            x = this.bfsStepX[length];
+            z = this.bfsStepZ[length];
+            length = (length + 1) % bufferSize;
+
+            if (x === dx && z === dz) {
+                arrived = true;
+                break;
+            }
+
+            if (locShape !== LocShape.WALL_STRAIGHT.id) {
+                if ((locShape < LocShape.WALLDECOR_STRAIGHT_OFFSET.id || locShape === LocShape.CENTREPIECE_STRAIGHT.id) && collisionMap.reachedWall(x, z, dx, dz, locShape - 1, locAngle)) {
+                    arrived = true;
+                    break;
+                }
+
+                if (locShape < LocShape.CENTREPIECE_STRAIGHT.id && collisionMap.reachedWallDecoration(x, z, dx, dz, locShape - 1, locAngle)) {
+                    arrived = true;
+                    break;
+                }
+            }
+
+            if (locWidth !== 0 && locLength !== 0 && collisionMap.reachedLoc(x, z, dx, dz, locWidth, locLength, forceapproach)) {
+                arrived = true;
+                break;
+            }
+
+            const nextCost: number = this.bfsCost[CollisionMap.index(x, z)] + 1;
+            let index: number = CollisionMap.index(x - 1, z);
+            if (x > 0 && this.bfsDirection[index] === 0 && (flags[index] & CollisionFlag.BLOCK_WEST) === CollisionFlag.OPEN) {
+                this.bfsStepX[steps] = x - 1;
+                this.bfsStepZ[steps] = z;
+                steps = (steps + 1) % bufferSize;
+                this.bfsDirection[index] = 2;
+                this.bfsCost[index] = nextCost;
+            }
+
+            index = CollisionMap.index(x + 1, z);
+            if (x < sceneWidth - 1 && this.bfsDirection[index] === 0 && (flags[index] & CollisionFlag.BLOCK_EAST) === CollisionFlag.OPEN) {
+                this.bfsStepX[steps] = x + 1;
+                this.bfsStepZ[steps] = z;
+                steps = (steps + 1) % bufferSize;
+                this.bfsDirection[index] = 8;
+                this.bfsCost[index] = nextCost;
+            }
+
+            index = CollisionMap.index(x, z - 1);
+            if (z > 0 && this.bfsDirection[index] === 0 && (flags[index] & CollisionFlag.BLOCK_SOUTH) === CollisionFlag.OPEN) {
+                this.bfsStepX[steps] = x;
+                this.bfsStepZ[steps] = z - 1;
+                steps = (steps + 1) % bufferSize;
+                this.bfsDirection[index] = 1;
+                this.bfsCost[index] = nextCost;
+            }
+
+            index = CollisionMap.index(x, z + 1);
+            if (z < sceneLength - 1 && this.bfsDirection[index] === 0 && (flags[index] & CollisionFlag.BLOCK_NORTH) === CollisionFlag.OPEN) {
+                this.bfsStepX[steps] = x;
+                this.bfsStepZ[steps] = z + 1;
+                steps = (steps + 1) % bufferSize;
+                this.bfsDirection[index] = 4;
+                this.bfsCost[index] = nextCost;
+            }
+
+            index = CollisionMap.index(x - 1, z - 1);
+            if (
+                x > 0 &&
+                z > 0 &&
+                this.bfsDirection[index] === 0 &&
+                (flags[index] & CollisionFlag.BLOCK_SOUTH_WEST) === 0 &&
+                (flags[CollisionMap.index(x - 1, z)] & CollisionFlag.BLOCK_WEST) === CollisionFlag.OPEN &&
+                (flags[CollisionMap.index(x, z - 1)] & CollisionFlag.BLOCK_SOUTH) === CollisionFlag.OPEN
+            ) {
+                this.bfsStepX[steps] = x - 1;
+                this.bfsStepZ[steps] = z - 1;
+                steps = (steps + 1) % bufferSize;
+                this.bfsDirection[index] = 3;
+                this.bfsCost[index] = nextCost;
+            }
+
+            index = CollisionMap.index(x + 1, z - 1);
+            if (
+                x < sceneWidth - 1 &&
+                z > 0 &&
+                this.bfsDirection[index] === 0 &&
+                (flags[index] & CollisionFlag.BLOCK_SOUTH_EAST) === 0 &&
+                (flags[CollisionMap.index(x + 1, z)] & CollisionFlag.BLOCK_EAST) === CollisionFlag.OPEN &&
+                (flags[CollisionMap.index(x, z - 1)] & CollisionFlag.BLOCK_SOUTH) === CollisionFlag.OPEN
+            ) {
+                this.bfsStepX[steps] = x + 1;
+                this.bfsStepZ[steps] = z - 1;
+                steps = (steps + 1) % bufferSize;
+                this.bfsDirection[index] = 9;
+                this.bfsCost[index] = nextCost;
+            }
+
+            index = CollisionMap.index(x - 1, z + 1);
+            if (
+                x > 0 &&
+                z < sceneLength - 1 &&
+                this.bfsDirection[index] === 0 &&
+                (flags[index] & CollisionFlag.BLOCK_NORTH_WEST) === 0 &&
+                (flags[CollisionMap.index(x - 1, z)] & CollisionFlag.BLOCK_WEST) === CollisionFlag.OPEN &&
+                (flags[CollisionMap.index(x, z + 1)] & CollisionFlag.BLOCK_NORTH) === CollisionFlag.OPEN
+            ) {
+                this.bfsStepX[steps] = x - 1;
+                this.bfsStepZ[steps] = z + 1;
+                steps = (steps + 1) % bufferSize;
+                this.bfsDirection[index] = 6;
+                this.bfsCost[index] = nextCost;
+            }
+
+            index = CollisionMap.index(x + 1, z + 1);
+            if (
+                x < sceneWidth - 1 &&
+                z < sceneLength - 1 &&
+                this.bfsDirection[index] === 0 &&
+                (flags[index] & CollisionFlag.BLOCK_NORTH_EAST) === 0 &&
+                (flags[CollisionMap.index(x + 1, z)] & CollisionFlag.BLOCK_EAST) === CollisionFlag.OPEN &&
+                (flags[CollisionMap.index(x, z + 1)] & CollisionFlag.BLOCK_NORTH) === CollisionFlag.OPEN
+            ) {
+                this.bfsStepX[steps] = x + 1;
+                this.bfsStepZ[steps] = z + 1;
+                steps = (steps + 1) % bufferSize;
+                this.bfsDirection[index] = 12;
+                this.bfsCost[index] = nextCost;
+            }
+        }
+
+        this.tryMoveNearest = 0;
+
+        if (!arrived) {
+            if (tryNearest) {
+                let min: number = 100;
+                for (let padding: number = 1; padding < 2; padding++) {
+                    for (let px: number = dx - padding; px <= dx + padding; px++) {
+                        for (let pz: number = dz - padding; pz <= dz + padding; pz++) {
+                            const index: number = CollisionMap.index(px, pz);
+                            if (px >= 0 && pz >= 0 && px < CollisionConstants.SIZE && pz < CollisionConstants.SIZE && this.bfsCost[index] < min) {
+                                min = this.bfsCost[index];
+                                x = px;
+                                z = pz;
+                                this.tryMoveNearest = 1;
+                                arrived = true;
+                            }
+                        }
                     }
 
-                    if (this.viewportInterfaceId !== -1 && this.viewportInterfaceId === this.reportAbuseInterfaceID) {
-                        if (key === 8 && this.reportAbuseInput.length > 0) {
-                            this.reportAbuseInput = this.reportAbuseInput.substring(0, this.reportAbuseInput.length - 1);
-                        }
+                    if (arrived) {
                         break;
                     }
-
-                    if (this.showSocialInput) {
-                        if (key >= 32 && key <= 122 && this.socialInput.length < 80) {
-                            this.socialInput = this.socialInput + String.fromCharCode(key);
-                            this.redrawChatback = true;
-                        }
-
-                        if (key === 8 && this.socialInput.length > 0) {
-                            this.socialInput = this.socialInput.substring(0, this.socialInput.length - 1);
-                            this.redrawChatback = true;
-                        }
-
-                        if (key === 13 || key === 10) {
-                            this.showSocialInput = false;
-                            this.redrawChatback = true;
-
-                            let username: bigint;
-                            if (this.socialAction === 1) {
-                                username = JString.toBase37(this.socialInput);
-                                this.addFriend(username);
-                            }
-
-                            if (this.socialAction === 2 && this.friendCount > 0) {
-                                username = JString.toBase37(this.socialInput);
-                                this.removeFriend(username);
-                            }
-
-                            if (this.socialAction === 3 && this.socialInput.length > 0 && this.socialName37) {
-                                this.out.p1isaac(ClientProt.MESSAGE_PRIVATE);
-                                this.out.p1(0);
-                                const start: number = this.out.pos;
-
-                                this.out.p8(this.socialName37);
-                                WordPack.pack(this.out, this.socialInput);
-                                this.out.psize1(this.out.pos - start);
-
-                                this.socialInput = JString.toSentenceCase(this.socialInput);
-                                this.socialInput = WordFilter.filter(this.socialInput);
-                                this.addMessage(6, this.socialInput, JString.formatName(JString.fromBase37(this.socialName37)));
-
-                                if (this.privateChatSetting === 2) {
-                                    this.privateChatSetting = 1;
-                                    this.redrawPrivacySettings = true;
-
-                                    this.out.p1isaac(ClientProt.CHAT_SETMODE);
-                                    this.out.p1(this.publicChatSetting);
-                                    this.out.p1(this.privateChatSetting);
-                                    this.out.p1(this.tradeChatSetting);
-                                }
-                            }
-
-                            if (this.socialAction === 4 && this.ignoreCount < 100) {
-                                username = JString.toBase37(this.socialInput);
-                                this.addIgnore(username);
-                            }
-
-                            if (this.socialAction === 5 && this.ignoreCount > 0) {
-                                username = JString.toBase37(this.socialInput);
-                                this.removeIgnore(username);
-                            }
-                        }
-                    } else if (this.chatbackInputOpen) {
-                        if (key >= 48 && key <= 57 && this.chatbackInput.length < 10) {
-                            this.chatbackInput = this.chatbackInput + String.fromCharCode(key);
-                            this.redrawChatback = true;
-                        }
-
-                        if (key === 8 && this.chatbackInput.length > 0) {
-                            this.chatbackInput = this.chatbackInput.substring(0, this.chatbackInput.length - 1);
-                            this.redrawChatback = true;
-                        }
-
-                        if (key === 13 || key === 10) {
-                            if (this.chatbackInput.length > 0) {
-                                let value: number = 0;
-                                try {
-                                    value = parseInt(this.chatbackInput, 10);
-                                } catch (e) {
-                                    /* empty */
-                                }
-                                this.out.p1isaac(ClientProt.RESUME_P_COUNTDIALOG);
-                                this.out.p4(value);
-                            }
-                            this.chatbackInputOpen = false;
-                            this.redrawChatback = true;
-                        }
-                    } else if (this.chatInterfaceId === -1) {
-                        // CUSTOM: the original client checked `key <= 122`
-                        // however we support "debugprocs" (came much later) and they need to start with a special character
-                        if (key >= 32 && (key <= 122 || (this.chatTyped.startsWith('::') && key <= 126)) && this.chatTyped.length < 80) {
-                            this.chatTyped = this.chatTyped + String.fromCharCode(key);
-                            this.redrawChatback = true;
-                        }
-
-                        if (key === 8 && this.chatTyped.length > 0) {
-                            this.chatTyped = this.chatTyped.substring(0, this.chatTyped.length - 1);
-                            this.redrawChatback = true;
-                        }
-
-                        if ((key === 13 || key === 10) && this.chatTyped.length > 0) {
-                            if (this.chatTyped.startsWith('::')) {
-                                if (this.chatTyped === '::fpson') {
-                                    // authentic in later revs
-                                    this.displayFps = true;
-                                } else if (this.chatTyped === '::fpsoff') {
-                                    // authentic in later revs
-                                    this.displayFps = false;
-                                } else if (this.chatTyped.startsWith('::fps ')) {
-                                    // custom ::fps command for setting a target framerate
-                                    try {
-                                        const desiredFps = parseInt(this.chatTyped.substring(6)) || 50;
-                                        this.setTargetedFramerate(desiredFps);
-                                    } catch (e) { }
-                                } else {
-                                    this.out.p1isaac(ClientProt.CLIENT_CHEAT);
-                                    this.out.p1(this.chatTyped.length - 1);
-                                    this.out.pjstr(this.chatTyped.substring(2));
-                                }
-                            } else {
-                                let color: number = 0;
-                                if (this.chatTyped.startsWith('yellow:')) {
-                                    color = 0;
-                                    this.chatTyped = this.chatTyped.substring(7);
-                                } else if (this.chatTyped.startsWith('red:')) {
-                                    color = 1;
-                                    this.chatTyped = this.chatTyped.substring(4);
-                                } else if (this.chatTyped.startsWith('green:')) {
-                                    color = 2;
-                                    this.chatTyped = this.chatTyped.substring(6);
-                                } else if (this.chatTyped.startsWith('cyan:')) {
-                                    color = 3;
-                                    this.chatTyped = this.chatTyped.substring(5);
-                                } else if (this.chatTyped.startsWith('purple:')) {
-                                    color = 4;
-                                    this.chatTyped = this.chatTyped.substring(7);
-                                } else if (this.chatTyped.startsWith('white:')) {
-                                    color = 5;
-                                    this.chatTyped = this.chatTyped.substring(6);
-                                } else if (this.chatTyped.startsWith('flash1:')) {
-                                    color = 6;
-                                    this.chatTyped = this.chatTyped.substring(7);
-                                } else if (this.chatTyped.startsWith('flash2:')) {
-                                    color = 7;
-                                    this.chatTyped = this.chatTyped.substring(7);
-                                } else if (this.chatTyped.startsWith('flash3:')) {
-                                    color = 8;
-                                    this.chatTyped = this.chatTyped.substring(7);
-                                } else if (this.chatTyped.startsWith('glow1:')) {
-                                    color = 9;
-                                    this.chatTyped = this.chatTyped.substring(6);
-                                } else if (this.chatTyped.startsWith('glow2:')) {
-                                    color = 10;
-                                    this.chatTyped = this.chatTyped.substring(6);
-                                } else if (this.chatTyped.startsWith('glow3:')) {
-                                    color = 11;
-                                    this.chatTyped = this.chatTyped.substring(6);
-                                }
-
-                                let effect: number = 0;
-                                if (this.chatTyped.startsWith('wave:')) {
-                                    effect = 1;
-                                    this.chatTyped = this.chatTyped.substring(5);
-                                }
-                                if (this.chatTyped.startsWith('scroll:')) {
-                                    effect = 2;
-                                    this.chatTyped = this.chatTyped.substring(7);
-                                }
-
-                                this.out.p1isaac(ClientProt.MESSAGE_PUBLIC);
-                                this.out.p1(0);
-                                const start: number = this.out.pos;
-                                this.out.p1(color);
-                                this.out.p1(effect);
-                                WordPack.pack(this.out, this.chatTyped);
-                                this.out.psize1(this.out.pos - start);
-
-                                this.chatTyped = JString.toSentenceCase(this.chatTyped);
-                                this.chatTyped = WordFilter.filter(this.chatTyped);
-
-                                if (this.localPlayer && this.localPlayer.name) {
-                                    this.localPlayer.chat = this.chatTyped;
-                                    this.localPlayer.chatColor = color;
-                                    this.localPlayer.chatStyle = effect;
-                                    this.localPlayer.chatTimer = 150;
-                                    this.addMessage(2, this.localPlayer.chat, this.localPlayer.name);
-                                }
-
-                                if (this.publicChatSetting === 2) {
-                                    this.publicChatSetting = 3;
-                                    this.redrawPrivacySettings = true;
-                                    this.out.p1isaac(ClientProt.CHAT_SETMODE);
-                                    this.out.p1(this.publicChatSetting);
-                                    this.out.p1(this.privateChatSetting);
-                                    this.out.p1(this.tradeChatSetting);
-                                }
-                            }
-
-                            this.chatTyped = '';
-                            this.redrawChatback = true;
-                        }
-                    }
-                }
-            } while ((key < 97 || key > 122) && (key < 65 || key > 90) && (key < 48 || key > 57) && key !== 32);
-
-            if (this.reportAbuseInput.length < 12) {
-                this.reportAbuseInput = this.reportAbuseInput + String.fromCharCode(key);
-            }
-        }
-    }
-
-    private handleChatSettingsInput(): void {
-        if (this.mouseClickButton === 1) {
-            if (this.mouseClickX >= 8 && this.mouseClickX <= 108 && this.mouseClickY >= 490 && this.mouseClickY <= 522) {
-                this.publicChatSetting = (this.publicChatSetting + 1) % 4;
-                this.redrawPrivacySettings = true;
-                this.redrawChatback = true;
-
-                this.out.p1isaac(ClientProt.CHAT_SETMODE);
-                this.out.p1(this.publicChatSetting);
-                this.out.p1(this.privateChatSetting);
-                this.out.p1(this.tradeChatSetting);
-            } else if (this.mouseClickX >= 137 && this.mouseClickX <= 237 && this.mouseClickY >= 490 && this.mouseClickY <= 522) {
-                this.privateChatSetting = (this.privateChatSetting + 1) % 3;
-                this.redrawPrivacySettings = true;
-                this.redrawChatback = true;
-
-                this.out.p1isaac(ClientProt.CHAT_SETMODE);
-                this.out.p1(this.publicChatSetting);
-                this.out.p1(this.privateChatSetting);
-                this.out.p1(this.tradeChatSetting);
-            } else if (this.mouseClickX >= 275 && this.mouseClickX <= 375 && this.mouseClickY >= 490 && this.mouseClickY <= 522) {
-                this.tradeChatSetting = (this.tradeChatSetting + 1) % 3;
-                this.redrawPrivacySettings = true;
-                this.redrawChatback = true;
-
-                this.out.p1isaac(ClientProt.CHAT_SETMODE);
-                this.out.p1(this.publicChatSetting);
-                this.out.p1(this.privateChatSetting);
-                this.out.p1(this.tradeChatSetting);
-            } else if (this.mouseClickX >= 416 && this.mouseClickX <= 516 && this.mouseClickY >= 490 && this.mouseClickY <= 522) {
-                this.closeInterfaces();
-
-                this.reportAbuseInput = '';
-                this.reportAbuseMuteOption = false;
-
-                for (let i: number = 0; i < Component.instances.length; i++) {
-                    if (Component.instances[i] && Component.instances[i].clientCode === 600) {
-                        this.reportAbuseInterfaceID = this.viewportInterfaceId = Component.instances[i].layer;
-                        return;
-                    }
                 }
             }
-        }
-    }
 
-    private handleScrollInput(mouseX: number, mouseY: number, scrollableHeight: number, height: number, redraw: boolean, left: number, top: number, component: Component): void {
-        if (this.scrollGrabbed) {
-            this.scrollInputPadding = 32;
-        } else {
-            this.scrollInputPadding = 0;
-        }
-
-        this.scrollGrabbed = false;
-
-        if (mouseX >= left && mouseX < left + 16 && mouseY >= top && mouseY < top + 16) {
-            component.scrollPosition -= this.dragCycles * 4;
-            if (redraw) {
-                this.redrawSidebar = true;
-            }
-        } else if (mouseX >= left && mouseX < left + 16 && mouseY >= top + height - 16 && mouseY < top + height) {
-            component.scrollPosition += this.dragCycles * 4;
-            if (redraw) {
-                this.redrawSidebar = true;
-            }
-        } else if (mouseX >= left - this.scrollInputPadding && mouseX < left + this.scrollInputPadding + 16 && mouseY >= top + 16 && mouseY < top + height - 16 && this.dragCycles > 0) {
-            let gripSize: number = (((height - 32) * height) / scrollableHeight) | 0;
-            if (gripSize < 8) {
-                gripSize = 8;
-            }
-            const gripY: number = mouseY - top - ((gripSize / 2) | 0) - 16;
-            const maxY: number = height - gripSize - 32;
-            component.scrollPosition = (((scrollableHeight - height) * gripY) / maxY) | 0;
-            if (redraw) {
-                this.redrawSidebar = true;
-            }
-            this.scrollGrabbed = true;
-        }
-    }
-
-    private prepareGameScreen(): void {
-        if (!this.areaChatback) {
-            this.unloadTitle();
-            this.drawArea = null;
-            this.imageTitle2 = null;
-            this.imageTitle3 = null;
-            this.imageTitle4 = null;
-            this.imageTitle0 = null;
-            this.imageTitle1 = null;
-            this.imageTitle5 = null;
-            this.imageTitle6 = null;
-            this.imageTitle7 = null;
-            this.imageTitle8 = null;
-            this.areaChatback = new PixMap(479, 96);
-            this.areaMapback = new PixMap(168, 160);
-            Pix2D.clear();
-            this.imageMapback?.draw(0, 0);
-            this.areaSidebar = new PixMap(190, 261);
-            this.areaViewport = new PixMap(512, 334);
-            Pix2D.clear();
-            this.areaBackbase1 = new PixMap(501, 61);
-            this.areaBackbase2 = new PixMap(288, 40);
-            this.areaBackhmid1 = new PixMap(269, 66);
-            this.redrawTitleBackground = true;
-        }
-    }
-
-    private isFriend(username: string | null): boolean {
-        if (!username) {
-            return false;
-        }
-
-        for (let i: number = 0; i < this.friendCount; i++) {
-            if (username.toLowerCase() === this.friendName[i]?.toLowerCase()) {
-                return true;
+            if (!arrived) {
+                return false;
             }
         }
 
-        if (!this.localPlayer) {
-            return false;
-        }
+        length = 0;
+        this.bfsStepX[length] = x;
+        this.bfsStepZ[length++] = z;
 
-        return username.toLowerCase() === this.localPlayer.name?.toLowerCase();
-    }
-
-    private addFriend(username: bigint): void {
-        if (username === 0n) {
-            return;
-        }
-
-        if (this.friendCount >= 100) {
-            this.addMessage(0, 'Your friends list is full. Max of 100 hit', '');
-            return;
-        }
-
-        const displayName: string = JString.formatName(JString.fromBase37(username));
-        for (let i: number = 0; i < this.friendCount; i++) {
-            if (this.friendName37[i] === username) {
-                this.addMessage(0, displayName + ' is already on your friend list', '');
-                return;
-            }
-        }
-
-        for (let i: number = 0; i < this.ignoreCount; i++) {
-            if (this.ignoreName37[i] === username) {
-                this.addMessage(0, 'Please remove ' + displayName + ' from your ignore list first', '');
-                return;
-            }
-        }
-
-        if (!this.localPlayer || !this.localPlayer.name) {
-            return;
-        }
-        if (displayName !== this.localPlayer.name) {
-            this.friendName[this.friendCount] = displayName;
-            this.friendName37[this.friendCount] = username;
-            this.friendWorld[this.friendCount] = 0;
-            this.friendCount++;
-            this.redrawSidebar = true;
-
-            this.out.p1isaac(ClientProt.FRIENDLIST_ADD);
-            this.out.p8(username);
-        }
-    }
-
-    private removeFriend(username: bigint): void {
-        if (username === 0n) {
-            return;
-        }
-
-        for (let i: number = 0; i < this.friendCount; i++) {
-            if (this.friendName37[i] === username) {
-                this.friendCount--;
-                this.redrawSidebar = true;
-                for (let j: number = i; j < this.friendCount; j++) {
-                    this.friendName[j] = this.friendName[j + 1];
-                    this.friendWorld[j] = this.friendWorld[j + 1];
-                    this.friendName37[j] = this.friendName37[j + 1];
-                }
-                this.out.p1isaac(ClientProt.FRIENDLIST_DEL);
-                this.out.p8(username);
-                return;
-            }
-        }
-    }
-
-    private addIgnore(username: bigint): void {
-        if (username === 0n) {
-            return;
-        }
-
-        if (this.ignoreCount >= 100) {
-            this.addMessage(0, 'Your ignore list is full. Max of 100 hit', '');
-            return;
-        }
-
-        const displayName: string = JString.formatName(JString.fromBase37(username));
-        for (let i: number = 0; i < this.ignoreCount; i++) {
-            if (this.ignoreName37[i] === username) {
-                this.addMessage(0, displayName + ' is already on your ignore list', '');
-                return;
-            }
-        }
-
-        for (let i: number = 0; i < this.friendCount; i++) {
-            if (this.friendName37[i] === username) {
-                this.addMessage(0, 'Please remove ' + displayName + ' from your friend list first', '');
-                return;
-            }
-        }
-
-        this.ignoreName37[this.ignoreCount++] = username;
-        this.redrawSidebar = true;
-        this.out.p1isaac(ClientProt.IGNORELIST_ADD);
-        this.out.p8(username);
-    }
-
-    private removeIgnore(username: bigint): void {
-        if (username === 0n) {
-            return;
-        }
-
-        for (let i: number = 0; i < this.ignoreCount; i++) {
-            if (this.ignoreName37[i] === username) {
-                this.ignoreCount--;
-                this.redrawSidebar = true;
-                for (let j: number = i; j < this.ignoreCount; j++) {
-                    this.ignoreName37[j] = this.ignoreName37[j + 1];
-                }
-                this.out.p1isaac(ClientProt.IGNORELIST_DEL);
-                this.out.p8(username);
-                return;
-            }
-        }
-    }
-
-    private sortObjStacks(x: number, z: number): void {
-        const objStacks: LinkList | null = this.objStacks[this.currentLevel][x][z];
-        if (!objStacks) {
-            this.scene?.removeObjStack(this.currentLevel, x, z);
-            return;
-        }
-
-        let topCost: number = -99999999;
-        let topObj: ObjStackEntity | null = null;
-
-        for (let obj: ObjStackEntity | null = objStacks.head() as ObjStackEntity | null; obj; obj = objStacks.next() as ObjStackEntity | null) {
-            const type: ObjType = ObjType.get(obj.index);
-            let cost: number = type.cost;
-
-            if (type.stackable) {
-                cost *= obj.count + 1;
+        let dir: number = this.bfsDirection[CollisionMap.index(x, z)];
+        let next: number = dir;
+        while (x !== srcX || z !== srcZ) {
+            if (next !== dir) {
+                dir = next;
+                this.bfsStepX[length] = x;
+                this.bfsStepZ[length++] = z;
             }
 
-            if (cost > topCost) {
-                topCost = cost;
-                topObj = obj;
-            }
-        }
-
-        if (!topObj) {
-            return; // custom
-        }
-
-        objStacks.addHead(topObj);
-
-        let bottomObjId: number = -1;
-        let middleObjId: number = -1;
-        let bottomObjCount: number = 0;
-        let middleObjCount: number = 0;
-        for (let obj: ObjStackEntity | null = objStacks.head() as ObjStackEntity | null; obj; obj = objStacks.next() as ObjStackEntity | null) {
-            if (obj.index !== topObj.index && bottomObjId === -1) {
-                bottomObjId = obj.index;
-                bottomObjCount = obj.count;
+            if ((next & DirectionFlag.EAST) !== 0) {
+                x++;
+            } else if ((next & DirectionFlag.WEST) !== 0) {
+                x--;
             }
 
-            if (obj.index !== topObj.index && obj.index !== bottomObjId && middleObjId === -1) {
-                middleObjId = obj.index;
-                middleObjCount = obj.count;
-            }
-        }
-
-        let bottomObj: Model | null = null;
-        if (bottomObjId !== -1) {
-            bottomObj = ObjType.get(bottomObjId).getInterfaceModel(bottomObjCount);
-        }
-
-        let middleObj: Model | null = null;
-        if (middleObjId !== -1) {
-            middleObj = ObjType.get(middleObjId).getInterfaceModel(middleObjCount);
-        }
-
-        const typecode: number = (x + (z << 7) + 0x60000000) | 0;
-        const type: ObjType = ObjType.get(topObj.index);
-        this.scene?.addObjStack(x, z, this.getHeightmapY(this.currentLevel, x * 128 + 64, z * 128 + 64), this.currentLevel, typecode, type.getInterfaceModel(topObj.count), middleObj, bottomObj);
-    }
-
-    private addLoc(level: number, x: number, z: number, id: number, angle: number, shape: number, layer: number): void {
-        if (x < 1 || z < 1 || x > 102 || z > 102) {
-            return;
-        }
-
-        if (Client.lowMemory && level !== this.currentLevel) {
-            return;
-        }
-
-        if (!this.scene) {
-            return;
-        }
-
-        let typecode: number = 0;
-        if (layer === LocLayer.WALL) {
-            typecode = this.scene.getWallTypecode(level, x, z);
-        } else if (layer === LocLayer.WALL_DECOR) {
-            typecode = this.scene.getDecorTypecode(level, z, x);
-        } else if (layer === LocLayer.GROUND) {
-            typecode = this.scene.getLocTypecode(level, x, z);
-        } else if (layer === LocLayer.GROUND_DECOR) {
-            typecode = this.scene.getGroundDecorTypecode(level, x, z);
-        }
-
-        if (typecode !== 0) {
-            const otherInfo: number = this.scene.getInfo(level, x, z, typecode);
-            const otherId: number = (typecode >> 14) & 0x7fff;
-            const otherShape: number = otherInfo & 0x1f;
-            const otherRotation: number = otherInfo >> 6;
-
-            if (layer === LocLayer.WALL) {
-                this.scene?.removeWall(level, x, z, 1);
-
-                const type: LocType = LocType.get(otherId);
-                if (type.blockwalk) {
-                    this.levelCollisionMap[level]?.removeWall(x, z, otherShape, otherRotation, type.blockrange);
-                }
-            } else if (layer === LocLayer.WALL_DECOR) {
-                this.scene?.removeWallDecoration(level, x, z);
-            } else if (layer === LocLayer.GROUND) {
-                this.scene.removeLoc(level, x, z);
-
-                const type: LocType = LocType.get(otherId);
-                if (x + type.width > CollisionConstants.SIZE - 1 || z + type.width > CollisionConstants.SIZE - 1 || x + type.length > CollisionConstants.SIZE - 1 || z + type.length > CollisionConstants.SIZE - 1) {
-                    return;
-                }
-
-                if (type.blockwalk) {
-                    this.levelCollisionMap[level]?.removeLoc(x, z, type.width, type.length, otherRotation, type.blockrange);
-                }
-            } else if (layer === LocLayer.GROUND_DECOR) {
-                this.scene?.removeGroundDecoration(level, x, z);
-
-                const type: LocType = LocType.get(otherId);
-                if (type.blockwalk && type.locActive) {
-                    this.levelCollisionMap[level]?.removeFloor(x, z);
-                }
-            }
-        }
-
-        if (id >= 0) {
-            let tileLevel: number = level;
-            if (this.levelTileFlags && level < 3 && (this.levelTileFlags[1][x][z] & 0x2) === 2) {
-                tileLevel = level + 1;
+            if ((next & DirectionFlag.NORTH) !== 0) {
+                z++;
+            } else if ((next & DirectionFlag.SOUTH) !== 0) {
+                z--;
             }
 
-            if (this.levelHeightmap) {
-                World.addLoc(level, x, z, this.scene, this.levelHeightmap, this.locList, this.levelCollisionMap[level], id, shape, angle, tileLevel);
+            next = this.bfsDirection[CollisionMap.index(x, z)];
+        }
+
+        if (length > 0) {
+            bufferSize = Math.min(length, 25); // max number of turns in a single pf request
+            length--;
+
+            const startX: number = this.bfsStepX[length];
+            const startZ: number = this.bfsStepZ[length];
+
+            if (type === 0) {
+                this.out.p1isaac(ClientProt.MOVE_GAMECLICK);
+                this.out.p1(bufferSize + bufferSize + 3);
+            } else if (type === 1) {
+                this.out.p1isaac(ClientProt.MOVE_MINIMAPCLICK);
+                this.out.p1(bufferSize + bufferSize + 3 + 14);
+            } else if (type === 2) {
+                this.out.p1isaac(ClientProt.MOVE_OPCLICK);
+                this.out.p1(bufferSize + bufferSize + 3);
             }
-        }
-    }
 
-    private closeInterfaces(): void {
-        this.out.p1isaac(ClientProt.CLOSE_MODAL);
-
-        if (this.sidebarInterfaceId !== -1) {
-            this.sidebarInterfaceId = -1;
-            this.redrawSidebar = true;
-            this.pressedContinueOption = false;
-            this.redrawSideicons = true;
-        }
-
-        if (this.chatInterfaceId !== -1) {
-            this.chatInterfaceId = -1;
-            this.redrawChatback = true;
-            this.pressedContinueOption = false;
-        }
-
-        this.viewportInterfaceId = -1;
-    }
-
-    private async tryReconnect() {
-        if (this.idleTimeout > 0) {
-            await this.logout();
-        } else {
-            this.areaViewport?.bind();
-            this.fontPlain12?.drawStringCenter(257, 144, 'Connection lost', Colors.BLACK);
-            this.fontPlain12?.drawStringCenter(256, 143, 'Connection lost', Colors.WHITE);
-            this.fontPlain12?.drawStringCenter(257, 159, 'Please wait - attempting to reestablish', Colors.BLACK);
-            this.fontPlain12?.drawStringCenter(256, 158, 'Please wait - attempting to reestablish', Colors.WHITE);
-            this.areaViewport?.draw(8, 11);
-            this.flagSceneTileX = 0;
-            this.netStream?.close();
-            this.ingame = false;
-
-            await this.tryLogin(this.usernameInput, this.passwordInput, true);
-
-            if (!this.ingame) {
-                await this.logout();
+            if (this.actionKey[5] === 1) {
+                this.out.p1(1);
+            } else {
+                this.out.p1(0);
             }
-        }
-    }
 
-    private async logout(): Promise<void> {
-        if (this.netStream) {
-            this.netStream.close();
-        }
+            this.out.p2(startX + this.sceneBaseTileX);
+            this.out.p2(startZ + this.sceneBaseTileZ);
+            this.flagSceneTileX = this.bfsStepX[0];
+            this.flagSceneTileZ = this.bfsStepZ[0];
 
-        this.netStream = null;
-        this.ingame = false;
-        this.titleScreenState = 0;
-        this.usernameInput = '';
-        this.passwordInput = '';
+            for (let i: number = 1; i < bufferSize; i++) {
+                length--;
+                this.out.p1(this.bfsStepX[length] - startX);
+                this.out.p1(this.bfsStepZ[length] - startZ);
+            }
 
-        InputTracking.setDisabled();
-        this.clearCaches();
-        this.scene?.reset();
-
-        for (let level: number = 0; level < CollisionConstants.LEVELS; level++) {
-            this.levelCollisionMap[level]?.reset();
+            return true;
         }
 
-        stopMidi(false);
-        this.currentMidi = null;
-        this.nextMusicDelay = 0;
+        return type !== 1;
     }
 
     private async read(): Promise<boolean> {
@@ -7075,7 +6783,7 @@ export class Client extends GameShell {
                 this.skillLevel[stat] = level;
                 this.skillBaseLevel[stat] = 1;
                 for (let i: number = 0; i < 98; i++) {
-                    if (xp >= this.levelExperience[i]) {
+                    if (xp >= Client.levelExperience[i]) {
                         this.skillBaseLevel[stat] = i + 2;
                     }
                 }
@@ -7154,1443 +6862,409 @@ export class Client extends GameShell {
         return true;
     }
 
-    private buildScene(): void {
-		try {
-            this.minimapLevel = -1;
-            this.locList.clear();
-            this.spotanims.clear();
-            this.projectiles.clear();
-            Pix3D.clearTexels();
-            this.clearCaches();
-            this.scene?.reset();
+    private readZonePacket(buf: Packet, opcode: number): void {
+        const pos: number = buf.g1();
+        let x: number = this.baseX + ((pos >> 4) & 0x7);
+        let z: number = this.baseZ + (pos & 0x7);
 
-            for (let level: number = 0; level < CollisionConstants.LEVELS; level++) {
-                this.levelCollisionMap[level]?.reset();
+        if (opcode === ServerProt.LOC_ADD_CHANGE) {
+            const info: number = buf.g1();
+            const id: number = buf.g2();
+
+            const shape: number = info >> 2;
+            const angle: number = info & 0x3;
+            const layer: number = LocShape.of(shape).layer;
+
+            if (x >= 0 && z >= 0 && x < CollisionConstants.SIZE && z < CollisionConstants.SIZE) {
+                this.appendLoc(-1, id, angle, layer, z, shape, this.currentLevel, x, 0);
             }
+        } else if (opcode === ServerProt.LOC_DEL) {
+            const info: number = buf.g1();
 
-            const world: World = new World(CollisionConstants.SIZE, CollisionConstants.SIZE, this.levelHeightmap!, this.levelTileFlags!);
-            World.lowMemory = Client.lowMemory;
+            const shape: number = info >> 2;
+            const angle: number = info & 0x3;
+            const layer: number = LocShape.of(shape).layer;
 
-            const maps: number = this.sceneMapLandData?.length ?? 0;
+            if (x >= 0 && z >= 0 && x < CollisionConstants.SIZE && z < CollisionConstants.SIZE) {
+                this.appendLoc(-1, -1, angle, layer, z, shape, this.currentLevel, x, 0);
+            }
+        } else if (opcode === ServerProt.LOC_ANIM) {
+            const info: number = buf.g1();
+            const shape: number = info >> 2;
+            const layer: number = LocShape.of(shape).layer;
+            const id: number = buf.g2();
 
-            if (this.sceneMapIndex) {
-                for (let index: number = 0; index < maps; index++) {
-                    const mapsquareX: number = this.sceneMapIndex[index] >> 8;
-                    const mapsquareZ: number = this.sceneMapIndex[index] & 0xff;
+            if (x >= 0 && z >= 0 && x < CollisionConstants.SIZE && z < CollisionConstants.SIZE && this.scene) {
+                let typecode: number = 0;
+                if (layer === LocLayer.WALL) {
+                    typecode = this.scene.getWallTypecode(this.currentLevel, x, z);
+                } else if (layer === LocLayer.WALL_DECOR) {
+                    typecode = this.scene.getDecorTypecode(this.currentLevel, z, x);
+                } else if (layer === LocLayer.GROUND) {
+                    typecode = this.scene.getLocTypecode(this.currentLevel, x, z);
+                } else if (layer === LocLayer.GROUND_DECOR) {
+                    typecode = this.scene.getGroundDecorTypecode(this.currentLevel, x, z);
+                }
 
-                    // underground pass check
-                    if (mapsquareX === 33 && mapsquareZ >= 71 && mapsquareZ <= 73) {
-                        World.lowMemory = false;
-                        break;
-                    }
+                if (typecode !== 0) {
+                    const loc: LocEntity = new LocEntity((typecode >> 14) & 0x7fff, this.currentLevel, layer, x, z, SeqType.instances[id], false);
+                    this.locList.addTail(loc);
                 }
             }
+        } else if (opcode === ServerProt.OBJ_ADD) {
+            const id: number = buf.g2();
+            const count: number = buf.g2();
 
-            if (Client.lowMemory) {
-                this.scene?.setMinLevel(this.currentLevel);
-            } else {
-                this.scene?.setMinLevel(0);
-            }
-
-            if (this.sceneMapIndex && this.sceneMapLandData) {
-                this.out.p1isaac(ClientProt.NO_TIMEOUT);
-
-                for (let i: number = 0; i < maps; i++) {
-                    const x: number = (this.sceneMapIndex[i] >> 8) * 64 - this.sceneBaseTileX;
-                    const z: number = (this.sceneMapIndex[i] & 0xff) * 64 - this.sceneBaseTileZ;
-                    const src: Uint8Array | null = this.sceneMapLandData[i];
-
-                    if (src) {
-                        const data = BZip2.decompress(src, -1, false, true);
-                        world.readLandscape((this.sceneCenterZoneX - 6) * 8, (this.sceneCenterZoneZ - 6) * 8, x, z, data);
-                    } else if (this.sceneCenterZoneZ < 800) {
-                        world.clearLandscape(z, x, 64, 64);
-                    }
+            if (x >= 0 && z >= 0 && x < CollisionConstants.SIZE && z < CollisionConstants.SIZE) {
+                const obj: ObjStackEntity = new ObjStackEntity(id, count);
+                if (!this.objStacks[this.currentLevel][x][z]) {
+                    this.objStacks[this.currentLevel][x][z] = new LinkList();
                 }
+
+                this.objStacks[this.currentLevel][x][z]?.addTail(obj);
+                this.sortObjStacks(x, z);
             }
+        } else if (opcode === ServerProt.OBJ_DEL) {
+            const id: number = buf.g2();
 
-            if (this.sceneMapIndex && this.sceneMapLocData) {
-                this.out.p1isaac(ClientProt.NO_TIMEOUT);
-
-                for (let i: number = 0; i < maps; i++) {
-                    const x: number = (this.sceneMapIndex[i] >> 8) * 64 - this.sceneBaseTileX;
-                    const z: number = (this.sceneMapIndex[i] & 0xff) * 64 - this.sceneBaseTileZ;
-                    const src: Uint8Array | null = this.sceneMapLocData[i];
-
-                    if (src) {
-                        const data = BZip2.decompress(src, -1, false, true);
-                        world.readLocs(this.scene, this.locList, this.levelCollisionMap, data, x, z);
+            if (x >= 0 && z >= 0 && x < CollisionConstants.SIZE && z < CollisionConstants.SIZE) {
+                const list: LinkList | null = this.objStacks[this.currentLevel][x][z];
+                if (list) {
+                    for (let next: ObjStackEntity | null = list.head() as ObjStackEntity | null; next; next = list.next() as ObjStackEntity | null) {
+                        if (next.index === (id & 0x7fff)) {
+                            next.unlink();
+                            break;
+                        }
                     }
-                }
-            }
 
-            this.out.p1isaac(ClientProt.NO_TIMEOUT);
-            world.build(this.scene, this.levelCollisionMap);
-            this.areaViewport?.bind();
-
-            this.out.p1isaac(ClientProt.NO_TIMEOUT);
-            for (let loc: LocEntity | null = this.locList.head() as LocEntity | null; loc; loc = this.locList.next() as LocEntity | null) {
-                if ((this.levelTileFlags && this.levelTileFlags[1][loc.heightmapNE][loc.heightmapNW] & 0x2) === 2) {
-                    loc.heightmapSW--;
-
-                    if (loc.heightmapSW < 0) {
-                        loc.unlink();
+                    if (!list.head()) {
+                        this.objStacks[this.currentLevel][x][z] = null;
                     }
-                }
-            }
 
-            for (let x: number = 0; x < CollisionConstants.SIZE; x++) {
-                for (let z: number = 0; z < CollisionConstants.SIZE; z++) {
                     this.sortObjStacks(x, z);
                 }
             }
+        } else if (opcode === ServerProt.MAP_PROJANIM) {
+            let dx: number = x + buf.g1b();
+            let dz: number = z + buf.g1b();
+            const target: number = buf.g2b();
+            const spotanim: number = buf.g2();
+            const srcHeight: number = buf.g1();
+            const dstHeight: number = buf.g1();
+            const startDelay: number = buf.g2();
+            const endDelay: number = buf.g2();
+            const peak: number = buf.g1();
+            const arc: number = buf.g1();
 
-            this.clearAddedLocs();
-        } catch (err) {
-            console.error(err);
-        }
+            if (x >= 0 && z >= 0 && x < CollisionConstants.SIZE && z < CollisionConstants.SIZE && dx >= 0 && dz >= 0 && dx < CollisionConstants.SIZE && dz < CollisionConstants.SIZE) {
+                x = x * 128 + 64;
+                z = z * 128 + 64;
+                dx = dx * 128 + 64;
+                dz = dz * 128 + 64;
 
-        LocType.modelCacheStatic?.clear();
-        Pix3D.initPool(20);
-    }
-
-    private resetInterfaceAnimation(id: number): void {
-        const parent: Component = Component.instances[id];
-        if (!parent.childId) {
-            return;
-        }
-        for (let i: number = 0; i < parent.childId.length && parent.childId[i] !== -1; i++) {
-            const child: Component = Component.instances[parent.childId[i]];
-            if (child.comType === 1) {
-                this.resetInterfaceAnimation(child.id);
+                const proj: ProjectileEntity = new ProjectileEntity(spotanim, this.currentLevel, x, this.getHeightmapY(this.currentLevel, x, z) - srcHeight, z, startDelay + this.loopCycle, endDelay + this.loopCycle, peak, arc, target, dstHeight);
+                proj.updateVelocity(dx, this.getHeightmapY(this.currentLevel, dx, dz) - dstHeight, dz, startDelay + this.loopCycle);
+                this.projectiles.addTail(proj);
             }
-            child.seqFrame = 0;
-            child.seqCycle = 0;
-        }
-    }
+        } else if (opcode === ServerProt.MAP_ANIM) {
+            const id: number = buf.g2();
+            const height: number = buf.g1();
+            const delay: number = buf.g2();
 
-    private initializeLevelExperience(): void {
-        let acc: number = 0;
-        for (let i: number = 0; i < 99; i++) {
-            const level: number = i + 1;
-            const delta: number = (level + Math.pow(2.0, level / 7.0) * 300.0) | 0;
-            acc += delta;
-            this.levelExperience[i] = (acc / 4) | 0;
-        }
-    }
+            if (x >= 0 && z >= 0 && x < CollisionConstants.SIZE && z < CollisionConstants.SIZE) {
+                x = x * 128 + 64;
+                z = z * 128 + 64;
 
-    private addMessage(type: number, text: string, sender: string): void {
-        if (type === 0 && this.stickyChatInterfaceId !== -1) {
-            this.modalMessage = text;
-            this.mouseClickButton = 0;
-        }
-        if (this.chatInterfaceId === -1) {
-            this.redrawChatback = true;
-        }
-        for (let i: number = 99; i > 0; i--) {
-            this.messageTextType[i] = this.messageTextType[i - 1];
-            this.messageTextSender[i] = this.messageTextSender[i - 1];
-            this.messageText[i] = this.messageText[i - 1];
-        }
-        this.messageTextType[0] = type;
-        this.messageTextSender[0] = sender;
-        this.messageText[0] = text;
-    }
-
-    private async updateVarp(id: number): Promise<void> {
-        const clientcode: number = VarpType.instances[id].clientcode;
-        if (clientcode !== 0) {
-            const value: number = this.varps[id];
-            if (clientcode === 1) {
-                if (value === 1) {
-                    Pix3D.setBrightness(0.9);
-                }
-                if (value === 2) {
-                    Pix3D.setBrightness(0.8);
-                }
-                if (value === 3) {
-                    Pix3D.setBrightness(0.7);
-                }
-                if (value === 4) {
-                    Pix3D.setBrightness(0.6);
-                }
-                ObjType.iconCache?.clear();
-                this.redrawTitleBackground = true;
+                const spotanim: SpotAnimEntity = new SpotAnimEntity(id, this.currentLevel, x, z, this.getHeightmapY(this.currentLevel, x, z) - height, this.loopCycle, delay);
+                this.spotanims.addTail(spotanim);
             }
-            if (clientcode === 3) {
-                const lastMidiActive: boolean = this.midiActive;
-                if (value === 0) {
-                    this.midiVolume = 128;
-                    setMidiVolume(128);
-                    this.midiActive = true;
+        } else if (opcode === ServerProt.OBJ_REVEAL) {
+            const id: number = buf.g2();
+            const count: number = buf.g2();
+            const receiver: number = buf.g2();
+
+            if (x >= 0 && z >= 0 && x < CollisionConstants.SIZE && z < CollisionConstants.SIZE && receiver !== this.localPid) {
+                const obj: ObjStackEntity = new ObjStackEntity(id, count);
+                if (!this.objStacks[this.currentLevel][x][z]) {
+                    this.objStacks[this.currentLevel][x][z] = new LinkList();
                 }
-                if (value === 1) {
-                    this.midiVolume = 96;
-                    setMidiVolume(96);
-                    this.midiActive = true;
+
+                this.objStacks[this.currentLevel][x][z]?.addTail(obj);
+                this.sortObjStacks(x, z);
+            }
+        } else if (opcode === ServerProt.LOC_MERGE) {
+            const info: number = buf.g1();
+            const shape: number = info >> 2;
+            const angle: number = info & 0x3;
+            const layer: number = LocShape.of(shape).layer;
+            const id: number = buf.g2();
+            const start: number = buf.g2();
+            const end: number = buf.g2();
+            const pid: number = buf.g2();
+            let east: number = buf.g1b();
+            let south: number = buf.g1b();
+            let west: number = buf.g1b();
+            let north: number = buf.g1b();
+
+            let player: PlayerEntity | null;
+            if (pid === this.localPid) {
+                player = this.localPlayer;
+            } else {
+                player = this.players[pid];
+            }
+
+            if (player && this.levelHeightmap) {
+                this.appendLoc(start + this.loopCycle, -1, angle, layer, z, shape, this.currentLevel, x, end + this.loopCycle);
+
+                const y0: number = this.levelHeightmap[this.currentLevel][x][z];
+                const y1: number = this.levelHeightmap[this.currentLevel][x + 1][z];
+                const y2: number = this.levelHeightmap[this.currentLevel][x + 1][z + 1];
+                const y3: number = this.levelHeightmap[this.currentLevel][x][z + 1];
+                const loc: LocType = LocType.get(id);
+
+                player.locStartCycle = start + this.loopCycle;
+                player.locStopCycle = end + this.loopCycle;
+                player.locModel = loc.getModel(shape, angle, y0, y1, y2, y3, -1);
+
+                let width: number = loc.width;
+                let height: number = loc.length;
+                if (angle === LocAngle.NORTH || angle === LocAngle.SOUTH) {
+                    width = loc.length;
+                    height = loc.width;
                 }
-                if (value === 2) {
-                    this.midiVolume = 64;
-                    setMidiVolume(64);
-                    this.midiActive = true;
+
+                player.locOffsetX = x * 128 + width * 64;
+                player.locOffsetZ = z * 128 + height * 64;
+                player.locOffsetY = this.getHeightmapY(this.currentLevel, player.locOffsetX, player.locOffsetZ);
+
+                let tmp: number;
+                if (east > west) {
+                    tmp = east;
+                    east = west;
+                    west = tmp;
                 }
-                if (value === 3) {
-                    this.midiVolume = 32;
-                    setMidiVolume(32);
-                    this.midiActive = true;
+
+                if (south > north) {
+                    tmp = south;
+                    south = north;
+                    north = tmp;
                 }
-                if (value === 4) {
-                    this.midiActive = false;
-                }
-                if (this.midiActive !== lastMidiActive) {
-                    if (this.midiActive && this.currentMidi) {
-                        await this.setMidi(this.currentMidi, this.midiCrc, this.midiSize, false);
-                    } else {
-                        stopMidi(false);
+
+                player.minTileX = x + east;
+                player.maxTileX = x + west;
+                player.minTileZ = z + south;
+                player.maxTileZ = z + north;
+            }
+        } else if (opcode === ServerProt.OBJ_COUNT) {
+            const id: number = buf.g2();
+            const oldCount: number = buf.g2();
+            const newCount: number = buf.g2();
+
+            if (x >= 0 && z >= 0 && x < CollisionConstants.SIZE && z < CollisionConstants.SIZE) {
+                const list: LinkList | null = this.objStacks[this.currentLevel][x][z];
+                if (list) {
+                    for (let next: ObjStackEntity | null = list.head() as ObjStackEntity | null; next; next = list.next() as ObjStackEntity | null) {
+                        if (next.index === (id & 0x7fff) && next.count === oldCount) {
+                            next.count = newCount;
+                            break;
+                        }
                     }
-                    this.nextMusicDelay = 0;
+
+                    this.sortObjStacks(x, z);
                 }
-            }
-            if (clientcode === 4) {
-                if (value === 0) {
-                    this.waveVolume = 128;
-                    setWaveVolume(128);
-                    this.waveEnabled = true;
-                }
-                if (value === 1) {
-                    this.waveVolume = 96;
-                    setWaveVolume(96);
-                    this.waveEnabled = true;
-                }
-                if (value === 2) {
-                    this.waveVolume = 64;
-                    setWaveVolume(64);
-                    this.waveEnabled = true;
-                }
-                if (value === 3) {
-                    this.waveVolume = 32;
-                    setWaveVolume(32);
-                    this.waveEnabled = true;
-                }
-                if (value === 4) {
-                    this.waveEnabled = false;
-                }
-            }
-            if (clientcode === 5) {
-                this.mouseButtonsOption = value;
-            }
-            if (clientcode === 6) {
-                this.chatEffects = value;
-            }
-            if (clientcode === 8) {
-                this.splitPrivateChat = value;
-                this.redrawChatback = true;
             }
         }
     }
 
-    private handleChatMouseInput(_mouseX: number, mouseY: number): void {
-        let line: number = 0;
-        for (let i: number = 0; i < 100; i++) {
-            if (!this.messageText[i]) {
-                continue;
-            }
-
-            const type: number = this.messageTextType[i];
-            const y: number = this.chatScrollOffset + 70 + 4 - line * 14;
-            if (y < -20) {
+    private appendLoc(duration: number, type: number, rotation: number, layer: number, z: number, shape: number, level: number, x: number, delay: number): void {
+        let loc: LocAdd | null = null;
+        for (let next: LocAdd | null = this.addedLocs.head() as LocAdd | null; next; next = this.addedLocs.next() as LocAdd | null) {
+            if (next.plane === this.currentLevel && next.x === x && next.z === z && next.layer === layer) {
+                loc = next;
                 break;
             }
-
-            if (type === 0) {
-                line++;
-            }
-
-            if ((type === 1 || type === 2) && (type === 1 || this.publicChatSetting === 0 || (this.publicChatSetting === 1 && this.isFriend(this.messageTextSender[i])))) {
-                if (mouseY > y - 14 && mouseY <= y && this.localPlayer && this.messageTextSender[i] !== this.localPlayer.name) {
-                    if (this.rights) {
-                        this.menuOption[this.menuSize] = 'Report abuse @whi@' + this.messageTextSender[i];
-                        this.menuAction[this.menuSize] = 34;
-                        this.menuSize++;
-                    }
-
-                    this.menuOption[this.menuSize] = 'Add ignore @whi@' + this.messageTextSender[i];
-                    this.menuAction[this.menuSize] = 436;
-                    this.menuSize++;
-                    this.menuOption[this.menuSize] = 'Add friend @whi@' + this.messageTextSender[i];
-                    this.menuAction[this.menuSize] = 406;
-                    this.menuSize++;
-                }
-
-                line++;
-            }
-
-            if ((type === 3 || type === 7) && this.splitPrivateChat === 0 && (type === 7 || this.privateChatSetting === 0 || (this.privateChatSetting === 1 && this.isFriend(this.messageTextSender[i])))) {
-                if (mouseY > y - 14 && mouseY <= y) {
-                    if (this.rights) {
-                        this.menuOption[this.menuSize] = 'Report abuse @whi@' + this.messageTextSender[i];
-                        this.menuAction[this.menuSize] = 34;
-                        this.menuSize++;
-                    }
-
-                    this.menuOption[this.menuSize] = 'Add ignore @whi@' + this.messageTextSender[i];
-                    this.menuAction[this.menuSize] = 436;
-                    this.menuSize++;
-                    this.menuOption[this.menuSize] = 'Add friend @whi@' + this.messageTextSender[i];
-                    this.menuAction[this.menuSize] = 406;
-                    this.menuSize++;
-                }
-
-                line++;
-            }
-
-            if (type === 4 && (this.tradeChatSetting === 0 || (this.tradeChatSetting === 1 && this.isFriend(this.messageTextSender[i])))) {
-                if (mouseY > y - 14 && mouseY <= y) {
-                    this.menuOption[this.menuSize] = 'Accept trade @whi@' + this.messageTextSender[i];
-                    this.menuAction[this.menuSize] = 903;
-                    this.menuSize++;
-                }
-
-                line++;
-            }
-
-            if ((type === 5 || type === 6) && this.splitPrivateChat === 0 && this.privateChatSetting < 2) {
-                line++;
-            }
-
-            if (type === 8 && (this.tradeChatSetting === 0 || (this.tradeChatSetting === 1 && this.isFriend(this.messageTextSender[i])))) {
-                if (mouseY > y - 14 && mouseY <= y) {
-                    this.menuOption[this.menuSize] = 'Accept duel @whi@' + this.messageTextSender[i];
-                    this.menuAction[this.menuSize] = 363;
-                    this.menuSize++;
-                }
-
-                line++;
-            }
         }
+
+        if (!loc) {
+            loc = new LocAdd();
+            loc.plane = level;
+            loc.layer = layer;
+            loc.x = x;
+            loc.z = z;
+            this.storeLoc(loc);
+            this.addedLocs.addTail(loc);
+        }
+
+        loc.locIndex = type;
+        loc.shape = shape;
+        loc.locAngle = rotation;
+        loc.delay = delay;
+        loc.duration = duration;
     }
 
-    private handlePrivateChatInput(mouseY: number): void {
-        if (this.splitPrivateChat === 0) {
+    private storeLoc(loc: LocAdd): void {
+        if (!this.scene) {
             return;
         }
 
-        let lineOffset: number = 0;
-        if (this.systemUpdateTimer !== 0) {
-            lineOffset = 1;
+        let typecode: number = 0;
+        let otherId: number = -1;
+        let otherShape: number = 0;
+        let otherAngle: number = 0;
+
+        if (loc.layer === LocLayer.WALL) {
+            typecode = this.scene.getWallTypecode(loc.plane, loc.x, loc.z);
+        } else if (loc.layer === LocLayer.WALL_DECOR) {
+            typecode = this.scene.getDecorTypecode(loc.plane, loc.z, loc.x);
+        } else if (loc.layer === LocLayer.GROUND) {
+            typecode = this.scene.getLocTypecode(loc.plane, loc.x, loc.z);
+        } else if (loc.layer === LocLayer.GROUND_DECOR) {
+            typecode = this.scene.getGroundDecorTypecode(loc.plane, loc.x, loc.z);
         }
 
-        for (let i: number = 0; i < 100; i++) {
-            if (this.messageText[i] !== null) {
-                const type: number = this.messageTextType[i];
-                if ((type === 3 || type === 7) && (type === 7 || this.privateChatSetting === 0 || (this.privateChatSetting === 1 && this.isFriend(this.messageTextSender[i])))) {
-                    const y: number = 329 - lineOffset * 13;
-                    if (this.mouseX > 8 && this.mouseX < 520 && mouseY - 11 > y - 10 && mouseY - 11 <= y + 3) {
-                        if (this.rights) {
-                            this.menuOption[this.menuSize] = 'Report abuse @whi@' + this.messageTextSender[i];
-                            this.menuAction[this.menuSize] = 2034;
-                            this.menuSize++;
-                        }
-                        this.menuOption[this.menuSize] = 'Add ignore @whi@' + this.messageTextSender[i];
-                        this.menuAction[this.menuSize] = 2436;
-                        this.menuSize++;
-                        this.menuOption[this.menuSize] = 'Add friend @whi@' + this.messageTextSender[i];
-                        this.menuAction[this.menuSize] = 2406;
-                        this.menuSize++;
-                    }
-
-                    lineOffset++;
-                    if (lineOffset >= 5) {
-                        return;
-                    }
-                }
-
-                if ((type === 5 || type === 6) && this.privateChatSetting < 2) {
-                    lineOffset++;
-                    if (lineOffset >= 5) {
-                        return;
-                    }
-                }
-            }
+        if (typecode !== 0) {
+            const otherInfo: number = this.scene.getInfo(loc.plane, loc.x, loc.z, typecode);
+            otherId = (typecode >> 14) & 0x7fff;
+            otherShape = otherInfo & 0x1f;
+            otherAngle = otherInfo >> 6;
         }
+
+        loc.lastLocIndex = otherId;
+        loc.lastShape = otherShape;
+        loc.lastAngle = otherAngle;
     }
 
-    private handleInterfaceInput(com: Component, mouseX: number, mouseY: number, x: number, y: number, scrollPosition: number): void {
-        if (com.comType !== 0 || !com.childId || com.hide || mouseX < x || mouseY < y || mouseX > x + com.width || mouseY > y + com.height || !com.childX || !com.childY) {
+    private addLoc(level: number, x: number, z: number, id: number, angle: number, shape: number, layer: number): void {
+        if (x < 1 || z < 1 || x > 102 || z > 102) {
             return;
         }
 
-        const children: number = com.childId.length;
-        for (let i: number = 0; i < children; i++) {
-            let childX: number = com.childX[i] + x;
-            let childY: number = com.childY[i] + y - scrollPosition;
-            const child: Component = Component.instances[com.childId[i]];
-
-            childX += child.x;
-            childY += child.y;
-
-            if ((child.overLayer >= 0 || child.overColour !== 0) && mouseX >= childX && mouseY >= childY && mouseX < childX + child.width && mouseY < childY + child.height) {
-                if (child.overLayer >= 0) {
-                    this.lastHoveredInterfaceId = child.overLayer;
-                } else {
-                    this.lastHoveredInterfaceId = child.id;
-                }
-            }
-
-            if (child.comType === 0) {
-                this.handleInterfaceInput(child, mouseX, mouseY, childX, childY, child.scrollPosition);
-
-                if (child.scroll > child.height) {
-                    this.handleScrollInput(mouseX, mouseY, child.scroll, child.height, true, childX + child.width, childY, child);
-                }
-            } else if (child.comType === 2) {
-                let slot: number = 0;
-
-                for (let row: number = 0; row < child.height; row++) {
-                    for (let col: number = 0; col < child.width; col++) {
-                        let slotX: number = childX + col * (child.marginX + 32);
-                        let slotY: number = childY + row * (child.marginY + 32);
-
-                        if (slot < 20 && child.invSlotOffsetX && child.invSlotOffsetY) {
-                            slotX += child.invSlotOffsetX[slot];
-                            slotY += child.invSlotOffsetY[slot];
-                        }
-
-                        if (mouseX < slotX || mouseY < slotY || mouseX >= slotX + 32 || mouseY >= slotY + 32) {
-                            slot++;
-                            continue;
-                        }
-
-                        this.hoveredSlot = slot;
-                        this.hoveredSlotParentId = child.id;
-
-                        if (!child.invSlotObjId || child.invSlotObjId[slot] <= 0) {
-                            slot++;
-                            continue;
-                        }
-
-                        const obj: ObjType = ObjType.get(child.invSlotObjId[slot] - 1);
-
-                        if (this.objSelected === 1 && child.interactable) {
-                            if (child.id !== this.objSelectedInterface || slot !== this.objSelectedSlot) {
-                                this.menuOption[this.menuSize] = 'Use ' + this.objSelectedName + ' with @lre@' + obj.name;
-                                this.menuAction[this.menuSize] = 881;
-                                this.menuParamA[this.menuSize] = obj.id;
-                                this.menuParamB[this.menuSize] = slot;
-                                this.menuParamC[this.menuSize] = child.id;
-                                this.menuSize++;
-                            }
-                        } else if (this.spellSelected === 1 && child.interactable) {
-                            if ((this.activeSpellFlags & 0x10) === 16) {
-                                this.menuOption[this.menuSize] = this.spellCaption + ' @lre@' + obj.name;
-                                this.menuAction[this.menuSize] = 391;
-                                this.menuParamA[this.menuSize] = obj.id;
-                                this.menuParamB[this.menuSize] = slot;
-                                this.menuParamC[this.menuSize] = child.id;
-                                this.menuSize++;
-                            }
-                        } else {
-                            if (child.interactable) {
-                                for (let op: number = 4; op >= 3; op--) {
-                                    if (obj.iop && obj.iop[op]) {
-                                        this.menuOption[this.menuSize] = obj.iop[op] + ' @lre@' + obj.name;
-                                        if (op === 3) {
-                                            this.menuAction[this.menuSize] = 478;
-                                        } else if (op === 4) {
-                                            this.menuAction[this.menuSize] = 347;
-                                        }
-                                        this.menuParamA[this.menuSize] = obj.id;
-                                        this.menuParamB[this.menuSize] = slot;
-                                        this.menuParamC[this.menuSize] = child.id;
-                                        this.menuSize++;
-                                    } else if (op === 4) {
-                                        this.menuOption[this.menuSize] = 'Drop @lre@' + obj.name;
-                                        this.menuAction[this.menuSize] = 347;
-                                        this.menuParamA[this.menuSize] = obj.id;
-                                        this.menuParamB[this.menuSize] = slot;
-                                        this.menuParamC[this.menuSize] = child.id;
-                                        this.menuSize++;
-                                    }
-                                }
-                            }
-
-                            if (child.usable) {
-                                this.menuOption[this.menuSize] = 'Use @lre@' + obj.name;
-                                this.menuAction[this.menuSize] = 188;
-                                this.menuParamA[this.menuSize] = obj.id;
-                                this.menuParamB[this.menuSize] = slot;
-                                this.menuParamC[this.menuSize] = child.id;
-                                this.menuSize++;
-                            }
-
-                            if (child.interactable && obj.iop) {
-                                for (let op: number = 2; op >= 0; op--) {
-                                    if (obj.iop[op]) {
-                                        this.menuOption[this.menuSize] = obj.iop[op] + ' @lre@' + obj.name;
-                                        if (op === 0) {
-                                            this.menuAction[this.menuSize] = 405;
-                                        } else if (op === 1) {
-                                            this.menuAction[this.menuSize] = 38;
-                                        } else if (op === 2) {
-                                            this.menuAction[this.menuSize] = 422;
-                                        }
-                                        this.menuParamA[this.menuSize] = obj.id;
-                                        this.menuParamB[this.menuSize] = slot;
-                                        this.menuParamC[this.menuSize] = child.id;
-                                        this.menuSize++;
-                                    }
-                                }
-                            }
-
-                            if (child.iops) {
-                                for (let op: number = 4; op >= 0; op--) {
-                                    if (child.iops[op]) {
-                                        this.menuOption[this.menuSize] = child.iops[op] + ' @lre@' + obj.name;
-                                        if (op === 0) {
-                                            this.menuAction[this.menuSize] = 602;
-                                        } else if (op === 1) {
-                                            this.menuAction[this.menuSize] = 596;
-                                        } else if (op === 2) {
-                                            this.menuAction[this.menuSize] = 22;
-                                        } else if (op === 3) {
-                                            this.menuAction[this.menuSize] = 892;
-                                        } else if (op === 4) {
-                                            this.menuAction[this.menuSize] = 415;
-                                        }
-                                        this.menuParamA[this.menuSize] = obj.id;
-                                        this.menuParamB[this.menuSize] = slot;
-                                        this.menuParamC[this.menuSize] = child.id;
-                                        this.menuSize++;
-                                    }
-                                }
-                            }
-
-                            if (process.env.DEV_CLIENT) {
-                                this.menuOption[this.menuSize] = 'Examine @lre@' + obj.name + ' @whi@(@gre@' + obj.id + '@whi@)';
-                            } else {
-                                this.menuOption[this.menuSize] = 'Examine @lre@' + obj.name;
-                            }
-                            this.menuAction[this.menuSize] = 1773;
-                            this.menuParamA[this.menuSize] = obj.id;
-                            if (child.invSlotObjCount) {
-                                this.menuParamC[this.menuSize] = child.invSlotObjCount[slot];
-                            }
-                            this.menuSize++;
-                        }
-
-                        slot++;
-                    }
-                }
-            } else if (mouseX >= childX && mouseY >= childY && mouseX < childX + child.width && mouseY < childY + child.height) {
-                if (child.buttonType === ButtonType.BUTTON_OK) {
-                    let override: boolean = false;
-                    if (child.clientCode !== 0) {
-                        override = this.handleSocialMenuOption(child);
-                    }
-
-                    if (!override && child.option) {
-                        this.menuOption[this.menuSize] = child.option;
-                        this.menuAction[this.menuSize] = 951;
-                        this.menuParamC[this.menuSize] = child.id;
-                        this.menuSize++;
-                    }
-                } else if (child.buttonType === ButtonType.BUTTON_TARGET && this.spellSelected === 0) {
-                    let prefix: string | null = child.actionVerb;
-                    if (prefix && prefix.indexOf(' ') !== -1) {
-                        prefix = prefix.substring(0, prefix.indexOf(' '));
-                    }
-
-                    this.menuOption[this.menuSize] = prefix + ' @gre@' + child.action;
-                    this.menuAction[this.menuSize] = 930;
-                    this.menuParamC[this.menuSize] = child.id;
-                    this.menuSize++;
-                } else if (child.buttonType === ButtonType.BUTTON_CLOSE) {
-                    this.menuOption[this.menuSize] = 'Close';
-                    this.menuAction[this.menuSize] = 947;
-                    this.menuParamC[this.menuSize] = child.id;
-                    this.menuSize++;
-                } else if (child.buttonType === ButtonType.BUTTON_TOGGLE && child.option) {
-                    this.menuOption[this.menuSize] = child.option;
-                    this.menuAction[this.menuSize] = 465;
-                    this.menuParamC[this.menuSize] = child.id;
-                    this.menuSize++;
-                } else if (child.buttonType === ButtonType.BUTTON_SELECT && child.option) {
-                    this.menuOption[this.menuSize] = child.option;
-                    this.menuAction[this.menuSize] = 960;
-                    this.menuParamC[this.menuSize] = child.id;
-                    this.menuSize++;
-                } else if (child.buttonType === ButtonType.BUTTON_CONTINUE && !this.pressedContinueOption && child.option) {
-                    this.menuOption[this.menuSize] = child.option;
-                    this.menuAction[this.menuSize] = 44;
-                    this.menuParamC[this.menuSize] = child.id;
-                    this.menuSize++;
-                }
-            }
-        }
-    }
-
-    private handleSocialMenuOption(component: Component): boolean {
-        let type: number = component.clientCode;
-        if (type >= ClientCode.CC_FRIENDS_START && type <= ClientCode.CC_FRIENDS_UPDATE_END) {
-            if (type >= ClientCode.CC_FRIENDS_UPDATE_START) {
-                type -= ClientCode.CC_FRIENDS_UPDATE_START;
-            } else {
-                type--;
-            }
-            this.menuOption[this.menuSize] = 'Remove @whi@' + this.friendName[type];
-            this.menuAction[this.menuSize] = 557;
-            this.menuSize++;
-            this.menuOption[this.menuSize] = 'Message @whi@' + this.friendName[type];
-            this.menuAction[this.menuSize] = 679;
-            this.menuSize++;
-            return true;
-        } else if (type >= ClientCode.CC_IGNORES_START && type <= ClientCode.CC_IGNORES_END) {
-            this.menuOption[this.menuSize] = 'Remove @whi@' + component.text;
-            this.menuAction[this.menuSize] = 556;
-            this.menuSize++;
-            return true;
-        }
-        return false;
-    }
-
-    private handleViewportOptions(): void {
-        if (this.objSelected === 0 && this.spellSelected === 0) {
-            this.menuOption[this.menuSize] = 'Walk here';
-            this.menuAction[this.menuSize] = 660;
-            this.menuParamB[this.menuSize] = this.mouseX;
-            this.menuParamC[this.menuSize] = this.mouseY;
-            this.menuSize++;
-        }
-
-        let lastTypecode: number = -1;
-        for (let picked: number = 0; picked < Model.pickedCount; picked++) {
-            const typecode: number = Model.picked[picked];
-            const x: number = typecode & 0x7f;
-            const z: number = (typecode >> 7) & 0x7f;
-            const entityType: number = (typecode >> 29) & 0x3;
-            const typeId: number = (typecode >> 14) & 0x7fff;
-
-            if (typecode === lastTypecode) {
-                continue;
-            }
-
-            lastTypecode = typecode;
-
-            if (entityType === 2 && this.scene && this.scene.getInfo(this.currentLevel, x, z, typecode) >= 0) {
-                const loc: LocType = LocType.get(typeId);
-                if (this.objSelected === 1) {
-                    this.menuOption[this.menuSize] = 'Use ' + this.objSelectedName + ' with @cya@' + loc.name;
-                    this.menuAction[this.menuSize] = 450;
-                    this.menuParamA[this.menuSize] = typecode;
-                    this.menuParamB[this.menuSize] = x;
-                    this.menuParamC[this.menuSize] = z;
-                    this.menuSize++;
-                } else if (this.spellSelected !== 1) {
-                    if (loc.op) {
-                        for (let op: number = 4; op >= 0; op--) {
-                            if (loc.op[op]) {
-                                this.menuOption[this.menuSize] = loc.op[op] + ' @cya@' + loc.name;
-                                if (op === 0) {
-                                    this.menuAction[this.menuSize] = 285;
-                                }
-
-                                if (op === 1) {
-                                    this.menuAction[this.menuSize] = 504;
-                                }
-
-                                if (op === 2) {
-                                    this.menuAction[this.menuSize] = 364;
-                                }
-
-                                if (op === 3) {
-                                    this.menuAction[this.menuSize] = 581;
-                                }
-
-                                if (op === 4) {
-                                    this.menuAction[this.menuSize] = 1501;
-                                }
-
-                                this.menuParamA[this.menuSize] = typecode;
-                                this.menuParamB[this.menuSize] = x;
-                                this.menuParamC[this.menuSize] = z;
-                                this.menuSize++;
-                            }
-                        }
-                    }
-
-                    if (process.env.DEV_CLIENT) {
-                        this.menuOption[this.menuSize] = 'Examine @cya@' + loc.name + ' @whi@(@gre@' + loc.id + '@whi@)';
-                    } else {
-                        this.menuOption[this.menuSize] = 'Examine @cya@' + loc.name;
-                    }
-                    this.menuAction[this.menuSize] = 1175;
-                    this.menuParamA[this.menuSize] = typecode;
-                    this.menuParamB[this.menuSize] = x;
-                    this.menuParamC[this.menuSize] = z;
-                    this.menuSize++;
-                } else if ((this.activeSpellFlags & 0x4) === 4) {
-                    this.menuOption[this.menuSize] = this.spellCaption + ' @cya@' + loc.name;
-                    this.menuAction[this.menuSize] = 55;
-                    this.menuParamA[this.menuSize] = typecode;
-                    this.menuParamB[this.menuSize] = x;
-                    this.menuParamC[this.menuSize] = z;
-                    this.menuSize++;
-                }
-            }
-
-            if (entityType === 1) {
-                const npc: NpcEntity | null = this.npcs[typeId];
-                if (npc && npc.npcType && npc.npcType.size === 1 && (npc.x & 0x7f) === 64 && (npc.z & 0x7f) === 64) {
-                    for (let i: number = 0; i < this.npcCount; i++) {
-                        const other: NpcEntity | null = this.npcs[this.npcIds[i]];
-
-                        if (other && other !== npc && other.npcType && other.npcType.size === 1 && other.x === npc.x && other.z === npc.z) {
-                            this.addNpcOptions(other.npcType, this.npcIds[i], x, z);
-                        }
-                    }
-                }
-
-                if (npc && npc.npcType) {
-                    this.addNpcOptions(npc.npcType, typeId, x, z);
-                }
-            }
-
-            if (entityType === 0) {
-                const player: PlayerEntity | null = this.players[typeId];
-                if (player && (player.x & 0x7f) === 64 && (player.z & 0x7f) === 64) {
-                    for (let i: number = 0; i < this.npcCount; i++) {
-                        const other: NpcEntity | null = this.npcs[this.npcIds[i]];
-
-                        if (other && other.npcType && other.npcType.size === 1 && other.x === player.x && other.z === player.z) {
-                            this.addNpcOptions(other.npcType, this.npcIds[i], x, z);
-                        }
-                    }
-
-                    for (let i: number = 0; i < this.playerCount; i++) {
-                        const other: PlayerEntity | null = this.players[this.playerIds[i]];
-
-                        if (other && other !== player && other.x === player.x && other.z === player.z) {
-                            this.addPlayerOptions(other, this.playerIds[i], x, z);
-                        }
-                    }
-                }
-
-                if (player) {
-                    this.addPlayerOptions(player, typeId, x, z);
-                }
-            }
-
-            if (entityType === 3) {
-                const objs: LinkList | null = this.objStacks[this.currentLevel][x][z];
-                if (!objs) {
-                    continue;
-                }
-
-                for (let obj: ObjStackEntity | null = objs.tail() as ObjStackEntity | null; obj; obj = objs.prev() as ObjStackEntity | null) {
-                    const type: ObjType = ObjType.get(obj.index);
-                    if (this.objSelected === 1) {
-                        this.menuOption[this.menuSize] = 'Use ' + this.objSelectedName + ' with @lre@' + type.name;
-                        this.menuAction[this.menuSize] = 217;
-                        this.menuParamA[this.menuSize] = obj.index;
-                        this.menuParamB[this.menuSize] = x;
-                        this.menuParamC[this.menuSize] = z;
-                        this.menuSize++;
-                    } else if (this.spellSelected !== 1) {
-                        for (let op: number = 4; op >= 0; op--) {
-                            if (type.op && type.op[op]) {
-                                this.menuOption[this.menuSize] = type.op[op] + ' @lre@' + type.name;
-                                if (op === 0) {
-                                    this.menuAction[this.menuSize] = 224;
-                                }
-
-                                if (op === 1) {
-                                    this.menuAction[this.menuSize] = 993;
-                                }
-
-                                if (op === 2) {
-                                    this.menuAction[this.menuSize] = 99;
-                                }
-
-                                if (op === 3) {
-                                    this.menuAction[this.menuSize] = 746;
-                                }
-
-                                if (op === 4) {
-                                    this.menuAction[this.menuSize] = 877;
-                                }
-
-                                this.menuParamA[this.menuSize] = obj.index;
-                                this.menuParamB[this.menuSize] = x;
-                                this.menuParamC[this.menuSize] = z;
-                                this.menuSize++;
-                            } else if (op === 2) {
-                                this.menuOption[this.menuSize] = 'Take @lre@' + type.name;
-                                this.menuAction[this.menuSize] = 99;
-                                this.menuParamA[this.menuSize] = obj.index;
-                                this.menuParamB[this.menuSize] = x;
-                                this.menuParamC[this.menuSize] = z;
-                                this.menuSize++;
-                            }
-                        }
-
-                        if (process.env.DEV_CLIENT) {
-                            this.menuOption[this.menuSize] = 'Examine @lre@' + type.name + ' @whi@(@gre@' + type.id + '@whi@)';
-                        } else {
-                            this.menuOption[this.menuSize] = 'Examine @lre@' + type.name;
-                        }
-                        this.menuAction[this.menuSize] = 1102;
-                        this.menuParamA[this.menuSize] = obj.index;
-                        this.menuParamB[this.menuSize] = x;
-                        this.menuParamC[this.menuSize] = z;
-                        this.menuSize++;
-                    } else if ((this.activeSpellFlags & 0x1) === 1) {
-                        this.menuOption[this.menuSize] = this.spellCaption + ' @lre@' + type.name;
-                        this.menuAction[this.menuSize] = 965;
-                        this.menuParamA[this.menuSize] = obj.index;
-                        this.menuParamB[this.menuSize] = x;
-                        this.menuParamC[this.menuSize] = z;
-                        this.menuSize++;
-                    }
-                }
-            }
-        }
-    }
-
-    private addNpcOptions(npc: NpcType, a: number, b: number, c: number): void {
-        if (this.menuSize >= 400) {
+        if (Client.lowMemory && level !== this.currentLevel) {
             return;
         }
 
-        let tooltip: string | null = npc.name;
-        if (npc.vislevel !== 0 && this.localPlayer) {
-            tooltip = tooltip + this.getCombatLevelColorTag(this.localPlayer.combatLevel, npc.vislevel) + ' (level-' + npc.vislevel + ')';
-        }
-
-        if (this.objSelected === 1) {
-            this.menuOption[this.menuSize] = 'Use ' + this.objSelectedName + ' with @yel@' + tooltip;
-            this.menuAction[this.menuSize] = 900;
-            this.menuParamA[this.menuSize] = a;
-            this.menuParamB[this.menuSize] = b;
-            this.menuParamC[this.menuSize] = c;
-            this.menuSize++;
-        } else if (this.spellSelected !== 1) {
-            let type: number;
-            if (npc.op) {
-                for (type = 4; type >= 0; type--) {
-                    if (npc.op[type] && npc.op[type]?.toLowerCase() !== 'attack') {
-                        this.menuOption[this.menuSize] = npc.op[type] + ' @yel@' + tooltip;
-
-                        if (type === 0) {
-                            this.menuAction[this.menuSize] = 728;
-                        } else if (type === 1) {
-                            this.menuAction[this.menuSize] = 542;
-                        } else if (type === 2) {
-                            this.menuAction[this.menuSize] = 6;
-                        } else if (type === 3) {
-                            this.menuAction[this.menuSize] = 963;
-                        } else if (type === 4) {
-                            this.menuAction[this.menuSize] = 245;
-                        }
-
-                        this.menuParamA[this.menuSize] = a;
-                        this.menuParamB[this.menuSize] = b;
-                        this.menuParamC[this.menuSize] = c;
-                        this.menuSize++;
-                    }
-                }
-            }
-
-            if (npc.op) {
-                for (type = 4; type >= 0; type--) {
-                    if (npc.op[type] && npc.op[type]?.toLowerCase() === 'attack') {
-                        let action: number = 0;
-                        if (this.localPlayer && npc.vislevel > this.localPlayer.combatLevel) {
-                            action = 2000;
-                        }
-
-                        this.menuOption[this.menuSize] = npc.op[type] + ' @yel@' + tooltip;
-
-                        if (type === 0) {
-                            this.menuAction[this.menuSize] = action + 728;
-                        } else if (type === 1) {
-                            this.menuAction[this.menuSize] = action + 542;
-                        } else if (type === 2) {
-                            this.menuAction[this.menuSize] = action + 6;
-                        } else if (type === 3) {
-                            this.menuAction[this.menuSize] = action + 963;
-                        } else if (type === 4) {
-                            this.menuAction[this.menuSize] = action + 245;
-                        }
-
-                        this.menuParamA[this.menuSize] = a;
-                        this.menuParamB[this.menuSize] = b;
-                        this.menuParamC[this.menuSize] = c;
-                        this.menuSize++;
-                    }
-                }
-            }
-
-            if (process.env.DEV_CLIENT) {
-                this.menuOption[this.menuSize] = 'Examine @yel@' + tooltip + ' @whi@(@gre@' + npc.id + '@whi@)';
-            } else {
-                this.menuOption[this.menuSize] = 'Examine @yel@' + tooltip;
-            }
-            this.menuAction[this.menuSize] = 1607;
-            this.menuParamA[this.menuSize] = a;
-            this.menuParamB[this.menuSize] = b;
-            this.menuParamC[this.menuSize] = c;
-            this.menuSize++;
-        } else if ((this.activeSpellFlags & 0x2) === 2) {
-            this.menuOption[this.menuSize] = this.spellCaption + ' @yel@' + tooltip;
-            this.menuAction[this.menuSize] = 265;
-            this.menuParamA[this.menuSize] = a;
-            this.menuParamB[this.menuSize] = b;
-            this.menuParamC[this.menuSize] = c;
-            this.menuSize++;
-        }
-    }
-
-    private addPlayerOptions(player: PlayerEntity, a: number, b: number, c: number): void {
-        if (player === this.localPlayer || this.menuSize >= 400) {
+        if (!this.scene) {
             return;
         }
 
-        let tooltip: string | null = null;
-        if (this.localPlayer) {
-            tooltip = player.name + this.getCombatLevelColorTag(this.localPlayer.combatLevel, player.combatLevel) + ' (level-' + player.combatLevel + ')';
+        let typecode: number = 0;
+        if (layer === LocLayer.WALL) {
+            typecode = this.scene.getWallTypecode(level, x, z);
+        } else if (layer === LocLayer.WALL_DECOR) {
+            typecode = this.scene.getDecorTypecode(level, z, x);
+        } else if (layer === LocLayer.GROUND) {
+            typecode = this.scene.getLocTypecode(level, x, z);
+        } else if (layer === LocLayer.GROUND_DECOR) {
+            typecode = this.scene.getGroundDecorTypecode(level, x, z);
         }
-        if (this.objSelected === 1) {
-            this.menuOption[this.menuSize] = 'Use ' + this.objSelectedName + ' with @whi@' + tooltip;
-            this.menuAction[this.menuSize] = 367;
-            this.menuParamA[this.menuSize] = a;
-            this.menuParamB[this.menuSize] = b;
-            this.menuParamC[this.menuSize] = c;
-            this.menuSize++;
-        } else if (this.spellSelected !== 1) {
-            this.menuOption[this.menuSize] = 'Follow @whi@' + tooltip;
-            this.menuAction[this.menuSize] = 1544;
-            this.menuParamA[this.menuSize] = a;
-            this.menuParamB[this.menuSize] = b;
-            this.menuParamC[this.menuSize] = c;
-            this.menuSize++;
 
-            if (this.overrideChat === 0) {
-                this.menuOption[this.menuSize] = 'Trade with @whi@' + tooltip;
-                this.menuAction[this.menuSize] = 1373;
-                this.menuParamA[this.menuSize] = a;
-                this.menuParamB[this.menuSize] = b;
-                this.menuParamC[this.menuSize] = c;
-                this.menuSize++;
-            }
+        if (typecode !== 0) {
+            const otherInfo: number = this.scene.getInfo(level, x, z, typecode);
+            const otherId: number = (typecode >> 14) & 0x7fff;
+            const otherShape: number = otherInfo & 0x1f;
+            const otherRotation: number = otherInfo >> 6;
 
-            if (this.wildernessLevel > 0) {
-                this.menuOption[this.menuSize] = 'Attack @whi@' + tooltip;
-                if (this.localPlayer && this.localPlayer.combatLevel >= player.combatLevel) {
-                    this.menuAction[this.menuSize] = 151;
-                } else {
-                    this.menuAction[this.menuSize] = 2151;
+            if (layer === LocLayer.WALL) {
+                this.scene?.removeWall(level, x, z, 1);
+
+                const type: LocType = LocType.get(otherId);
+                if (type.blockwalk) {
+                    this.levelCollisionMap[level]?.removeWall(x, z, otherShape, otherRotation, type.blockrange);
                 }
-                this.menuParamA[this.menuSize] = a;
-                this.menuParamB[this.menuSize] = b;
-                this.menuParamC[this.menuSize] = c;
-                this.menuSize++;
-            }
+            } else if (layer === LocLayer.WALL_DECOR) {
+                this.scene?.removeWallDecoration(level, x, z);
+            } else if (layer === LocLayer.GROUND) {
+                this.scene.removeLoc(level, x, z);
 
-            if (this.worldLocationState === 1) {
-                this.menuOption[this.menuSize] = 'Fight @whi@' + tooltip;
-                this.menuAction[this.menuSize] = 151;
-                this.menuParamA[this.menuSize] = a;
-                this.menuParamB[this.menuSize] = b;
-                this.menuParamC[this.menuSize] = c;
-                this.menuSize++;
-            }
+                const type: LocType = LocType.get(otherId);
+                if (x + type.width > CollisionConstants.SIZE - 1 || z + type.width > CollisionConstants.SIZE - 1 || x + type.length > CollisionConstants.SIZE - 1 || z + type.length > CollisionConstants.SIZE - 1) {
+                    return;
+                }
 
-            if (this.worldLocationState === 2) {
-                this.menuOption[this.menuSize] = 'Duel-with @whi@' + tooltip;
-                this.menuAction[this.menuSize] = 1101;
-                this.menuParamA[this.menuSize] = a;
-                this.menuParamB[this.menuSize] = b;
-                this.menuParamC[this.menuSize] = c;
-                this.menuSize++;
+                if (type.blockwalk) {
+                    this.levelCollisionMap[level]?.removeLoc(x, z, type.width, type.length, otherRotation, type.blockrange);
+                }
+            } else if (layer === LocLayer.GROUND_DECOR) {
+                this.scene?.removeGroundDecoration(level, x, z);
+
+                const type: LocType = LocType.get(otherId);
+                if (type.blockwalk && type.locActive) {
+                    this.levelCollisionMap[level]?.removeFloor(x, z);
+                }
             }
-        } else if ((this.activeSpellFlags & 0x8) === 8) {
-            this.menuOption[this.menuSize] = this.spellCaption + ' @whi@' + tooltip;
-            this.menuAction[this.menuSize] = 651;
-            this.menuParamA[this.menuSize] = a;
-            this.menuParamB[this.menuSize] = b;
-            this.menuParamC[this.menuSize] = c;
-            this.menuSize++;
         }
 
-        for (let i: number = 0; i < this.menuSize; i++) {
-            if (this.menuAction[i] === 660) {
-                this.menuOption[i] = 'Walk here @whi@' + tooltip;
-                return;
+        if (id >= 0) {
+            let tileLevel: number = level;
+            if (this.levelTileFlags && level < 3 && (this.levelTileFlags[1][x][z] & 0x2) === 2) {
+                tileLevel = level + 1;
+            }
+
+            if (this.levelHeightmap) {
+                World.addLoc(level, x, z, this.scene, this.levelHeightmap, this.locList, this.levelCollisionMap[level], id, shape, angle, tileLevel);
             }
         }
     }
 
-    private getCombatLevelColorTag(viewerLevel: number, otherLevel: number): string {
-        const diff: number = viewerLevel - otherLevel;
-        if (diff < -9) {
-            return '@red@';
-        } else if (diff < -6) {
-            return '@or3@';
-        } else if (diff < -3) {
-            return '@or2@';
-        } else if (diff < 0) {
-            return '@or1@';
-        } else if (diff > 9) {
-            return '@gre@';
-        } else if (diff > 6) {
-            return '@gr3@';
-        } else if (diff > 3) {
-            return '@gr2@';
-        } else if (diff > 0) {
-            return '@gr1@';
-        } else {
-            return '@yel@';
-        }
-    }
-
-    private handleInput(): void {
-        if (this.objDragArea === 0) {
-            this.menuOption[0] = 'Cancel';
-            this.menuAction[0] = 1252;
-            this.menuSize = 1;
-            this.handlePrivateChatInput(this.mouseY);
-            this.lastHoveredInterfaceId = 0;
-
-            // the main viewport area
-            if (this.mouseX > 8 && this.mouseY > 11 && this.mouseX < 520 && this.mouseY < 345) {
-                if (this.viewportInterfaceId === -1) {
-                    this.handleViewportOptions();
-                } else {
-                    this.handleInterfaceInput(Component.instances[this.viewportInterfaceId], this.mouseX, this.mouseY, 8, 11, 0);
-                }
-            }
-
-            if (this.lastHoveredInterfaceId !== this.viewportHoveredInterfaceIndex) {
-                this.viewportHoveredInterfaceIndex = this.lastHoveredInterfaceId;
-            }
-
-            this.lastHoveredInterfaceId = 0;
-
-            // the sidebar/tabs area
-            if (this.mouseX > 562 && this.mouseY > 231 && this.mouseX < 752 && this.mouseY < 492) {
-                if (this.sidebarInterfaceId !== -1) {
-                    this.handleInterfaceInput(Component.instances[this.sidebarInterfaceId], this.mouseX, this.mouseY, 562, 231, 0);
-                } else if (this.tabInterfaceId[this.selectedTab] !== -1) {
-                    this.handleInterfaceInput(Component.instances[this.tabInterfaceId[this.selectedTab]], this.mouseX, this.mouseY, 562, 231, 0);
-                }
-            }
-
-            if (this.lastHoveredInterfaceId !== this.sidebarHoveredInterfaceIndex) {
-                this.redrawSidebar = true;
-                this.sidebarHoveredInterfaceIndex = this.lastHoveredInterfaceId;
-            }
-
-            this.lastHoveredInterfaceId = 0;
-
-            // the chatbox area
-            if (this.mouseX > 22 && this.mouseY > 375 && this.mouseX < 431 && this.mouseY < 471) {
-                if (this.chatInterfaceId === -1) {
-                    this.handleChatMouseInput(this.mouseX - 22, this.mouseY - 375);
-                } else {
-                    this.handleInterfaceInput(Component.instances[this.chatInterfaceId], this.mouseX, this.mouseY, 22, 375, 0);
-                }
-            }
-
-            if (this.chatInterfaceId !== -1 && this.lastHoveredInterfaceId !== this.chatHoveredInterfaceIndex) {
-                this.redrawChatback = true;
-                this.chatHoveredInterfaceIndex = this.lastHoveredInterfaceId;
-            }
-
-            let done: boolean = false;
-            while (!done) {
-                done = true;
-
-                for (let i: number = 0; i < this.menuSize - 1; i++) {
-                    if (this.menuAction[i] < 1000 && this.menuAction[i + 1] > 1000) {
-                        const tmp0: string = this.menuOption[i];
-                        this.menuOption[i] = this.menuOption[i + 1];
-                        this.menuOption[i + 1] = tmp0;
-
-                        const tmp1: number = this.menuAction[i];
-                        this.menuAction[i] = this.menuAction[i + 1];
-                        this.menuAction[i + 1] = tmp1;
-
-                        const tmp2: number = this.menuParamB[i];
-                        this.menuParamB[i] = this.menuParamB[i + 1];
-                        this.menuParamB[i + 1] = tmp2;
-
-                        const tmp3: number = this.menuParamC[i];
-                        this.menuParamC[i] = this.menuParamC[i + 1];
-                        this.menuParamC[i + 1] = tmp3;
-
-                        const tmp4: number = this.menuParamA[i];
-                        this.menuParamA[i] = this.menuParamA[i + 1];
-                        this.menuParamA[i + 1] = tmp4;
-
-                        done = false;
-                    }
-                }
-            }
-        }
-    }
-
-    private showContextMenu(): void {
-        let width: number = 0;
-        if (this.fontBold12) {
-            width = this.fontBold12.stringWidth('Choose Option');
-            let maxWidth: number;
-            for (let i: number = 0; i < this.menuSize; i++) {
-                maxWidth = this.fontBold12.stringWidth(this.menuOption[i]);
-                if (maxWidth > width) {
-                    width = maxWidth;
-                }
-            }
-        }
-        width += 8;
-
-        const height: number = this.menuSize * 15 + 21;
-
-        let x: number;
-        let y: number;
-
-        // the main viewport area
-        if (this.mouseClickX > 8 && this.mouseClickY > 11 && this.mouseClickX < 520 && this.mouseClickY < 345) {
-            x = this.mouseClickX - ((width / 2) | 0) - 8;
-            if (x + width > 512) {
-                x = 512 - width;
-            } else if (x < 0) {
-                x = 0;
-            }
-
-            y = this.mouseClickY - 11;
-            if (y + height > 334) {
-                y = 334 - height;
-            } else if (y < 0) {
-                y = 0;
-            }
-
-            this.menuVisible = true;
-            this.menuArea = 0;
-            this.menuX = x;
-            this.menuY = y;
-            this.menuWidth = width;
-            this.menuHeight = this.menuSize * 15 + 22;
+    private sortObjStacks(x: number, z: number): void {
+        const objStacks: LinkList | null = this.objStacks[this.currentLevel][x][z];
+        if (!objStacks) {
+            this.scene?.removeObjStack(this.currentLevel, x, z);
+            return;
         }
 
-        // the sidebar/tabs area
-        if (this.mouseClickX > 562 && this.mouseClickY > 231 && this.mouseClickX < 752 && this.mouseClickY < 492) {
-            x = this.mouseClickX - ((width / 2) | 0) - 562;
-            if (x < 0) {
-                x = 0;
-            } else if (x + width > 190) {
-                x = 190 - width;
+        let topCost: number = -99999999;
+        let topObj: ObjStackEntity | null = null;
+
+        for (let obj: ObjStackEntity | null = objStacks.head() as ObjStackEntity | null; obj; obj = objStacks.next() as ObjStackEntity | null) {
+            const type: ObjType = ObjType.get(obj.index);
+            let cost: number = type.cost;
+
+            if (type.stackable) {
+                cost *= obj.count + 1;
             }
 
-            y = this.mouseClickY - 231;
-            if (y < 0) {
-                y = 0;
-            } else if (y + height > 261) {
-                y = 261 - height;
-            }
-
-            this.menuVisible = true;
-            this.menuArea = 1;
-            this.menuX = x;
-            this.menuY = y;
-            this.menuWidth = width;
-            this.menuHeight = this.menuSize * 15 + 22;
-        }
-
-        // the chatbox area
-        if (this.mouseClickX > 22 && this.mouseClickY > 375 && this.mouseClickX < 501 && this.mouseClickY < 471) {
-            x = this.mouseClickX - ((width / 2) | 0) - 22;
-            if (x < 0) {
-                x = 0;
-            } else if (x + width > 479) {
-                x = 479 - width;
-            }
-
-            y = this.mouseClickY - 375;
-            if (y < 0) {
-                y = 0;
-            } else if (y + height > 96) {
-                y = 96 - height;
-            }
-
-            this.menuVisible = true;
-            this.menuArea = 2;
-            this.menuX = x;
-            this.menuY = y;
-            this.menuWidth = width;
-            this.menuHeight = this.menuSize * 15 + 22;
-        }
-    }
-
-    private tryMove(srcX: number, srcZ: number, dx: number, dz: number, type: number, locWidth: number, locLength: number, locAngle: number, locShape: number, forceapproach: number, tryNearest: boolean): boolean {
-        const collisionMap: CollisionMap | null = this.levelCollisionMap[this.currentLevel];
-        if (!collisionMap) {
-            return false;
-        }
-
-        const sceneWidth: number = CollisionConstants.SIZE;
-        const sceneLength: number = CollisionConstants.SIZE;
-
-        for (let x: number = 0; x < sceneWidth; x++) {
-            for (let z: number = 0; z < sceneLength; z++) {
-                const index: number = CollisionMap.index(x, z);
-                this.bfsDirection[index] = 0;
-                this.bfsCost[index] = 99999999;
+            if (cost > topCost) {
+                topCost = cost;
+                topObj = obj;
             }
         }
 
-        let x: number = srcX;
-        let z: number = srcZ;
+        if (!topObj) {
+            return; // custom
+        }
 
-        const srcIndex: number = CollisionMap.index(srcX, srcZ);
-        this.bfsDirection[srcIndex] = 99;
-        this.bfsCost[srcIndex] = 0;
+        objStacks.addHead(topObj);
 
-        let steps: number = 0;
-        let length: number = 0;
-
-        this.bfsStepX[steps] = srcX;
-        this.bfsStepZ[steps++] = srcZ;
-
-        let arrived: boolean = false;
-        let bufferSize: number = this.bfsStepX.length;
-        const flags: Int32Array = collisionMap.flags;
-
-        while (length !== steps) {
-            x = this.bfsStepX[length];
-            z = this.bfsStepZ[length];
-            length = (length + 1) % bufferSize;
-
-            if (x === dx && z === dz) {
-                arrived = true;
-                break;
+        let bottomObjId: number = -1;
+        let middleObjId: number = -1;
+        let bottomObjCount: number = 0;
+        let middleObjCount: number = 0;
+        for (let obj: ObjStackEntity | null = objStacks.head() as ObjStackEntity | null; obj; obj = objStacks.next() as ObjStackEntity | null) {
+            if (obj.index !== topObj.index && bottomObjId === -1) {
+                bottomObjId = obj.index;
+                bottomObjCount = obj.count;
             }
 
-            if (locShape !== LocShape.WALL_STRAIGHT.id) {
-                if ((locShape < LocShape.WALLDECOR_STRAIGHT_OFFSET.id || locShape === LocShape.CENTREPIECE_STRAIGHT.id) && collisionMap.reachedWall(x, z, dx, dz, locShape - 1, locAngle)) {
-                    arrived = true;
-                    break;
-                }
-
-                if (locShape < LocShape.CENTREPIECE_STRAIGHT.id && collisionMap.reachedWallDecoration(x, z, dx, dz, locShape - 1, locAngle)) {
-                    arrived = true;
-                    break;
-                }
-            }
-
-            if (locWidth !== 0 && locLength !== 0 && collisionMap.reachedLoc(x, z, dx, dz, locWidth, locLength, forceapproach)) {
-                arrived = true;
-                break;
-            }
-
-            const nextCost: number = this.bfsCost[CollisionMap.index(x, z)] + 1;
-            let index: number = CollisionMap.index(x - 1, z);
-            if (x > 0 && this.bfsDirection[index] === 0 && (flags[index] & CollisionFlag.BLOCK_WEST) === CollisionFlag.OPEN) {
-                this.bfsStepX[steps] = x - 1;
-                this.bfsStepZ[steps] = z;
-                steps = (steps + 1) % bufferSize;
-                this.bfsDirection[index] = 2;
-                this.bfsCost[index] = nextCost;
-            }
-
-            index = CollisionMap.index(x + 1, z);
-            if (x < sceneWidth - 1 && this.bfsDirection[index] === 0 && (flags[index] & CollisionFlag.BLOCK_EAST) === CollisionFlag.OPEN) {
-                this.bfsStepX[steps] = x + 1;
-                this.bfsStepZ[steps] = z;
-                steps = (steps + 1) % bufferSize;
-                this.bfsDirection[index] = 8;
-                this.bfsCost[index] = nextCost;
-            }
-
-            index = CollisionMap.index(x, z - 1);
-            if (z > 0 && this.bfsDirection[index] === 0 && (flags[index] & CollisionFlag.BLOCK_SOUTH) === CollisionFlag.OPEN) {
-                this.bfsStepX[steps] = x;
-                this.bfsStepZ[steps] = z - 1;
-                steps = (steps + 1) % bufferSize;
-                this.bfsDirection[index] = 1;
-                this.bfsCost[index] = nextCost;
-            }
-
-            index = CollisionMap.index(x, z + 1);
-            if (z < sceneLength - 1 && this.bfsDirection[index] === 0 && (flags[index] & CollisionFlag.BLOCK_NORTH) === CollisionFlag.OPEN) {
-                this.bfsStepX[steps] = x;
-                this.bfsStepZ[steps] = z + 1;
-                steps = (steps + 1) % bufferSize;
-                this.bfsDirection[index] = 4;
-                this.bfsCost[index] = nextCost;
-            }
-
-            index = CollisionMap.index(x - 1, z - 1);
-            if (
-                x > 0 &&
-                z > 0 &&
-                this.bfsDirection[index] === 0 &&
-                (flags[index] & CollisionFlag.BLOCK_SOUTH_WEST) === 0 &&
-                (flags[CollisionMap.index(x - 1, z)] & CollisionFlag.BLOCK_WEST) === CollisionFlag.OPEN &&
-                (flags[CollisionMap.index(x, z - 1)] & CollisionFlag.BLOCK_SOUTH) === CollisionFlag.OPEN
-            ) {
-                this.bfsStepX[steps] = x - 1;
-                this.bfsStepZ[steps] = z - 1;
-                steps = (steps + 1) % bufferSize;
-                this.bfsDirection[index] = 3;
-                this.bfsCost[index] = nextCost;
-            }
-
-            index = CollisionMap.index(x + 1, z - 1);
-            if (
-                x < sceneWidth - 1 &&
-                z > 0 &&
-                this.bfsDirection[index] === 0 &&
-                (flags[index] & CollisionFlag.BLOCK_SOUTH_EAST) === 0 &&
-                (flags[CollisionMap.index(x + 1, z)] & CollisionFlag.BLOCK_EAST) === CollisionFlag.OPEN &&
-                (flags[CollisionMap.index(x, z - 1)] & CollisionFlag.BLOCK_SOUTH) === CollisionFlag.OPEN
-            ) {
-                this.bfsStepX[steps] = x + 1;
-                this.bfsStepZ[steps] = z - 1;
-                steps = (steps + 1) % bufferSize;
-                this.bfsDirection[index] = 9;
-                this.bfsCost[index] = nextCost;
-            }
-
-            index = CollisionMap.index(x - 1, z + 1);
-            if (
-                x > 0 &&
-                z < sceneLength - 1 &&
-                this.bfsDirection[index] === 0 &&
-                (flags[index] & CollisionFlag.BLOCK_NORTH_WEST) === 0 &&
-                (flags[CollisionMap.index(x - 1, z)] & CollisionFlag.BLOCK_WEST) === CollisionFlag.OPEN &&
-                (flags[CollisionMap.index(x, z + 1)] & CollisionFlag.BLOCK_NORTH) === CollisionFlag.OPEN
-            ) {
-                this.bfsStepX[steps] = x - 1;
-                this.bfsStepZ[steps] = z + 1;
-                steps = (steps + 1) % bufferSize;
-                this.bfsDirection[index] = 6;
-                this.bfsCost[index] = nextCost;
-            }
-
-            index = CollisionMap.index(x + 1, z + 1);
-            if (
-                x < sceneWidth - 1 &&
-                z < sceneLength - 1 &&
-                this.bfsDirection[index] === 0 &&
-                (flags[index] & CollisionFlag.BLOCK_NORTH_EAST) === 0 &&
-                (flags[CollisionMap.index(x + 1, z)] & CollisionFlag.BLOCK_EAST) === CollisionFlag.OPEN &&
-                (flags[CollisionMap.index(x, z + 1)] & CollisionFlag.BLOCK_NORTH) === CollisionFlag.OPEN
-            ) {
-                this.bfsStepX[steps] = x + 1;
-                this.bfsStepZ[steps] = z + 1;
-                steps = (steps + 1) % bufferSize;
-                this.bfsDirection[index] = 12;
-                this.bfsCost[index] = nextCost;
+            if (obj.index !== topObj.index && obj.index !== bottomObjId && middleObjId === -1) {
+                middleObjId = obj.index;
+                middleObjCount = obj.count;
             }
         }
 
-        this.tryMoveNearest = 0;
-
-        if (!arrived) {
-            if (tryNearest) {
-                let min: number = 100;
-                for (let padding: number = 1; padding < 2; padding++) {
-                    for (let px: number = dx - padding; px <= dx + padding; px++) {
-                        for (let pz: number = dz - padding; pz <= dz + padding; pz++) {
-                            const index: number = CollisionMap.index(px, pz);
-                            if (px >= 0 && pz >= 0 && px < CollisionConstants.SIZE && pz < CollisionConstants.SIZE && this.bfsCost[index] < min) {
-                                min = this.bfsCost[index];
-                                x = px;
-                                z = pz;
-                                this.tryMoveNearest = 1;
-                                arrived = true;
-                            }
-                        }
-                    }
-
-                    if (arrived) {
-                        break;
-                    }
-                }
-            }
-
-            if (!arrived) {
-                return false;
-            }
+        let bottomObj: Model | null = null;
+        if (bottomObjId !== -1) {
+            bottomObj = ObjType.get(bottomObjId).getInterfaceModel(bottomObjCount);
         }
 
-        length = 0;
-        this.bfsStepX[length] = x;
-        this.bfsStepZ[length++] = z;
-
-        let dir: number = this.bfsDirection[CollisionMap.index(x, z)];
-        let next: number = dir;
-        while (x !== srcX || z !== srcZ) {
-            if (next !== dir) {
-                dir = next;
-                this.bfsStepX[length] = x;
-                this.bfsStepZ[length++] = z;
-            }
-
-            if ((next & DirectionFlag.EAST) !== 0) {
-                x++;
-            } else if ((next & DirectionFlag.WEST) !== 0) {
-                x--;
-            }
-
-            if ((next & DirectionFlag.NORTH) !== 0) {
-                z++;
-            } else if ((next & DirectionFlag.SOUTH) !== 0) {
-                z--;
-            }
-
-            next = this.bfsDirection[CollisionMap.index(x, z)];
+        let middleObj: Model | null = null;
+        if (middleObjId !== -1) {
+            middleObj = ObjType.get(middleObjId).getInterfaceModel(middleObjCount);
         }
 
-        if (length > 0) {
-            bufferSize = Math.min(length, 25); // max number of turns in a single pf request
-            length--;
-
-            const startX: number = this.bfsStepX[length];
-            const startZ: number = this.bfsStepZ[length];
-
-            if (type === 0) {
-                this.out.p1isaac(ClientProt.MOVE_GAMECLICK);
-                this.out.p1(bufferSize + bufferSize + 3);
-            } else if (type === 1) {
-                this.out.p1isaac(ClientProt.MOVE_MINIMAPCLICK);
-                this.out.p1(bufferSize + bufferSize + 3 + 14);
-            } else if (type === 2) {
-                this.out.p1isaac(ClientProt.MOVE_OPCLICK);
-                this.out.p1(bufferSize + bufferSize + 3);
-            }
-
-            if (this.actionKey[5] === 1) {
-                this.out.p1(1);
-            } else {
-                this.out.p1(0);
-            }
-
-            this.out.p2(startX + this.sceneBaseTileX);
-            this.out.p2(startZ + this.sceneBaseTileZ);
-            this.flagSceneTileX = this.bfsStepX[0];
-            this.flagSceneTileZ = this.bfsStepZ[0];
-
-            for (let i: number = 1; i < bufferSize; i++) {
-                length--;
-                this.out.p1(this.bfsStepX[length] - startX);
-                this.out.p1(this.bfsStepZ[length] - startZ);
-            }
-
-            return true;
-        }
-
-        return type !== 1;
+        const typecode: number = (x + (z << 7) + 0x60000000) | 0;
+        const type: ObjType = ObjType.get(topObj.index);
+        this.scene?.addObjStack(x, z, this.getHeightmapY(this.currentLevel, x * 128 + 64, z * 128 + 64), this.currentLevel, typecode, type.getInterfaceModel(topObj.count), middleObj, bottomObj);
     }
 
     private readPlayerInfo(buf: Packet, size: number): void {
@@ -9137,1243 +7811,2551 @@ export class Client extends GameShell {
         }
     }
 
-    private updatePlayers(): void {
-        for (let i: number = -1; i < this.playerCount; i++) {
-            let index: number;
-            if (i === -1) {
-                index = Constants.LOCAL_PLAYER_INDEX;
+    private showContextMenu(): void {
+        let width: number = 0;
+        if (this.fontBold12) {
+            width = this.fontBold12.stringWidth('Choose Option');
+            let maxWidth: number;
+            for (let i: number = 0; i < this.menuSize; i++) {
+                maxWidth = this.fontBold12.stringWidth(this.menuOption[i]);
+                if (maxWidth > width) {
+                    width = maxWidth;
+                }
+            }
+        }
+        width += 8;
+
+        const height: number = this.menuSize * 15 + 21;
+
+        let x: number;
+        let y: number;
+
+        // the main viewport area
+        if (this.mouseClickX > 8 && this.mouseClickY > 11 && this.mouseClickX < 520 && this.mouseClickY < 345) {
+            x = this.mouseClickX - ((width / 2) | 0) - 8;
+            if (x + width > 512) {
+                x = 512 - width;
+            } else if (x < 0) {
+                x = 0;
+            }
+
+            y = this.mouseClickY - 11;
+            if (y + height > 334) {
+                y = 334 - height;
+            } else if (y < 0) {
+                y = 0;
+            }
+
+            this.menuVisible = true;
+            this.menuArea = 0;
+            this.menuX = x;
+            this.menuY = y;
+            this.menuWidth = width;
+            this.menuHeight = this.menuSize * 15 + 22;
+        }
+
+        // the sidebar/tabs area
+        if (this.mouseClickX > 562 && this.mouseClickY > 231 && this.mouseClickX < 752 && this.mouseClickY < 492) {
+            x = this.mouseClickX - ((width / 2) | 0) - 562;
+            if (x < 0) {
+                x = 0;
+            } else if (x + width > 190) {
+                x = 190 - width;
+            }
+
+            y = this.mouseClickY - 231;
+            if (y < 0) {
+                y = 0;
+            } else if (y + height > 261) {
+                y = 261 - height;
+            }
+
+            this.menuVisible = true;
+            this.menuArea = 1;
+            this.menuX = x;
+            this.menuY = y;
+            this.menuWidth = width;
+            this.menuHeight = this.menuSize * 15 + 22;
+        }
+
+        // the chatbox area
+        if (this.mouseClickX > 22 && this.mouseClickY > 375 && this.mouseClickX < 501 && this.mouseClickY < 471) {
+            x = this.mouseClickX - ((width / 2) | 0) - 22;
+            if (x < 0) {
+                x = 0;
+            } else if (x + width > 479) {
+                x = 479 - width;
+            }
+
+            y = this.mouseClickY - 375;
+            if (y < 0) {
+                y = 0;
+            } else if (y + height > 96) {
+                y = 96 - height;
+            }
+
+            this.menuVisible = true;
+            this.menuArea = 2;
+            this.menuX = x;
+            this.menuY = y;
+            this.menuWidth = width;
+            this.menuHeight = this.menuSize * 15 + 22;
+        }
+    }
+
+    private isAddFriendOption(option: number): boolean {
+        if (option < 0) {
+            return false;
+        }
+        let action: number = this.menuAction[option];
+        if (action >= 2000) {
+            action -= 2000;
+        }
+        return action === 406;
+    }
+
+    private async useMenuOption(optionId: number): Promise<void> {
+        if (optionId < 0) {
+            return;
+        }
+
+        if (this.chatbackInputOpen) {
+            this.chatbackInputOpen = false;
+            this.redrawChatback = true;
+        }
+
+        let action: number = this.menuAction[optionId];
+        const a: number = this.menuParamA[optionId];
+        const b: number = this.menuParamB[optionId];
+        const c: number = this.menuParamC[optionId];
+
+        if (action >= 2000) {
+            action -= 2000;
+        }
+
+        if (action === 903 || action === 363) {
+            let option: string = this.menuOption[optionId];
+            const tag: number = option.indexOf('@whi@');
+
+            if (tag !== -1) {
+                option = option.substring(tag + 5).trim();
+                const name: string = JString.formatName(JString.fromBase37(JString.toBase37(option)));
+                let found: boolean = false;
+
+                for (let i: number = 0; i < this.playerCount; i++) {
+                    const player: PlayerEntity | null = this.players[this.playerIds[i]];
+
+                    if (player && player.name && player.name.toLowerCase() === name.toLowerCase() && this.localPlayer) {
+                        this.tryMove(this.localPlayer.routeFlagX[0], this.localPlayer.routeFlagZ[0], player.routeFlagX[0], player.routeFlagZ[0], 2, 1, 1, 0, 0, 0, false);
+
+                        if (action === 903) {
+                            this.out.p1isaac(ClientProt.OPPLAYER4);
+                        } else if (action === 363) {
+                            this.out.p1isaac(ClientProt.OPPLAYER1);
+                        }
+
+                        this.out.p2(this.playerIds[i]);
+                        found = true;
+                        break;
+                    }
+                }
+
+                if (!found) {
+                    this.addMessage(0, 'Unable to find ' + name, '');
+                }
+            }
+        } else if (action === 450 && this.interactWithLoc(ClientProt.OPLOCU, b, c, a)) {
+            this.out.p2(this.objInterface);
+            this.out.p2(this.objSelectedSlot);
+            this.out.p2(this.objSelectedInterface);
+        } else if (action === 405 || action === 38 || action === 422 || action === 478 || action === 347) {
+            if (action === 478) {
+                if ((b & 0x3) === 0) {
+                    Client.oplogic5++;
+                }
+
+                if (Client.oplogic5 >= 90) {
+                    this.out.p1isaac(ClientProt.ANTICHEAT_OPLOGIC5);
+                }
+
+                this.out.p1isaac(ClientProt.OPHELD4);
+            } else if (action === 347) {
+                this.out.p1isaac(ClientProt.OPHELD5);
+            } else if (action === 422) {
+                this.out.p1isaac(ClientProt.OPHELD3);
+            } else if (action === 405) {
+                Client.oplogic3 += a;
+                if (Client.oplogic3 >= 97) {
+                    this.out.p1isaac(ClientProt.ANTICHEAT_OPLOGIC3);
+                    this.out.p3(14953816);
+                }
+
+                this.out.p1isaac(ClientProt.OPHELD1);
+            } else if (action === 38) {
+                this.out.p1isaac(ClientProt.OPHELD2);
+            }
+
+            this.out.p2(a);
+            this.out.p2(b);
+            this.out.p2(c);
+            this.selectedCycle = 0;
+            this.selectedInterface = c;
+            this.selectedItem = b;
+            this.selectedArea = 2;
+
+            if (Component.instances[c].layer === this.viewportInterfaceId) {
+                this.selectedArea = 1;
+            }
+
+            if (Component.instances[c].layer === this.chatInterfaceId) {
+                this.selectedArea = 3;
+            }
+        } else if (action === 728 || action === 542 || action === 6 || action === 963 || action === 245) {
+            const npc: NpcEntity | null = this.npcs[a];
+            if (npc && this.localPlayer) {
+                this.tryMove(this.localPlayer.routeFlagX[0], this.localPlayer.routeFlagZ[0], npc.routeFlagX[0], npc.routeFlagZ[0], 2, 1, 1, 0, 0, 0, false);
+
+                this.crossX = this.mouseClickX;
+                this.crossY = this.mouseClickY;
+                this.crossMode = 2;
+                this.crossCycle = 0;
+
+                if (action === 542) {
+                    this.out.p1isaac(ClientProt.OPNPC2);
+                } else if (action === 6) {
+                    if ((a & 0x3) === 0) {
+                        Client.oplogic2++;
+                    }
+
+                    if (Client.oplogic2 >= 124) {
+                        this.out.p1isaac(ClientProt.ANTICHEAT_OPLOGIC2);
+                        this.out.p4(0);
+                    }
+
+                    this.out.p1isaac(ClientProt.OPNPC3);
+                } else if (action === 963) {
+                    this.out.p1isaac(ClientProt.OPNPC4);
+                } else if (action === 728) {
+                    this.out.p1isaac(ClientProt.OPNPC1);
+                } else if (action === 245) {
+                    if ((a & 0x3) === 0) {
+                        Client.oplogic4++;
+                    }
+
+                    if (Client.oplogic4 >= 85) {
+                        this.out.p1isaac(ClientProt.ANTICHEAT_OPLOGIC4);
+                        this.out.p2(39596);
+                    }
+
+                    this.out.p1isaac(ClientProt.OPNPC5);
+                }
+
+                this.out.p2(a);
+            }
+        } else if (action === 217) {
+            if (this.localPlayer) {
+                const success: boolean = this.tryMove(this.localPlayer.routeFlagX[0], this.localPlayer.routeFlagZ[0], b, c, 2, 0, 0, 0, 0, 0, false);
+                if (!success) {
+                    this.tryMove(this.localPlayer.routeFlagX[0], this.localPlayer.routeFlagZ[0], b, c, 2, 1, 1, 0, 0, 0, false);
+                }
+
+                this.crossX = this.mouseClickX;
+                this.crossY = this.mouseClickY;
+                this.crossMode = 2;
+                this.crossCycle = 0;
+
+                this.out.p1isaac(ClientProt.OPOBJU);
+                this.out.p2(b + this.sceneBaseTileX);
+                this.out.p2(c + this.sceneBaseTileZ);
+                this.out.p2(a);
+                this.out.p2(this.objInterface);
+                this.out.p2(this.objSelectedSlot);
+                this.out.p2(this.objSelectedInterface);
+            }
+        } else if (action === 1175) {
+            // loc examine
+            const locId: number = (a >> 14) & 0x7fff;
+            const loc: LocType = LocType.get(locId);
+
+            let examine: string;
+            if (!loc.desc) {
+                examine = "It's a " + loc.name + '.';
             } else {
-                index = this.playerIds[i];
+                examine = loc.desc;
             }
 
-            const player: PlayerEntity | null = this.players[index];
-            if (player) {
-                this.updateEntity(player);
+            this.addMessage(0, examine, '');
+        } else if (action === 285) {
+            this.interactWithLoc(ClientProt.OPLOC1, b, c, a);
+        } else if (action === 881) {
+            this.out.p1isaac(ClientProt.OPHELDU);
+            this.out.p2(a);
+            this.out.p2(b);
+            this.out.p2(c);
+            this.out.p2(this.objInterface);
+            this.out.p2(this.objSelectedSlot);
+            this.out.p2(this.objSelectedInterface);
+
+            this.selectedCycle = 0;
+            this.selectedInterface = c;
+            this.selectedItem = b;
+            this.selectedArea = 2;
+
+            if (Component.instances[c].layer === this.viewportInterfaceId) {
+                this.selectedArea = 1;
+            }
+
+            if (Component.instances[c].layer === this.chatInterfaceId) {
+                this.selectedArea = 3;
+            }
+        } else if (action === 391) {
+            this.out.p1isaac(ClientProt.OPHELDT);
+            this.out.p2(a);
+            this.out.p2(b);
+            this.out.p2(c);
+            this.out.p2(this.activeSpellId);
+
+            this.selectedCycle = 0;
+            this.selectedInterface = c;
+            this.selectedItem = b;
+            this.selectedArea = 2;
+
+            if (Component.instances[c].layer === this.viewportInterfaceId) {
+                this.selectedArea = 1;
+            }
+
+            if (Component.instances[c].layer === this.chatInterfaceId) {
+                this.selectedArea = 3;
+            }
+        } else if (action === 660) {
+            if (this.menuVisible) {
+                this.scene?.click(b - 8, c - 11);
+            } else {
+                this.scene?.click(this.mouseClickX - 8, this.mouseClickY - 11);
+            }
+        } else if (action === 188) {
+            // select obj interface
+            this.objSelected = 1;
+            this.objSelectedSlot = b;
+            this.objSelectedInterface = c;
+            this.objInterface = a;
+            this.objSelectedName = ObjType.get(a).name;
+            this.spellSelected = 0;
+            return;
+        } else if (action === 44) {
+            if (!this.pressedContinueOption) {
+                this.out.p1isaac(ClientProt.RESUME_PAUSEBUTTON);
+                this.out.p2(c);
+                this.pressedContinueOption = true;
+            }
+        } else if (action === 1773) {
+            // inv obj examine
+            const obj: ObjType = ObjType.get(a);
+            let examine: string;
+
+            if (c >= 100000) {
+                examine = c + ' x ' + obj.name;
+            } else if (!obj.desc) {
+                examine = "It's a " + obj.name + '.';
+            } else {
+                examine = obj.desc;
+            }
+            this.addMessage(0, examine, '');
+        } else if (action === 900) {
+            const npc: NpcEntity | null = this.npcs[a];
+
+            if (npc && this.localPlayer) {
+                this.tryMove(this.localPlayer.routeFlagX[0], this.localPlayer.routeFlagZ[0], npc.routeFlagX[0], npc.routeFlagZ[0], 2, 1, 1, 0, 0, 0, false);
+                this.crossX = this.mouseClickX;
+                this.crossY = this.mouseClickY;
+                this.crossMode = 2;
+                this.crossCycle = 0;
+
+                this.out.p1isaac(ClientProt.OPNPCU);
+                this.out.p2(a);
+                this.out.p2(this.objInterface);
+                this.out.p2(this.objSelectedSlot);
+                this.out.p2(this.objSelectedInterface);
+            }
+        } else if (action === 1373 || action === 1544 || action === 151 || action === 1101) {
+            const player: PlayerEntity | null = this.players[a];
+            if (player && this.localPlayer) {
+                this.tryMove(this.localPlayer.routeFlagX[0], this.localPlayer.routeFlagZ[0], player.routeFlagX[0], player.routeFlagZ[0], 2, 1, 1, 0, 0, 0, false);
+
+                this.crossX = this.mouseClickX;
+                this.crossY = this.mouseClickY;
+                this.crossMode = 2;
+                this.crossCycle = 0;
+
+                if (action === 1101) {
+                    this.out.p1isaac(ClientProt.OPPLAYER1);
+                } else if (action === 151) {
+                    Client.oplogic8++;
+                    if (Client.oplogic8 >= 90) {
+                        this.out.p1isaac(ClientProt.ANTICHEAT_OPLOGIC8);
+                        this.out.p2(31114);
+                    }
+
+                    this.out.p1isaac(ClientProt.OPPLAYER2);
+                } else if (action === 1373) {
+                    this.out.p1isaac(ClientProt.OPPLAYER4);
+                } else if (action === 1544) {
+                    this.out.p1isaac(ClientProt.OPPLAYER3);
+                }
+
+                this.out.p2(a);
+            }
+        } else if (action === 265) {
+            const npc: NpcEntity | null = this.npcs[a];
+            if (npc && this.localPlayer) {
+                this.tryMove(this.localPlayer.routeFlagX[0], this.localPlayer.routeFlagZ[0], npc.routeFlagX[0], npc.routeFlagZ[0], 2, 1, 1, 0, 0, 0, false);
+
+                this.crossX = this.mouseClickX;
+                this.crossY = this.mouseClickY;
+                this.crossMode = 2;
+                this.crossCycle = 0;
+
+                this.out.p1isaac(ClientProt.OPNPCT);
+                this.out.p2(a);
+                this.out.p2(this.activeSpellId);
+            }
+        } else if (action === 679) {
+            const option: string = this.menuOption[optionId];
+            const tag: number = option.indexOf('@whi@');
+
+            if (tag !== -1) {
+                const name37: bigint = JString.toBase37(option.substring(tag + 5).trim());
+                let friend: number = -1;
+                for (let i: number = 0; i < this.friendCount; i++) {
+                    if (this.friendName37[i] === name37) {
+                        friend = i;
+                        break;
+                    }
+                }
+
+                if (friend !== -1 && this.friendWorld[friend] > 0) {
+                    this.redrawChatback = true;
+                    this.chatbackInputOpen = false;
+                    this.showSocialInput = true;
+                    this.socialInput = '';
+                    this.socialAction = 3;
+                    this.socialName37 = this.friendName37[friend];
+                    this.socialMessage = 'Enter message to send to ' + this.friendName[friend];
+                }
+            }
+        } else if (action === 55) {
+            if (this.interactWithLoc(ClientProt.OPLOCT, b, c, a)) {
+                this.out.p2(this.activeSpellId);
+            }
+        } else if (action === 224 || action === 993 || action === 99 || action === 746 || action === 877) {
+            if (this.localPlayer) {
+                const success: boolean = this.tryMove(this.localPlayer.routeFlagX[0], this.localPlayer.routeFlagZ[0], b, c, 2, 0, 0, 0, 0, 0, false);
+                if (!success) {
+                    this.tryMove(this.localPlayer.routeFlagX[0], this.localPlayer.routeFlagZ[0], b, c, 2, 1, 1, 0, 0, 0, false);
+                }
+
+                this.crossX = this.mouseClickX;
+                this.crossY = this.mouseClickY;
+                this.crossMode = 2;
+                this.crossCycle = 0;
+
+                if (action === 224) {
+                    this.out.p1isaac(ClientProt.OPOBJ1);
+                } else if (action === 746) {
+                    this.out.p1isaac(ClientProt.OPOBJ4);
+                } else if (action === 877) {
+                    this.out.p1isaac(ClientProt.OPOBJ5);
+                } else if (action === 99) {
+                    this.out.p1isaac(ClientProt.OPOBJ3);
+                } else if (action === 993) {
+                    this.out.p1isaac(ClientProt.OPOBJ2);
+                }
+
+                this.out.p2(b + this.sceneBaseTileX);
+                this.out.p2(c + this.sceneBaseTileZ);
+                this.out.p2(a);
+            }
+        } else if (action === 1607) {
+            // npc examine
+            const npc: NpcEntity | null = this.npcs[a];
+            if (npc && npc.npcType) {
+                let examine: string;
+
+                if (!npc.npcType.desc) {
+                    examine = "It's a " + npc.npcType.name + '.';
+                } else {
+                    examine = npc.npcType.desc;
+                }
+
+                this.addMessage(0, examine, '');
+            }
+        } else if (action === 504) {
+            this.interactWithLoc(ClientProt.OPLOC2, b, c, a);
+        } else if (action === 930) {
+            const com: Component = Component.instances[c];
+            this.spellSelected = 1;
+            this.activeSpellId = c;
+            this.activeSpellFlags = com.actionTarget;
+            this.objSelected = 0;
+
+            let prefix: string | null = com.actionVerb;
+            if (prefix && prefix.indexOf(' ') !== -1) {
+                prefix = prefix.substring(0, prefix.indexOf(' '));
+            }
+
+            let suffix: string | null = com.actionVerb;
+            if (suffix && suffix.indexOf(' ') !== -1) {
+                suffix = suffix.substring(suffix.indexOf(' ') + 1);
+            }
+
+            this.spellCaption = prefix + ' ' + com.action + ' ' + suffix;
+            if (this.activeSpellFlags === 16) {
+                this.redrawSidebar = true;
+                this.selectedTab = 3;
+                this.redrawSideicons = true;
+            }
+
+            return;
+        } else if (action === 951) {
+            const com: Component = Component.instances[c];
+            let notify: boolean = true;
+
+            if (com.clientCode > 0) {
+                notify = this.handleInterfaceAction(com);
+            }
+
+            if (notify) {
+                this.out.p1isaac(ClientProt.IF_BUTTON);
+                this.out.p2(c);
+            }
+        } else if (action === 602 || action === 596 || action === 22 || action === 892 || action === 415) {
+            if (action === 22) {
+                this.out.p1isaac(ClientProt.INV_BUTTON3);
+            } else if (action === 415) {
+                if ((c & 0x3) === 0) {
+                    Client.oplogic7++;
+                }
+
+                if (Client.oplogic7 >= 55) {
+                    this.out.p1isaac(ClientProt.ANTICHEAT_OPLOGIC7);
+                    this.out.p4(0);
+                }
+
+                this.out.p1isaac(ClientProt.INV_BUTTON5);
+            } else if (action === 602) {
+                this.out.p1isaac(ClientProt.INV_BUTTON1);
+            } else if (action === 892) {
+                if ((b & 0x3) === 0) {
+                    Client.oplogic9++;
+                }
+
+                if (Client.oplogic9 >= 130) {
+                    this.out.p1isaac(ClientProt.ANTICHEAT_OPLOGIC9);
+                    this.out.p1(177);
+                }
+
+                this.out.p1isaac(ClientProt.INV_BUTTON4);
+            } else if (action === 596) {
+                this.out.p1isaac(ClientProt.INV_BUTTON2);
+            }
+
+            this.out.p2(a);
+            this.out.p2(b);
+            this.out.p2(c);
+
+            this.selectedCycle = 0;
+            this.selectedInterface = c;
+            this.selectedItem = b;
+            this.selectedArea = 2;
+
+            if (Component.instances[c].layer === this.viewportInterfaceId) {
+                this.selectedArea = 1;
+            }
+
+            if (Component.instances[c].layer === this.chatInterfaceId) {
+                this.selectedArea = 3;
+            }
+        } else if (action === 581) {
+            if ((a & 0x3) === 0) {
+                Client.oplogic1++;
+            }
+
+            if (Client.oplogic1 >= 99) {
+                this.out.p1isaac(ClientProt.ANTICHEAT_OPLOGIC1);
+                this.out.p4(0);
+            }
+
+            this.interactWithLoc(ClientProt.OPLOC4, b, c, a);
+        } else if (action === 965) {
+            if (this.localPlayer) {
+                const success: boolean = this.tryMove(this.localPlayer.routeFlagX[0], this.localPlayer.routeFlagZ[0], b, c, 2, 0, 0, 0, 0, 0, false);
+                if (!success) {
+                    this.tryMove(this.localPlayer.routeFlagX[0], this.localPlayer.routeFlagZ[0], b, c, 2, 1, 1, 0, 0, 0, false);
+                }
+                this.crossX = this.mouseClickX;
+                this.crossY = this.mouseClickY;
+                this.crossMode = 2;
+                this.crossCycle = 0;
+
+                this.out.p1isaac(ClientProt.OPOBJT);
+                this.out.p2(b + this.sceneBaseTileX);
+                this.out.p2(c + this.sceneBaseTileZ);
+                this.out.p2(a);
+                this.out.p2(this.activeSpellId);
+            }
+        } else if (action === 1501) {
+            Client.oplogic6 += this.sceneBaseTileZ;
+            if (Client.oplogic6 >= 92) {
+                this.out.p1isaac(ClientProt.ANTICHEAT_OPLOGIC6);
+                this.out.p4(0);
+            }
+
+            this.interactWithLoc(ClientProt.OPLOC5, b, c, a);
+        } else if (action === 364) {
+            this.interactWithLoc(ClientProt.OPLOC3, b, c, a);
+        } else if (action === 1102) {
+            // obj examine
+            const obj: ObjType = ObjType.get(a);
+            let examine: string;
+
+            if (!obj.desc) {
+                examine = "It's a " + obj.name + '.';
+            } else {
+                examine = obj.desc;
+            }
+            this.addMessage(0, examine, '');
+        } else if (action === 960) {
+            this.out.p1isaac(ClientProt.IF_BUTTON);
+            this.out.p2(c);
+
+            const com: Component = Component.instances[c];
+            if (com.script && com.script[0] && com.script[0][0] === 5) {
+                const varp: number = com.script[0][1];
+                if (com.scriptOperand && this.varps[varp] !== com.scriptOperand[0]) {
+                    this.varps[varp] = com.scriptOperand[0];
+                    await this.updateVarp(varp);
+                    this.redrawSidebar = true;
+                }
+            }
+        } else if (action === 34) {
+            // reportabuse input
+            const option: string = this.menuOption[optionId];
+            const tag: number = option.indexOf('@whi@');
+
+            if (tag !== -1) {
+                this.closeInterfaces();
+
+                this.reportAbuseInput = option.substring(tag + 5).trim();
+                this.reportAbuseMuteOption = false;
+
+                for (let i: number = 0; i < Component.instances.length; i++) {
+                    if (Component.instances[i] && Component.instances[i].clientCode === ClientCode.CC_REPORT_INPUT) {
+                        this.reportAbuseInterfaceID = this.viewportInterfaceId = Component.instances[i].layer;
+                        break;
+                    }
+                }
+            }
+        } else if (action === 947) {
+            // close interfaces
+            this.closeInterfaces();
+        } else if (action === 367) {
+            const player: PlayerEntity | null = this.players[a];
+            if (player && this.localPlayer) {
+                this.tryMove(this.localPlayer.routeFlagX[0], this.localPlayer.routeFlagZ[0], player.routeFlagX[0], player.routeFlagZ[0], 2, 1, 1, 0, 0, 0, false);
+
+                this.crossX = this.mouseClickX;
+                this.crossY = this.mouseClickY;
+                this.crossMode = 2;
+                this.crossCycle = 0;
+
+                this.out.p1isaac(ClientProt.OPPLAYERU);
+                this.out.p2(a);
+                this.out.p2(this.objInterface);
+                this.out.p2(this.objSelectedSlot);
+                this.out.p2(this.objSelectedInterface);
+            }
+        } else if (action === 465) {
+            this.out.p1isaac(ClientProt.IF_BUTTON);
+            this.out.p2(c);
+
+            const com: Component = Component.instances[c];
+            if (com.script && com.script[0] && com.script[0][0] === 5) {
+                const varp: number = com.script[0][1];
+                this.varps[varp] = 1 - this.varps[varp];
+                await this.updateVarp(varp);
+                this.redrawSidebar = true;
+            }
+        } else if (action === 406 || action === 436 || action === 557 || action === 556) {
+            const option: string = this.menuOption[optionId];
+            const tag: number = option.indexOf('@whi@');
+
+            if (tag !== -1) {
+                const username: bigint = JString.toBase37(option.substring(tag + 5).trim());
+                if (action === 406) {
+                    this.addFriend(username);
+                } else if (action === 436) {
+                    this.addIgnore(username);
+                } else if (action === 557) {
+                    this.removeFriend(username);
+                } else if (action === 556) {
+                    this.removeIgnore(username);
+                }
+            }
+        } else if (action === 651) {
+            const player: PlayerEntity | null = this.players[a];
+
+            if (player && this.localPlayer) {
+                this.tryMove(this.localPlayer.routeFlagX[0], this.localPlayer.routeFlagZ[0], player.routeFlagX[0], player.routeFlagZ[0], 2, 1, 1, 0, 0, 0, false);
+
+                this.crossX = this.mouseClickX;
+                this.crossY = this.mouseClickY;
+                this.crossMode = 2;
+                this.crossCycle = 0;
+
+                this.out.p1isaac(ClientProt.OPPLAYERT);
+                this.out.p2(a);
+                this.out.p2(this.activeSpellId);
             }
         }
 
-        Client.cyclelogic6++;
-        if (Client.cyclelogic6 > 1406) {
-            Client.cyclelogic6 = 0;
+        this.objSelected = 0;
+        this.spellSelected = 0;
+    }
 
-            this.out.p1isaac(ClientProt.ANTICHEAT_CYCLELOGIC6);
-            this.out.p1(0);
-            const start: number = this.out.pos;
-            this.out.p1(162);
-            this.out.p1(22);
-            if (((Math.random() * 2.0) | 0) === 0) {
-                this.out.p1(84);
+    private addNpcOptions(npc: NpcType, a: number, b: number, c: number): void {
+        if (this.menuSize >= 400) {
+            return;
+        }
+
+        let tooltip: string | null = npc.name;
+        if (npc.vislevel !== 0 && this.localPlayer) {
+            tooltip = tooltip + this.getCombatLevelColorTag(this.localPlayer.combatLevel, npc.vislevel) + ' (level-' + npc.vislevel + ')';
+        }
+
+        if (this.objSelected === 1) {
+            this.menuOption[this.menuSize] = 'Use ' + this.objSelectedName + ' with @yel@' + tooltip;
+            this.menuAction[this.menuSize] = 900;
+            this.menuParamA[this.menuSize] = a;
+            this.menuParamB[this.menuSize] = b;
+            this.menuParamC[this.menuSize] = c;
+            this.menuSize++;
+        } else if (this.spellSelected !== 1) {
+            let type: number;
+            if (npc.op) {
+                for (type = 4; type >= 0; type--) {
+                    if (npc.op[type] && npc.op[type]?.toLowerCase() !== 'attack') {
+                        this.menuOption[this.menuSize] = npc.op[type] + ' @yel@' + tooltip;
+
+                        if (type === 0) {
+                            this.menuAction[this.menuSize] = 728;
+                        } else if (type === 1) {
+                            this.menuAction[this.menuSize] = 542;
+                        } else if (type === 2) {
+                            this.menuAction[this.menuSize] = 6;
+                        } else if (type === 3) {
+                            this.menuAction[this.menuSize] = 963;
+                        } else if (type === 4) {
+                            this.menuAction[this.menuSize] = 245;
+                        }
+
+                        this.menuParamA[this.menuSize] = a;
+                        this.menuParamB[this.menuSize] = b;
+                        this.menuParamC[this.menuSize] = c;
+                        this.menuSize++;
+                    }
+                }
             }
-            this.out.p2(31824);
-            this.out.p2(13490);
-            if (((Math.random() * 2.0) | 0) === 0) {
-                this.out.p1(123);
+
+            if (npc.op) {
+                for (type = 4; type >= 0; type--) {
+                    if (npc.op[type] && npc.op[type]?.toLowerCase() === 'attack') {
+                        let action: number = 0;
+                        if (this.localPlayer && npc.vislevel > this.localPlayer.combatLevel) {
+                            action = 2000;
+                        }
+
+                        this.menuOption[this.menuSize] = npc.op[type] + ' @yel@' + tooltip;
+
+                        if (type === 0) {
+                            this.menuAction[this.menuSize] = action + 728;
+                        } else if (type === 1) {
+                            this.menuAction[this.menuSize] = action + 542;
+                        } else if (type === 2) {
+                            this.menuAction[this.menuSize] = action + 6;
+                        } else if (type === 3) {
+                            this.menuAction[this.menuSize] = action + 963;
+                        } else if (type === 4) {
+                            this.menuAction[this.menuSize] = action + 245;
+                        }
+
+                        this.menuParamA[this.menuSize] = a;
+                        this.menuParamB[this.menuSize] = b;
+                        this.menuParamC[this.menuSize] = c;
+                        this.menuSize++;
+                    }
+                }
             }
-            if (((Math.random() * 2.0) | 0) === 0) {
-                this.out.p1(134);
+
+            if (process.env.DEV_CLIENT) {
+                this.menuOption[this.menuSize] = 'Examine @yel@' + tooltip + ' @whi@(@gre@' + npc.id + '@whi@)';
+            } else {
+                this.menuOption[this.menuSize] = 'Examine @yel@' + tooltip;
             }
-            this.out.p1(100);
-            this.out.p1(94);
-            this.out.p2(35521);
-            this.out.psize1(this.out.pos - start);
+            this.menuAction[this.menuSize] = 1607;
+            this.menuParamA[this.menuSize] = a;
+            this.menuParamB[this.menuSize] = b;
+            this.menuParamC[this.menuSize] = c;
+            this.menuSize++;
+        } else if ((this.activeSpellFlags & 0x2) === 2) {
+            this.menuOption[this.menuSize] = this.spellCaption + ' @yel@' + tooltip;
+            this.menuAction[this.menuSize] = 265;
+            this.menuParamA[this.menuSize] = a;
+            this.menuParamB[this.menuSize] = b;
+            this.menuParamC[this.menuSize] = c;
+            this.menuSize++;
         }
     }
 
-    private updateEntity(entity: PathingEntity): void {
-        if (entity.x < 128 || entity.z < 128 || entity.x >= 13184 || entity.z >= 13184) {
-            entity.primarySeqId = -1;
-            entity.spotanimId = -1;
-            entity.forceMoveEndCycle = 0;
-            entity.forceMoveStartCycle = 0;
-            entity.x = entity.routeFlagX[0] * 128 + entity.size * 64;
-            entity.z = entity.routeFlagZ[0] * 128 + entity.size * 64;
-            entity.routeLength = 0;
+    private addPlayerOptions(player: PlayerEntity, a: number, b: number, c: number): void {
+        if (player === this.localPlayer || this.menuSize >= 400) {
+            return;
         }
 
-        if (entity === this.localPlayer && (entity.x < 1536 || entity.z < 1536 || entity.x >= 11776 || entity.z >= 11776)) {
-            entity.primarySeqId = -1;
-            entity.spotanimId = -1;
-            entity.forceMoveEndCycle = 0;
-            entity.forceMoveStartCycle = 0;
-            entity.x = entity.routeFlagX[0] * 128 + entity.size * 64;
-            entity.z = entity.routeFlagZ[0] * 128 + entity.size * 64;
-            entity.routeLength = 0;
+        let tooltip: string | null = null;
+        if (this.localPlayer) {
+            tooltip = player.name + this.getCombatLevelColorTag(this.localPlayer.combatLevel, player.combatLevel) + ' (level-' + player.combatLevel + ')';
+        }
+        if (this.objSelected === 1) {
+            this.menuOption[this.menuSize] = 'Use ' + this.objSelectedName + ' with @whi@' + tooltip;
+            this.menuAction[this.menuSize] = 367;
+            this.menuParamA[this.menuSize] = a;
+            this.menuParamB[this.menuSize] = b;
+            this.menuParamC[this.menuSize] = c;
+            this.menuSize++;
+        } else if (this.spellSelected !== 1) {
+            this.menuOption[this.menuSize] = 'Follow @whi@' + tooltip;
+            this.menuAction[this.menuSize] = 1544;
+            this.menuParamA[this.menuSize] = a;
+            this.menuParamB[this.menuSize] = b;
+            this.menuParamC[this.menuSize] = c;
+            this.menuSize++;
+
+            if (this.overrideChat === 0) {
+                this.menuOption[this.menuSize] = 'Trade with @whi@' + tooltip;
+                this.menuAction[this.menuSize] = 1373;
+                this.menuParamA[this.menuSize] = a;
+                this.menuParamB[this.menuSize] = b;
+                this.menuParamC[this.menuSize] = c;
+                this.menuSize++;
+            }
+
+            if (this.wildernessLevel > 0) {
+                this.menuOption[this.menuSize] = 'Attack @whi@' + tooltip;
+                if (this.localPlayer && this.localPlayer.combatLevel >= player.combatLevel) {
+                    this.menuAction[this.menuSize] = 151;
+                } else {
+                    this.menuAction[this.menuSize] = 2151;
+                }
+                this.menuParamA[this.menuSize] = a;
+                this.menuParamB[this.menuSize] = b;
+                this.menuParamC[this.menuSize] = c;
+                this.menuSize++;
+            }
+
+            if (this.worldLocationState === 1) {
+                this.menuOption[this.menuSize] = 'Fight @whi@' + tooltip;
+                this.menuAction[this.menuSize] = 151;
+                this.menuParamA[this.menuSize] = a;
+                this.menuParamB[this.menuSize] = b;
+                this.menuParamC[this.menuSize] = c;
+                this.menuSize++;
+            }
+
+            if (this.worldLocationState === 2) {
+                this.menuOption[this.menuSize] = 'Duel-with @whi@' + tooltip;
+                this.menuAction[this.menuSize] = 1101;
+                this.menuParamA[this.menuSize] = a;
+                this.menuParamB[this.menuSize] = b;
+                this.menuParamC[this.menuSize] = c;
+                this.menuSize++;
+            }
+        } else if ((this.activeSpellFlags & 0x8) === 8) {
+            this.menuOption[this.menuSize] = this.spellCaption + ' @whi@' + tooltip;
+            this.menuAction[this.menuSize] = 651;
+            this.menuParamA[this.menuSize] = a;
+            this.menuParamB[this.menuSize] = b;
+            this.menuParamC[this.menuSize] = c;
+            this.menuSize++;
         }
 
-        if (entity.forceMoveEndCycle > this.loopCycle) {
-            this.updateForceMovement(entity);
-        } else if (entity.forceMoveStartCycle >= this.loopCycle) {
-            this.startForceMovement(entity);
+        for (let i: number = 0; i < this.menuSize; i++) {
+            if (this.menuAction[i] === 660) {
+                this.menuOption[i] = 'Walk here @whi@' + tooltip;
+                return;
+            }
+        }
+    }
+
+    private getCombatLevelColorTag(viewerLevel: number, otherLevel: number): string {
+        const diff: number = viewerLevel - otherLevel;
+        if (diff < -9) {
+            return '@red@';
+        } else if (diff < -6) {
+            return '@or3@';
+        } else if (diff < -3) {
+            return '@or2@';
+        } else if (diff < 0) {
+            return '@or1@';
+        } else if (diff > 9) {
+            return '@gre@';
+        } else if (diff > 6) {
+            return '@gr3@';
+        } else if (diff > 3) {
+            return '@gr2@';
+        } else if (diff > 0) {
+            return '@gr1@';
         } else {
-            this.updateMovement(entity);
+            return '@yel@';
         }
-
-        this.updateFacingDirection(entity);
-        this.updateSequences(entity);
     }
 
-    private pushPlayers(): void {
+    private drawInterface(com: Component, x: number, y: number, scrollY: number, outline: boolean = false): void {
+        if (com.comType !== 0 || !com.childId || (com.hide && this.viewportHoveredInterfaceIndex !== com.id && this.sidebarHoveredInterfaceIndex !== com.id && this.chatHoveredInterfaceIndex !== com.id)) {
+            return;
+        }
+
+        const left: number = Pix2D.left;
+        const top: number = Pix2D.top;
+        const right: number = Pix2D.right;
+        const bottom: number = Pix2D.bottom;
+
+        Pix2D.setBounds(x, y, x + com.width, y + com.height);
+        const children: number = com.childId.length;
+
+        for (let i: number = 0; i < children; i++) {
+            if (!com.childX || !com.childY) {
+                continue;
+            }
+
+            let childX: number = com.childX[i] + x;
+            let childY: number = com.childY[i] + y - scrollY;
+
+            const child: Component = Component.instances[com.childId[i]];
+            childX += child.x;
+            childY += child.y;
+
+            if (outline) {
+                Pix2D.drawRect(childX, childY, child.width, child.height, Colors.WHITE);
+            }
+
+            if (child.clientCode > 0) {
+                this.updateInterfaceContent(child);
+            }
+
+            if (child.comType === ComponentType.TYPE_LAYER) {
+                if (child.scrollPosition > child.scroll - child.height) {
+                    child.scrollPosition = child.scroll - child.height;
+                }
+
+                if (child.scrollPosition < 0) {
+                    child.scrollPosition = 0;
+                }
+
+                this.drawInterface(child, childX, childY, child.scrollPosition, outline);
+
+                if (child.scroll > child.height) {
+                    this.drawScrollbar(childX + child.width, childY, child.scrollPosition, child.scroll, child.height);
+                }
+            } else if (child.comType === ComponentType.TYPE_INV) {
+                let slot: number = 0;
+
+                for (let row: number = 0; row < child.height; row++) {
+                    for (let col: number = 0; col < child.width; col++) {
+                        if (!child.invSlotOffsetX || !child.invSlotOffsetY || !child.invSlotObjId || !child.invSlotObjCount) {
+                            continue;
+                        }
+
+                        let slotX: number = childX + col * (child.marginX + 32);
+                        let slotY: number = childY + row * (child.marginY + 32);
+
+                        if (slot < 20) {
+                            slotX += child.invSlotOffsetX[slot];
+                            slotY += child.invSlotOffsetY[slot];
+                        }
+
+                        if (child.invSlotObjId[slot] > 0) {
+                            let dx: number = 0;
+                            let dy: number = 0;
+                            const id: number = child.invSlotObjId[slot] - 1;
+
+                            if ((slotX >= -32 && slotX <= 512 && slotY >= -32 && slotY <= 334) || (this.objDragArea !== 0 && this.objDragSlot === slot)) {
+                                const icon: Pix24 = ObjType.getIcon(id, child.invSlotObjCount[slot]);
+                                if (this.objDragArea !== 0 && this.objDragSlot === slot && this.objDragInterfaceId === child.id) {
+                                    dx = this.mouseX - this.objGrabX;
+                                    dy = this.mouseY - this.objGrabY;
+
+                                    if (dx < 5 && dx > -5) {
+                                        dx = 0;
+                                    }
+
+                                    if (dy < 5 && dy > -5) {
+                                        dy = 0;
+                                    }
+
+                                    if (this.objDragCycles < 5) {
+                                        dx = 0;
+                                        dy = 0;
+                                    }
+
+                                    icon.drawAlpha(128, slotX + dx, slotY + dy);
+                                } else if (this.selectedArea !== 0 && this.selectedItem === slot && this.selectedInterface === child.id) {
+                                    icon.drawAlpha(128, slotX, slotY);
+                                } else {
+                                    icon.draw(slotX, slotY);
+                                }
+
+                                if (icon.cropW === 33 || child.invSlotObjCount[slot] !== 1) {
+                                    const count: number = child.invSlotObjCount[slot];
+                                    this.fontPlain11?.drawString(slotX + dx + 1, slotY + 10 + dy, this.formatObjCount(count), Colors.BLACK);
+                                    this.fontPlain11?.drawString(slotX + dx, slotY + 9 + dy, this.formatObjCount(count), Colors.YELLOW);
+                                }
+                            }
+                        } else if (child.invSlotSprite && slot < 20) {
+                            const image: Pix24 | null = child.invSlotSprite[slot];
+                            image?.draw(slotX, slotY);
+                        }
+
+                        slot++;
+                    }
+                }
+            } else if (child.comType === ComponentType.TYPE_RECT) {
+                if (child.fill) {
+                    Pix2D.fillRect2d(childX, childY, child.width, child.height, child.colour);
+                } else {
+                    Pix2D.drawRect(childX, childY, child.width, child.height, child.colour);
+                }
+            } else if (child.comType === ComponentType.TYPE_TEXT) {
+                const font: PixFont | null = child.font;
+                let color: number = child.colour;
+                let text: string | null = child.text;
+
+                if ((this.chatHoveredInterfaceIndex === child.id || this.sidebarHoveredInterfaceIndex === child.id || this.viewportHoveredInterfaceIndex === child.id) && child.overColour !== 0) {
+                    color = child.overColour;
+                }
+
+                if (this.executeInterfaceScript(child)) {
+                    color = child.activeColour;
+
+                    if (child.activeText && child.activeText.length > 0) {
+                        text = child.activeText;
+                    }
+                }
+
+                if (child.buttonType === ButtonType.BUTTON_CONTINUE && this.pressedContinueOption) {
+                    text = 'Please wait...';
+                    color = child.colour;
+                }
+
+                if (!font || !text) {
+                    continue;
+                }
+
+                for (let lineY: number = childY + font.height2d; text.length > 0; lineY += font.height2d) {
+                    if (text.indexOf('%') !== -1) {
+                        do {
+                            const index: number = text.indexOf('%1');
+                            if (index === -1) {
+                                break;
+                            }
+
+                            text = text.substring(0, index) + this.getIntString(this.executeClientscript1(child, 0)) + text.substring(index + 2);
+                            // eslint-disable-next-line no-constant-condition
+                        } while (true);
+
+                        do {
+                            const index: number = text.indexOf('%2');
+                            if (index === -1) {
+                                break;
+                            }
+
+                            text = text.substring(0, index) + this.getIntString(this.executeClientscript1(child, 1)) + text.substring(index + 2);
+                            // eslint-disable-next-line no-constant-condition
+                        } while (true);
+
+                        do {
+                            const index: number = text.indexOf('%3');
+                            if (index === -1) {
+                                break;
+                            }
+
+                            text = text.substring(0, index) + this.getIntString(this.executeClientscript1(child, 2)) + text.substring(index + 2);
+                            // eslint-disable-next-line no-constant-condition
+                        } while (true);
+
+                        do {
+                            const index: number = text.indexOf('%4');
+                            if (index === -1) {
+                                break;
+                            }
+
+                            text = text.substring(0, index) + this.getIntString(this.executeClientscript1(child, 3)) + text.substring(index + 2);
+                            // eslint-disable-next-line no-constant-condition
+                        } while (true);
+
+                        do {
+                            const index: number = text.indexOf('%5');
+                            if (index === -1) {
+                                break;
+                            }
+
+                            text = text.substring(0, index) + this.getIntString(this.executeClientscript1(child, 4)) + text.substring(index + 2);
+                            // eslint-disable-next-line no-constant-condition
+                        } while (true);
+                    }
+
+                    const newline: number = text.indexOf('\\n');
+                    let split: string;
+                    if (newline !== -1) {
+                        split = text.substring(0, newline);
+                        text = text.substring(newline + 2);
+                    } else {
+                        split = text;
+                        text = '';
+                    }
+
+                    if (child.center) {
+                        font.drawStringTaggableCenter(childX + ((child.width / 2) | 0), lineY, split, color, child.shadowed);
+                    } else {
+                        font.drawStringTaggable(childX, lineY, split, color, child.shadowed);
+                    }
+                }
+            } else if (child.comType === ComponentType.TYPE_GRAPHIC) {
+                let image: Pix24 | null;
+                if (this.executeInterfaceScript(child)) {
+                    image = child.activeGraphic;
+                } else {
+                    image = child.graphic;
+                }
+
+                image?.draw(childX, childY);
+            } else if (child.comType === ComponentType.TYPE_MODEL) {
+                const tmpX: number = Pix3D.centerX;
+                const tmpY: number = Pix3D.centerY;
+
+                Pix3D.centerX = childX + ((child.width / 2) | 0);
+                Pix3D.centerY = childY + ((child.height / 2) | 0);
+
+                const eyeY: number = (Pix3D.sin[child.xan] * child.zoom) >> 16;
+                const eyeZ: number = (Pix3D.cos[child.xan] * child.zoom) >> 16;
+
+                const active: boolean = this.executeInterfaceScript(child);
+                let seqId: number;
+                if (active) {
+                    seqId = child.activeAnim;
+                } else {
+                    seqId = child.anim;
+                }
+
+                let model: Model | null = null;
+                if (seqId === -1) {
+                    model = child.getModel(-1, -1, active);
+                } else {
+                    const seq: SeqType = SeqType.instances[seqId];
+                    if (seq.seqFrames && seq.seqIframes) {
+                        model = child.getModel(seq.seqFrames[child.seqFrame], seq.seqIframes[child.seqFrame], active);
+                    }
+                }
+
+                if (model) {
+                    model.drawSimple(0, child.yan, 0, child.xan, 0, eyeY, eyeZ);
+                }
+
+                Pix3D.centerX = tmpX;
+                Pix3D.centerY = tmpY;
+            } else if (child.comType === ComponentType.TYPE_INV_TEXT) {
+                const font: PixFont | null = child.font;
+                if (!font || !child.invSlotObjId || !child.invSlotObjCount) {
+                    continue;
+                }
+
+                let slot: number = 0;
+                for (let row: number = 0; row < child.height; row++) {
+                    for (let col: number = 0; col < child.width; col++) {
+                        if (child.invSlotObjId[slot] > 0) {
+                            const obj: ObjType = ObjType.get(child.invSlotObjId[slot] - 1);
+                            let text: string | null = obj.name;
+                            if (obj.stackable || child.invSlotObjCount[slot] !== 1) {
+                                text = text + ' x' + this.formatObjCountTagged(child.invSlotObjCount[slot]);
+                            }
+
+                            if (!text) {
+                                continue;
+                            }
+
+                            const textX: number = childX + col * (child.marginX + 115);
+                            const textY: number = childY + row * (child.marginY + 12);
+
+                            if (child.center) {
+                                font.drawStringTaggableCenter(textX + ((child.width / 2) | 0), textY, text, child.colour, child.shadowed);
+                            } else {
+                                font.drawStringTaggable(textX, textY, text, child.colour, child.shadowed);
+                            }
+                        }
+
+                        slot++;
+                    }
+                }
+            }
+        }
+        Pix2D.setBounds(left, top, right, bottom);
+    }
+
+    private drawScrollbar(x: number, y: number, scrollY: number, scrollHeight: number, height: number): void {
+        this.imageScrollbar0?.draw(x, y);
+        this.imageScrollbar1?.draw(x, y + height - 16);
+        Pix2D.fillRect2d(x, y + 16, 16, height - 32, Colors.SCROLLBAR_TRACK);
+
+        let gripSize: number = (((height - 32) * height) / scrollHeight) | 0;
+        if (gripSize < 8) {
+            gripSize = 8;
+        }
+
+        const gripY: number = (((height - gripSize - 32) * scrollY) / (scrollHeight - height)) | 0;
+        Pix2D.fillRect2d(x, y + gripY + 16, 16, gripSize, Colors.SCROLLBAR_GRIP_FOREGROUND);
+
+        Pix2D.drawVerticalLine(x, y + gripY + 16, Colors.SCROLLBAR_GRIP_HIGHLIGHT, gripSize);
+        Pix2D.drawVerticalLine(x + 1, y + gripY + 16, Colors.SCROLLBAR_GRIP_HIGHLIGHT, gripSize);
+
+        Pix2D.drawHorizontalLine(x, y + gripY + 16, Colors.SCROLLBAR_GRIP_HIGHLIGHT, 16);
+        Pix2D.drawHorizontalLine(x, y + gripY + 17, Colors.SCROLLBAR_GRIP_HIGHLIGHT, 16);
+
+        Pix2D.drawVerticalLine(x + 15, y + gripY + 16, Colors.SCROLLBAR_GRIP_LOWLIGHT, gripSize);
+        Pix2D.drawVerticalLine(x + 14, y + gripY + 17, Colors.SCROLLBAR_GRIP_LOWLIGHT, gripSize - 1);
+
+        Pix2D.drawHorizontalLine(x, y + gripY + gripSize + 15, Colors.SCROLLBAR_GRIP_LOWLIGHT, 16);
+        Pix2D.drawHorizontalLine(x + 1, y + gripY + gripSize + 14, Colors.SCROLLBAR_GRIP_LOWLIGHT, 15);
+    }
+
+    private formatObjCount(amount: number): string {
+        if (amount < 100000) {
+            return String(amount);
+        } else if (amount < 10000000) {
+            return ((amount / 1000) | 0) + 'K';
+        } else {
+            return ((amount / 1000000) | 0) + 'M';
+        }
+    }
+
+    private formatObjCountTagged(amount: number): string {
+        let s: string = String(amount);
+        for (let i: number = s.length - 3; i > 0; i -= 3) {
+            s = s.substring(0, i) + ',' + s.substring(i);
+        }
+        if (s.length > 8) {
+            s = '@gre@' + s.substring(0, s.length - 8) + ' million @whi@(' + s + ')';
+        } else if (s.length > 4) {
+            s = '@cya@' + s.substring(0, s.length - 4) + 'K @whi@(' + s + ')';
+        }
+        return ' ' + s;
+    }
+
+    private handleScrollInput(mouseX: number, mouseY: number, scrollableHeight: number, height: number, redraw: boolean, left: number, top: number, component: Component): void {
+        if (this.scrollGrabbed) {
+            this.scrollInputPadding = 32;
+        } else {
+            this.scrollInputPadding = 0;
+        }
+
+        this.scrollGrabbed = false;
+
+        if (mouseX >= left && mouseX < left + 16 && mouseY >= top && mouseY < top + 16) {
+            component.scrollPosition -= this.dragCycles * 4;
+            if (redraw) {
+                this.redrawSidebar = true;
+            }
+        } else if (mouseX >= left && mouseX < left + 16 && mouseY >= top + height - 16 && mouseY < top + height) {
+            component.scrollPosition += this.dragCycles * 4;
+            if (redraw) {
+                this.redrawSidebar = true;
+            }
+        } else if (mouseX >= left - this.scrollInputPadding && mouseX < left + this.scrollInputPadding + 16 && mouseY >= top + 16 && mouseY < top + height - 16 && this.dragCycles > 0) {
+            let gripSize: number = (((height - 32) * height) / scrollableHeight) | 0;
+            if (gripSize < 8) {
+                gripSize = 8;
+            }
+            const gripY: number = mouseY - top - ((gripSize / 2) | 0) - 16;
+            const maxY: number = height - gripSize - 32;
+            component.scrollPosition = (((scrollableHeight - height) * gripY) / maxY) | 0;
+            if (redraw) {
+                this.redrawSidebar = true;
+            }
+            this.scrollGrabbed = true;
+        }
+    }
+
+    private getIntString(value: number): string {
+        return value < 999999999 ? String(value) : '*';
+    }
+
+    private executeInterfaceScript(com: Component): boolean {
+        if (!com.scriptComparator) {
+            return false;
+        }
+
+        for (let i: number = 0; i < com.scriptComparator.length; i++) {
+            const value: number = this.executeClientscript1(com, i);
+            if (!com.scriptOperand) {
+                return false;
+            }
+            const operand: number = com.scriptOperand[i];
+
+            if (com.scriptComparator[i] === 2) {
+                if (value >= operand) {
+                    return false;
+                }
+            } else if (com.scriptComparator[i] === 3) {
+                if (value <= operand) {
+                    return false;
+                }
+            } else if (com.scriptComparator[i] === 4) {
+                if (value === operand) {
+                    return false;
+                }
+            } else if (value !== operand) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private executeClientscript1(component: Component, scriptId: number): number {
+        if (!component.script || scriptId >= component.script.length) {
+            return -2;
+        }
+
+        try {
+            const script: Uint16Array | null = component.script[scriptId];
+            if (!script) {
+                // -1 is right bcos if an exception happen from array not being initialized in the lower code etc etc
+                return -1;
+            }
+            let register: number = 0;
+            let pc: number = 0;
+
+            // eslint-disable-next-line no-constant-condition
+            while (true) {
+                const opcode: number = script[pc++];
+                if (opcode === 0) {
+                    return register;
+                }
+
+                if (opcode === 1) {
+                    // load_skill_level {skill}
+                    register += this.skillLevel[script[pc++]];
+                } else if (opcode === 2) {
+                    // load_skill_base_level {skill}
+                    register += this.skillBaseLevel[script[pc++]];
+                } else if (opcode === 3) {
+                    // load_skill_exp {skill}
+                    register += this.skillExperience[script[pc++]];
+                } else if (opcode === 4) {
+                    // load_inv_count {interface id} {obj id}
+                    const com: Component = Component.instances[script[pc++]];
+                    const obj: number = script[pc++] + 1;
+
+                    if (com.invSlotObjId && com.invSlotObjCount) {
+                        for (let i: number = 0; i < com.invSlotObjId.length; i++) {
+                            if (com.invSlotObjId[i] === obj) {
+                                register += com.invSlotObjCount[i];
+                            }
+                        }
+                    } else {
+                        register += 0; // TODO this is custom bcos idk if it can fall 'out of sync' if u dont add to register...
+                    }
+                } else if (opcode === 5) {
+                    // load_var {id}
+                    register += this.varps[script[pc++]];
+                } else if (opcode === 6) {
+                    // load_next_level_xp {skill}
+                    register += Client.levelExperience[this.skillBaseLevel[script[pc++]] - 1];
+                } else if (opcode === 7) {
+                    register += ((this.varps[script[pc++]] * 100) / 46875) | 0;
+                } else if (opcode === 8) {
+                    // load_combat_level
+                    register += this.localPlayer?.combatLevel || 0;
+                } else if (opcode === 9) {
+                    // load_total_level
+                    for (let i: number = 0; i < 19; i++) {
+                        if (i === 18) {
+                            // runecrafting
+                            i = 20;
+                        }
+
+                        register += this.skillBaseLevel[i];
+                    }
+                } else if (opcode === 10) {
+                    // load_inv_contains {interface id} {obj id}
+                    const com: Component = Component.instances[script[pc++]];
+                    const obj: number = script[pc++] + 1;
+
+                    for (let i: number = 0; i < com.invSlotObjId!.length; i++) {
+                        if (com.invSlotObjId![i] === obj) {
+                            register += 999999999;
+                            break;
+                        }
+                    }
+                } else if (opcode === 11) {
+                    // load_energy
+                    register += this.energy;
+                } else if (opcode === 12) {
+                    // load_weight
+                    register += this.weightCarried;
+                } else if (opcode === 13) {
+                    // load_bool {varp} {bit: 0..31}
+                    const varp: number = this.varps[script[pc++]];
+                    const lsb: number = script[pc++];
+
+                    register += (varp & (0x1 << lsb)) === 0 ? 0 : 1;
+                }
+            }
+        } catch (e) {
+            return -1;
+        }
+    }
+
+    private handleInterfaceInput(com: Component, mouseX: number, mouseY: number, x: number, y: number, scrollPosition: number): void {
+        if (com.comType !== 0 || !com.childId || com.hide || mouseX < x || mouseY < y || mouseX > x + com.width || mouseY > y + com.height || !com.childX || !com.childY) {
+            return;
+        }
+
+        const children: number = com.childId.length;
+        for (let i: number = 0; i < children; i++) {
+            let childX: number = com.childX[i] + x;
+            let childY: number = com.childY[i] + y - scrollPosition;
+            const child: Component = Component.instances[com.childId[i]];
+
+            childX += child.x;
+            childY += child.y;
+
+            if ((child.overLayer >= 0 || child.overColour !== 0) && mouseX >= childX && mouseY >= childY && mouseX < childX + child.width && mouseY < childY + child.height) {
+                if (child.overLayer >= 0) {
+                    this.lastHoveredInterfaceId = child.overLayer;
+                } else {
+                    this.lastHoveredInterfaceId = child.id;
+                }
+            }
+
+            if (child.comType === 0) {
+                this.handleInterfaceInput(child, mouseX, mouseY, childX, childY, child.scrollPosition);
+
+                if (child.scroll > child.height) {
+                    this.handleScrollInput(mouseX, mouseY, child.scroll, child.height, true, childX + child.width, childY, child);
+                }
+            } else if (child.comType === 2) {
+                let slot: number = 0;
+
+                for (let row: number = 0; row < child.height; row++) {
+                    for (let col: number = 0; col < child.width; col++) {
+                        let slotX: number = childX + col * (child.marginX + 32);
+                        let slotY: number = childY + row * (child.marginY + 32);
+
+                        if (slot < 20 && child.invSlotOffsetX && child.invSlotOffsetY) {
+                            slotX += child.invSlotOffsetX[slot];
+                            slotY += child.invSlotOffsetY[slot];
+                        }
+
+                        if (mouseX < slotX || mouseY < slotY || mouseX >= slotX + 32 || mouseY >= slotY + 32) {
+                            slot++;
+                            continue;
+                        }
+
+                        this.hoveredSlot = slot;
+                        this.hoveredSlotParentId = child.id;
+
+                        if (!child.invSlotObjId || child.invSlotObjId[slot] <= 0) {
+                            slot++;
+                            continue;
+                        }
+
+                        const obj: ObjType = ObjType.get(child.invSlotObjId[slot] - 1);
+
+                        if (this.objSelected === 1 && child.interactable) {
+                            if (child.id !== this.objSelectedInterface || slot !== this.objSelectedSlot) {
+                                this.menuOption[this.menuSize] = 'Use ' + this.objSelectedName + ' with @lre@' + obj.name;
+                                this.menuAction[this.menuSize] = 881;
+                                this.menuParamA[this.menuSize] = obj.id;
+                                this.menuParamB[this.menuSize] = slot;
+                                this.menuParamC[this.menuSize] = child.id;
+                                this.menuSize++;
+                            }
+                        } else if (this.spellSelected === 1 && child.interactable) {
+                            if ((this.activeSpellFlags & 0x10) === 16) {
+                                this.menuOption[this.menuSize] = this.spellCaption + ' @lre@' + obj.name;
+                                this.menuAction[this.menuSize] = 391;
+                                this.menuParamA[this.menuSize] = obj.id;
+                                this.menuParamB[this.menuSize] = slot;
+                                this.menuParamC[this.menuSize] = child.id;
+                                this.menuSize++;
+                            }
+                        } else {
+                            if (child.interactable) {
+                                for (let op: number = 4; op >= 3; op--) {
+                                    if (obj.iop && obj.iop[op]) {
+                                        this.menuOption[this.menuSize] = obj.iop[op] + ' @lre@' + obj.name;
+                                        if (op === 3) {
+                                            this.menuAction[this.menuSize] = 478;
+                                        } else if (op === 4) {
+                                            this.menuAction[this.menuSize] = 347;
+                                        }
+                                        this.menuParamA[this.menuSize] = obj.id;
+                                        this.menuParamB[this.menuSize] = slot;
+                                        this.menuParamC[this.menuSize] = child.id;
+                                        this.menuSize++;
+                                    } else if (op === 4) {
+                                        this.menuOption[this.menuSize] = 'Drop @lre@' + obj.name;
+                                        this.menuAction[this.menuSize] = 347;
+                                        this.menuParamA[this.menuSize] = obj.id;
+                                        this.menuParamB[this.menuSize] = slot;
+                                        this.menuParamC[this.menuSize] = child.id;
+                                        this.menuSize++;
+                                    }
+                                }
+                            }
+
+                            if (child.usable) {
+                                this.menuOption[this.menuSize] = 'Use @lre@' + obj.name;
+                                this.menuAction[this.menuSize] = 188;
+                                this.menuParamA[this.menuSize] = obj.id;
+                                this.menuParamB[this.menuSize] = slot;
+                                this.menuParamC[this.menuSize] = child.id;
+                                this.menuSize++;
+                            }
+
+                            if (child.interactable && obj.iop) {
+                                for (let op: number = 2; op >= 0; op--) {
+                                    if (obj.iop[op]) {
+                                        this.menuOption[this.menuSize] = obj.iop[op] + ' @lre@' + obj.name;
+                                        if (op === 0) {
+                                            this.menuAction[this.menuSize] = 405;
+                                        } else if (op === 1) {
+                                            this.menuAction[this.menuSize] = 38;
+                                        } else if (op === 2) {
+                                            this.menuAction[this.menuSize] = 422;
+                                        }
+                                        this.menuParamA[this.menuSize] = obj.id;
+                                        this.menuParamB[this.menuSize] = slot;
+                                        this.menuParamC[this.menuSize] = child.id;
+                                        this.menuSize++;
+                                    }
+                                }
+                            }
+
+                            if (child.iops) {
+                                for (let op: number = 4; op >= 0; op--) {
+                                    if (child.iops[op]) {
+                                        this.menuOption[this.menuSize] = child.iops[op] + ' @lre@' + obj.name;
+                                        if (op === 0) {
+                                            this.menuAction[this.menuSize] = 602;
+                                        } else if (op === 1) {
+                                            this.menuAction[this.menuSize] = 596;
+                                        } else if (op === 2) {
+                                            this.menuAction[this.menuSize] = 22;
+                                        } else if (op === 3) {
+                                            this.menuAction[this.menuSize] = 892;
+                                        } else if (op === 4) {
+                                            this.menuAction[this.menuSize] = 415;
+                                        }
+                                        this.menuParamA[this.menuSize] = obj.id;
+                                        this.menuParamB[this.menuSize] = slot;
+                                        this.menuParamC[this.menuSize] = child.id;
+                                        this.menuSize++;
+                                    }
+                                }
+                            }
+
+                            if (process.env.DEV_CLIENT) {
+                                this.menuOption[this.menuSize] = 'Examine @lre@' + obj.name + ' @whi@(@gre@' + obj.id + '@whi@)';
+                            } else {
+                                this.menuOption[this.menuSize] = 'Examine @lre@' + obj.name;
+                            }
+                            this.menuAction[this.menuSize] = 1773;
+                            this.menuParamA[this.menuSize] = obj.id;
+                            if (child.invSlotObjCount) {
+                                this.menuParamC[this.menuSize] = child.invSlotObjCount[slot];
+                            }
+                            this.menuSize++;
+                        }
+
+                        slot++;
+                    }
+                }
+            } else if (mouseX >= childX && mouseY >= childY && mouseX < childX + child.width && mouseY < childY + child.height) {
+                if (child.buttonType === ButtonType.BUTTON_OK) {
+                    let override: boolean = false;
+                    if (child.clientCode !== 0) {
+                        override = this.handleSocialMenuOption(child);
+                    }
+
+                    if (!override && child.option) {
+                        this.menuOption[this.menuSize] = child.option;
+                        this.menuAction[this.menuSize] = 951;
+                        this.menuParamC[this.menuSize] = child.id;
+                        this.menuSize++;
+                    }
+                } else if (child.buttonType === ButtonType.BUTTON_TARGET && this.spellSelected === 0) {
+                    let prefix: string | null = child.actionVerb;
+                    if (prefix && prefix.indexOf(' ') !== -1) {
+                        prefix = prefix.substring(0, prefix.indexOf(' '));
+                    }
+
+                    this.menuOption[this.menuSize] = prefix + ' @gre@' + child.action;
+                    this.menuAction[this.menuSize] = 930;
+                    this.menuParamC[this.menuSize] = child.id;
+                    this.menuSize++;
+                } else if (child.buttonType === ButtonType.BUTTON_CLOSE) {
+                    this.menuOption[this.menuSize] = 'Close';
+                    this.menuAction[this.menuSize] = 947;
+                    this.menuParamC[this.menuSize] = child.id;
+                    this.menuSize++;
+                } else if (child.buttonType === ButtonType.BUTTON_TOGGLE && child.option) {
+                    this.menuOption[this.menuSize] = child.option;
+                    this.menuAction[this.menuSize] = 465;
+                    this.menuParamC[this.menuSize] = child.id;
+                    this.menuSize++;
+                } else if (child.buttonType === ButtonType.BUTTON_SELECT && child.option) {
+                    this.menuOption[this.menuSize] = child.option;
+                    this.menuAction[this.menuSize] = 960;
+                    this.menuParamC[this.menuSize] = child.id;
+                    this.menuSize++;
+                } else if (child.buttonType === ButtonType.BUTTON_CONTINUE && !this.pressedContinueOption && child.option) {
+                    this.menuOption[this.menuSize] = child.option;
+                    this.menuAction[this.menuSize] = 44;
+                    this.menuParamC[this.menuSize] = child.id;
+                    this.menuSize++;
+                }
+            }
+        }
+    }
+
+    private handleSocialMenuOption(component: Component): boolean {
+        let type: number = component.clientCode;
+        if (type >= ClientCode.CC_FRIENDS_START && type <= ClientCode.CC_FRIENDS_UPDATE_END) {
+            if (type >= ClientCode.CC_FRIENDS_UPDATE_START) {
+                type -= ClientCode.CC_FRIENDS_UPDATE_START;
+            } else {
+                type--;
+            }
+            this.menuOption[this.menuSize] = 'Remove @whi@' + this.friendName[type];
+            this.menuAction[this.menuSize] = 557;
+            this.menuSize++;
+            this.menuOption[this.menuSize] = 'Message @whi@' + this.friendName[type];
+            this.menuAction[this.menuSize] = 679;
+            this.menuSize++;
+            return true;
+        } else if (type >= ClientCode.CC_IGNORES_START && type <= ClientCode.CC_IGNORES_END) {
+            this.menuOption[this.menuSize] = 'Remove @whi@' + component.text;
+            this.menuAction[this.menuSize] = 556;
+            this.menuSize++;
+            return true;
+        }
+        return false;
+    }
+
+    private resetInterfaceAnimation(id: number): void {
+        const parent: Component = Component.instances[id];
+        if (!parent.childId) {
+            return;
+        }
+        for (let i: number = 0; i < parent.childId.length && parent.childId[i] !== -1; i++) {
+            const child: Component = Component.instances[parent.childId[i]];
+            if (child.comType === 1) {
+                this.resetInterfaceAnimation(child.id);
+            }
+            child.seqFrame = 0;
+            child.seqCycle = 0;
+        }
+    }
+
+    private updateInterfaceAnimation(id: number, delta: number): boolean {
+        let updated: boolean = false;
+        const parent: Component = Component.instances[id];
+        if (!parent.childId) {
+            return false;
+        }
+
+        for (let i: number = 0; i < parent.childId.length && parent.childId[i] !== -1; i++) {
+            const child: Component = Component.instances[parent.childId[i]];
+            if (child.comType === 1) {
+                updated ||= this.updateInterfaceAnimation(child.id, delta);
+            }
+
+            if (child.comType === 6 && (child.anim !== -1 || child.activeAnim !== -1)) {
+                const active: boolean = this.executeInterfaceScript(child);
+
+                let seqId: number;
+                if (active) {
+                    seqId = child.activeAnim;
+                } else {
+                    seqId = child.anim;
+                }
+
+                if (seqId !== -1) {
+                    const type: SeqType = SeqType.instances[seqId];
+                    child.seqCycle += delta;
+
+                    if (type.seqDelay) {
+                        while (child.seqCycle > type.seqDelay[child.seqFrame]) {
+                            child.seqCycle -= type.seqDelay[child.seqFrame] + 1;
+                            child.seqFrame++;
+
+                            if (child.seqFrame >= type.seqFrameCount) {
+                                child.seqFrame -= type.replayoff;
+
+                                if (child.seqFrame < 0 || child.seqFrame >= type.seqFrameCount) {
+                                    child.seqFrame = 0;
+                                }
+                            }
+
+                            updated = true;
+                        }
+                    }
+                }
+            }
+        }
+
+        return updated;
+    }
+
+    private async updateVarp(id: number): Promise<void> {
+        const clientcode: number = VarpType.instances[id].clientcode;
+        if (clientcode !== 0) {
+            const value: number = this.varps[id];
+            if (clientcode === 1) {
+                if (value === 1) {
+                    Pix3D.setBrightness(0.9);
+                }
+                if (value === 2) {
+                    Pix3D.setBrightness(0.8);
+                }
+                if (value === 3) {
+                    Pix3D.setBrightness(0.7);
+                }
+                if (value === 4) {
+                    Pix3D.setBrightness(0.6);
+                }
+                ObjType.iconCache?.clear();
+                this.redrawTitleBackground = true;
+            }
+            if (clientcode === 3) {
+                const lastMidiActive: boolean = this.midiActive;
+                if (value === 0) {
+                    this.midiVolume = 128;
+                    setMidiVolume(128);
+                    this.midiActive = true;
+                }
+                if (value === 1) {
+                    this.midiVolume = 96;
+                    setMidiVolume(96);
+                    this.midiActive = true;
+                }
+                if (value === 2) {
+                    this.midiVolume = 64;
+                    setMidiVolume(64);
+                    this.midiActive = true;
+                }
+                if (value === 3) {
+                    this.midiVolume = 32;
+                    setMidiVolume(32);
+                    this.midiActive = true;
+                }
+                if (value === 4) {
+                    this.midiActive = false;
+                }
+                if (this.midiActive !== lastMidiActive) {
+                    if (this.midiActive && this.currentMidi) {
+                        await this.setMidi(this.currentMidi, this.midiCrc, this.midiSize, false);
+                    } else {
+                        stopMidi(false);
+                    }
+                    this.nextMusicDelay = 0;
+                }
+            }
+            if (clientcode === 4) {
+                if (value === 0) {
+                    this.waveVolume = 128;
+                    setWaveVolume(128);
+                    this.waveEnabled = true;
+                }
+                if (value === 1) {
+                    this.waveVolume = 96;
+                    setWaveVolume(96);
+                    this.waveEnabled = true;
+                }
+                if (value === 2) {
+                    this.waveVolume = 64;
+                    setWaveVolume(64);
+                    this.waveEnabled = true;
+                }
+                if (value === 3) {
+                    this.waveVolume = 32;
+                    setWaveVolume(32);
+                    this.waveEnabled = true;
+                }
+                if (value === 4) {
+                    this.waveEnabled = false;
+                }
+            }
+            if (clientcode === 5) {
+                this.mouseButtonsOption = value;
+            }
+            if (clientcode === 6) {
+                this.chatEffects = value;
+            }
+            if (clientcode === 8) {
+                this.splitPrivateChat = value;
+                this.redrawChatback = true;
+            }
+        }
+    }
+
+    private updateInterfaceContent(component: Component): void {
+        let clientCode: number = component.clientCode;
+
+        if (clientCode >= ClientCode.CC_FRIENDS_START && clientCode <= ClientCode.CC_FRIENDS_END) {
+            clientCode--;
+            if (clientCode >= this.friendCount) {
+                component.text = '';
+                component.buttonType = 0;
+            } else {
+                component.text = this.friendName[clientCode];
+                component.buttonType = 1;
+            }
+        } else if (clientCode >= ClientCode.CC_FRIENDS_UPDATE_START && clientCode <= ClientCode.CC_FRIENDS_UPDATE_END) {
+            clientCode -= ClientCode.CC_FRIENDS_UPDATE_START;
+            if (clientCode >= this.friendCount) {
+                component.text = '';
+                component.buttonType = 0;
+            } else {
+                if (this.friendWorld[clientCode] === 0) {
+                    component.text = '@red@Offline';
+                } else if (this.friendWorld[clientCode] === Client.nodeId) {
+                    component.text = '@gre@World-' + (this.friendWorld[clientCode] - 9);
+                } else {
+                    component.text = '@yel@World-' + (this.friendWorld[clientCode] - 9);
+                }
+                component.buttonType = 1;
+            }
+        } else if (clientCode === ClientCode.CC_FRIENDS_SIZE) {
+            component.scroll = this.friendCount * 15 + 20;
+            if (component.scroll <= component.height) {
+                component.scroll = component.height + 1;
+            }
+        } else if (clientCode >= ClientCode.CC_IGNORES_START && clientCode <= ClientCode.CC_IGNORES_END) {
+            clientCode -= ClientCode.CC_IGNORES_START;
+            if (clientCode >= this.ignoreCount) {
+                component.text = '';
+                component.buttonType = 0;
+            } else {
+                component.text = JString.formatName(JString.fromBase37(this.ignoreName37[clientCode]));
+                component.buttonType = 1;
+            }
+        } else if (clientCode === ClientCode.CC_IGNORES_SIZE) {
+            component.scroll = this.ignoreCount * 15 + 20;
+            if (component.scroll <= component.height) {
+                component.scroll = component.height + 1;
+            }
+        } else if (clientCode === ClientCode.CC_DESIGN_PREVIEW) {
+            component.xan = 150;
+            component.yan = ((Math.sin(this.loopCycle / 40.0) * 256.0) | 0) & 0x7ff;
+            if (this.updateDesignModel) {
+                this.updateDesignModel = false;
+
+                const models: (Model | null)[] = new TypedArray1d(7, null);
+                let modelCount: number = 0;
+                for (let part: number = 0; part < 7; part++) {
+                    const kit: number = this.designIdentikits[part];
+                    if (kit >= 0) {
+                        models[modelCount++] = IdkType.instances[kit].getModel();
+                    }
+                }
+
+                const model: Model = Model.modelFromModels(models, modelCount);
+                for (let part: number = 0; part < 5; part++) {
+                    if (this.designColors[part] !== 0) {
+                        model.recolor(PlayerEntity.DESIGN_IDK_COLORS[part][0], PlayerEntity.DESIGN_IDK_COLORS[part][this.designColors[part]]);
+                        if (part === 1) {
+                            model.recolor(PlayerEntity.TORSO_RECOLORS[0], PlayerEntity.TORSO_RECOLORS[this.designColors[part]]);
+                        }
+                    }
+                }
+
+                if (this.localPlayer) {
+                    const frames: Int16Array | null = SeqType.instances[this.localPlayer.seqStandId].seqFrames;
+                    if (frames) {
+                        model.createLabelReferences();
+                        model.applyTransform(frames[0]);
+                        model.calculateNormals(64, 850, -30, -50, -30, true);
+                        component.model = model;
+                    }
+                }
+            }
+        } else if (clientCode === ClientCode.CC_SWITCH_TO_MALE) {
+            if (!this.genderButtonImage0) {
+                this.genderButtonImage0 = component.graphic;
+                this.genderButtonImage1 = component.activeGraphic;
+            }
+            if (this.designGenderMale) {
+                component.graphic = this.genderButtonImage1;
+            } else {
+                component.graphic = this.genderButtonImage0;
+            }
+        } else if (clientCode === ClientCode.CC_SWITCH_TO_FEMALE) {
+            if (!this.genderButtonImage0) {
+                this.genderButtonImage0 = component.graphic;
+                this.genderButtonImage1 = component.activeGraphic;
+            }
+            if (this.designGenderMale) {
+                component.graphic = this.genderButtonImage0;
+            } else {
+                component.graphic = this.genderButtonImage1;
+            }
+        } else if (clientCode === ClientCode.CC_REPORT_INPUT) {
+            component.text = this.reportAbuseInput;
+            if (this.loopCycle % 20 < 10) {
+                component.text = component.text + '|';
+            } else {
+                component.text = component.text + ' ';
+            }
+        } else if (clientCode === ClientCode.CC_MOD_MUTE) {
+            if (!this.rights) {
+                component.text = '';
+            } else if (this.reportAbuseMuteOption) {
+                component.colour = Colors.RED;
+                component.text = 'Moderator option: Mute player for 48 hours: <ON>';
+            } else {
+                component.colour = Colors.WHITE;
+                component.text = 'Moderator option: Mute player for 48 hours: <OFF>';
+            }
+        } else if (clientCode === ClientCode.CC_LAST_LOGIN_INFO || clientCode === ClientCode.CC_LAST_LOGIN_INFO2) {
+            if (this.lastAddress === 0) {
+                component.text = '';
+            } else {
+                let text: string;
+                if (this.daysSinceLastLogin === 0) {
+                    text = 'earlier today';
+                } else if (this.daysSinceLastLogin === 1) {
+                    text = 'yesterday';
+                } else {
+                    text = this.daysSinceLastLogin + ' days ago';
+                }
+
+                // Show ip address only if not 127.0.0.1
+                // Production does not record IP so it's always 127.0.0.1
+                const ipStr = JString.formatIPv4(this.lastAddress);
+                component.text = 'You last logged in ' + text + (ipStr === '127.0.0.1' ? '.' : ' from: ' + ipStr);
+            }
+        } else if (clientCode === ClientCode.CC_UNREAD_MESSAGES) {
+            if (this.unreadMessages === 0) {
+                component.text = '0 unread messages';
+                component.colour = Colors.YELLOW;
+            }
+            if (this.unreadMessages === 1) {
+                component.text = '1 unread message';
+                component.colour = Colors.GREEN;
+            }
+            if (this.unreadMessages > 1) {
+                component.text = this.unreadMessages + ' unread messages';
+                component.colour = Colors.GREEN;
+            }
+        } else if (clientCode === ClientCode.CC_RECOVERY1) {
+            if (this.daysSinceRecoveriesChanged === 201) {
+                component.text = '';
+            } else if (this.daysSinceRecoveriesChanged === 200) {
+                component.text = 'You have not yet set any password recovery questions.';
+            } else {
+                let text: string;
+                if (this.daysSinceRecoveriesChanged === 0) {
+                    text = 'Earlier today';
+                } else if (this.daysSinceRecoveriesChanged === 1) {
+                    text = 'Yesterday';
+                } else {
+                    text = this.daysSinceRecoveriesChanged + ' days ago';
+                }
+                component.text = text + ' you changed your recovery questions';
+            }
+        } else if (clientCode === ClientCode.CC_RECOVERY2) {
+            if (this.daysSinceRecoveriesChanged === 201) {
+                component.text = '';
+            } else if (this.daysSinceRecoveriesChanged === 200) {
+                component.text = 'We strongly recommend you do so now to secure your account.';
+            } else {
+                component.text = 'If you do not remember making this change then cancel it immediately';
+            }
+        } else if (clientCode === ClientCode.CC_RECOVERY3) {
+            if (this.daysSinceRecoveriesChanged === 201) {
+                component.text = '';
+            } else if (this.daysSinceRecoveriesChanged === 200) {
+                component.text = "Do this from the 'account management' area on our front webpage";
+            } else {
+                component.text = "Do this from the 'account management' area on our front webpage";
+            }
+        }
+    }
+
+    private handleInterfaceAction(com: Component): boolean {
+        const clientCode: number = com.clientCode;
+        if (clientCode === ClientCode.CC_ADD_FRIEND) {
+            this.redrawChatback = true;
+            this.chatbackInputOpen = false;
+            this.showSocialInput = true;
+            this.socialInput = '';
+            this.socialAction = 1;
+            this.socialMessage = 'Enter name of friend to add to list';
+        }
+
+        if (clientCode === ClientCode.CC_DEL_FRIEND) {
+            this.redrawChatback = true;
+            this.chatbackInputOpen = false;
+            this.showSocialInput = true;
+            this.socialInput = '';
+            this.socialAction = 2;
+            this.socialMessage = 'Enter name of friend to delete from list';
+        }
+
+        if (clientCode === ClientCode.CC_LOGOUT) {
+            this.idleTimeout = 250;
+            return true;
+        }
+
+        if (clientCode === ClientCode.CC_ADD_IGNORE) {
+            this.redrawChatback = true;
+            this.chatbackInputOpen = false;
+            this.showSocialInput = true;
+            this.socialInput = '';
+            this.socialAction = 4;
+            this.socialMessage = 'Enter name of player to add to list';
+        }
+
+        if (clientCode === ClientCode.CC_DEL_IGNORE) {
+            this.redrawChatback = true;
+            this.chatbackInputOpen = false;
+            this.showSocialInput = true;
+            this.socialInput = '';
+            this.socialAction = 5;
+            this.socialMessage = 'Enter name of player to delete from list';
+        }
+
+        // physical parts
+        if (clientCode >= ClientCode.CC_CHANGE_HEAD_L && clientCode <= ClientCode.CC_CHANGE_FEET_R) {
+            const part: number = ((clientCode - 300) / 2) | 0;
+            const direction: number = clientCode & 0x1;
+            let kit: number = this.designIdentikits[part];
+
+            if (kit !== -1) {
+                // eslint-disable-next-line no-constant-condition
+                while (true) {
+                    if (direction === 0) {
+                        kit--;
+                        if (kit < 0) {
+                            kit = IdkType.totalCount - 1;
+                        }
+                    }
+
+                    if (direction === 1) {
+                        kit++;
+                        if (kit >= IdkType.totalCount) {
+                            kit = 0;
+                        }
+                    }
+
+                    if (!IdkType.instances[kit].disableKit && IdkType.instances[kit].bodyPart === part + (this.designGenderMale ? 0 : 7)) {
+                        this.designIdentikits[part] = kit;
+                        this.updateDesignModel = true;
+                        break;
+                    }
+                }
+            }
+        }
+
+        // recoloring parts
+        if (clientCode >= ClientCode.CC_RECOLOUR_HAIR_L && clientCode <= ClientCode.CC_RECOLOUR_SKIN_R) {
+            const part: number = ((clientCode - 314) / 2) | 0;
+            const direction: number = clientCode & 0x1;
+            let color: number = this.designColors[part];
+
+            if (direction === 0) {
+                color--;
+                if (color < 0) {
+                    color = PlayerEntity.DESIGN_IDK_COLORS[part].length - 1;
+                }
+            }
+
+            if (direction === 1) {
+                color++;
+                if (color >= PlayerEntity.DESIGN_IDK_COLORS[part].length) {
+                    color = 0;
+                }
+            }
+
+            this.designColors[part] = color;
+            this.updateDesignModel = true;
+        }
+
+        if (clientCode === ClientCode.CC_SWITCH_TO_MALE && !this.designGenderMale) {
+            this.designGenderMale = true;
+            this.validateCharacterDesign();
+        }
+
+        if (clientCode === ClientCode.CC_SWITCH_TO_FEMALE && this.designGenderMale) {
+            this.designGenderMale = false;
+            this.validateCharacterDesign();
+        }
+
+        if (clientCode === ClientCode.CC_ACCEPT_DESIGN) {
+            this.out.p1isaac(ClientProt.IF_PLAYERDESIGN);
+            this.out.p1(this.designGenderMale ? 0 : 1);
+            for (let i: number = 0; i < 7; i++) {
+                this.out.p1(this.designIdentikits[i]);
+            }
+            for (let i: number = 0; i < 5; i++) {
+                this.out.p1(this.designColors[i]);
+            }
+            return true;
+        }
+
+        if (clientCode === ClientCode.CC_MOD_MUTE) {
+            this.reportAbuseMuteOption = !this.reportAbuseMuteOption;
+        }
+
+        // reportabuse rules options
+        if (clientCode >= ClientCode.CC_REPORT_RULE1 && clientCode <= ClientCode.CC_REPORT_RULE12) {
+            this.closeInterfaces();
+
+            if (this.reportAbuseInput.length > 0) {
+                this.out.p1isaac(ClientProt.REPORT_ABUSE);
+                this.out.p8(JString.toBase37(this.reportAbuseInput));
+                this.out.p1(clientCode - 601);
+                this.out.p1(this.reportAbuseMuteOption ? 1 : 0);
+            }
+        }
+        return false;
+    }
+
+    private validateCharacterDesign(): void {
+        this.updateDesignModel = true;
+
+        for (let i: number = 0; i < 7; i++) {
+            this.designIdentikits[i] = -1;
+
+            for (let j: number = 0; j < IdkType.totalCount; j++) {
+                if (!IdkType.instances[j].disableKit && IdkType.instances[j].bodyPart === i + (this.designGenderMale ? 0 : 7)) {
+                    this.designIdentikits[i] = j;
+                    break;
+                }
+            }
+        }
+    }
+
+    private drawSidebar(): void {
+        this.areaSidebar?.bind();
+        if (this.areaSidebarOffsets) {
+            Pix3D.lineOffset = this.areaSidebarOffsets;
+        }
+        this.imageInvback?.draw(0, 0);
+        if (this.sidebarInterfaceId !== -1) {
+            this.drawInterface(Component.instances[this.sidebarInterfaceId], 0, 0, 0);
+        } else if (this.tabInterfaceId[this.selectedTab] !== -1) {
+            this.drawInterface(Component.instances[this.tabInterfaceId[this.selectedTab]], 0, 0, 0);
+        }
+        if (this.menuVisible && this.menuArea === 1) {
+            this.drawMenu();
+        }
+        this.areaSidebar?.draw(562, 231);
+        this.areaViewport?.bind();
+        if (this.areaViewportOffsets) {
+            Pix3D.lineOffset = this.areaViewportOffsets;
+        }
+    }
+
+    private drawChatback(): void {
+        this.areaChatback?.bind();
+        if (this.areaChatbackOffsets) {
+            Pix3D.lineOffset = this.areaChatbackOffsets;
+        }
+        this.imageChatback?.draw(0, 0);
+        if (this.showSocialInput) {
+            this.fontBold12?.drawStringCenter(239, 40, this.socialMessage, Colors.BLACK);
+            this.fontBold12?.drawStringCenter(239, 60, this.socialInput + '*', Colors.DARKBLUE);
+        } else if (this.chatbackInputOpen) {
+            this.fontBold12?.drawStringCenter(239, 40, 'Enter amount:', Colors.BLACK);
+            this.fontBold12?.drawStringCenter(239, 60, this.chatbackInput + '*', Colors.DARKBLUE);
+        } else if (this.modalMessage) {
+            this.fontBold12?.drawStringCenter(239, 40, this.modalMessage, Colors.BLACK);
+            this.fontBold12?.drawStringCenter(239, 60, 'Click to continue', Colors.DARKBLUE);
+        } else if (this.chatInterfaceId !== -1) {
+            this.drawInterface(Component.instances[this.chatInterfaceId], 0, 0, 0);
+        } else if (this.stickyChatInterfaceId === -1) {
+            let font: PixFont | null = this.fontPlain12;
+            let line: number = 0;
+            Pix2D.setBounds(0, 0, 463, 77);
+            for (let i: number = 0; i < 100; i++) {
+                const message: string | null = this.messageText[i];
+                if (!message) {
+                    continue;
+                }
+                const type: number = this.messageTextType[i];
+                const offset: number = this.chatScrollOffset + 70 - line * 14;
+                if (type === 0) {
+                    if (offset > 0 && offset < 110) {
+                        font?.drawString(4, offset, message, Colors.BLACK);
+                    }
+                    line++;
+                }
+                if (type === 1) {
+                    if (offset > 0 && offset < 110) {
+                        font?.drawString(4, offset, this.messageTextSender[i] + ':', Colors.WHITE);
+                        font?.drawString(font.stringWidth(this.messageTextSender[i]) + 12, offset, message, Colors.BLUE);
+                    }
+                    line++;
+                }
+                if (type === 2 && (this.publicChatSetting === 0 || (this.publicChatSetting === 1 && this.isFriend(this.messageTextSender[i])))) {
+                    if (offset > 0 && offset < 110) {
+                        font?.drawString(4, offset, this.messageTextSender[i] + ':', Colors.BLACK);
+                        font?.drawString(font.stringWidth(this.messageTextSender[i]) + 12, offset, message, Colors.BLUE);
+                    }
+                    line++;
+                }
+                if ((type === 3 || type === 7) && this.splitPrivateChat === 0 && (type === 7 || this.privateChatSetting === 0 || (this.privateChatSetting === 1 && this.isFriend(this.messageTextSender[i])))) {
+                    if (offset > 0 && offset < 110) {
+                        font?.drawString(4, offset, 'From ' + this.messageTextSender[i] + ':', Colors.BLACK);
+                        font?.drawString(font.stringWidth('From ' + this.messageTextSender[i]) + 12, offset, message, Colors.DARKRED);
+                    }
+                    line++;
+                }
+                if (type === 4 && (this.tradeChatSetting === 0 || (this.tradeChatSetting === 1 && this.isFriend(this.messageTextSender[i])))) {
+                    if (offset > 0 && offset < 110) {
+                        font?.drawString(4, offset, this.messageTextSender[i] + ' ' + this.messageText[i], Colors.TRADE_MESSAGE);
+                    }
+                    line++;
+                }
+                if (type === 5 && this.splitPrivateChat === 0 && this.privateChatSetting < 2) {
+                    if (offset > 0 && offset < 110) {
+                        font?.drawString(4, offset, message, Colors.DARKRED);
+                    }
+                    line++;
+                }
+                if (type === 6 && this.splitPrivateChat === 0 && this.privateChatSetting < 2) {
+                    if (offset > 0 && offset < 110) {
+                        font?.drawString(4, offset, 'To ' + this.messageTextSender[i] + ':', Colors.BLACK);
+                        font?.drawString(font.stringWidth('To ' + this.messageTextSender[i]) + 12, offset, message, Colors.DARKRED);
+                    }
+                    line++;
+                }
+                if (type === 8 && (this.tradeChatSetting === 0 || (this.tradeChatSetting === 1 && this.isFriend(this.messageTextSender[i])))) {
+                    if (offset > 0 && offset < 110) {
+                        font?.drawString(4, offset, this.messageTextSender[i] + ' ' + this.messageText[i], Colors.DUEL_MESSAGE);
+                    }
+                    line++;
+                }
+            }
+            Pix2D.resetBounds();
+            this.chatScrollHeight = line * 14 + 7;
+            if (this.chatScrollHeight < 78) {
+                this.chatScrollHeight = 78;
+            }
+            this.drawScrollbar(463, 0, this.chatScrollHeight - this.chatScrollOffset - 77, this.chatScrollHeight, 77);
+            font?.drawString(4, 90, JString.formatName(this.usernameInput) + ':', Colors.BLACK);
+            font?.drawString(font.stringWidth(this.usernameInput + ': ') + 6, 90, this.chatTyped + '*', Colors.BLUE);
+            Pix2D.drawHorizontalLine(0, 77, Colors.BLACK, 479);
+        } else {
+            this.drawInterface(Component.instances[this.stickyChatInterfaceId], 0, 0, 0);
+        }
+        if (this.menuVisible && this.menuArea === 2) {
+            this.drawMenu();
+        }
+        this.areaChatback?.draw(22, 375);
+        this.areaViewport?.bind();
+        if (this.areaViewportOffsets) {
+            Pix3D.lineOffset = this.areaViewportOffsets;
+        }
+    }
+
+    private drawMinimap(): void {
+        this.areaMapback?.bind();
         if (!this.localPlayer) {
             return;
         }
 
-        if (this.localPlayer.x >> 7 === this.flagSceneTileX && this.localPlayer.z >> 7 === this.flagSceneTileZ) {
-            this.flagSceneTileX = 0;
+        const angle: number = (this.orbitCameraYaw + this.minimapAnticheatAngle) & 0x7ff;
+        let anchorX: number = ((this.localPlayer.x / 32) | 0) + 48;
+        let anchorY: number = 464 - ((this.localPlayer.z / 32) | 0);
+
+        this.imageMinimap?.drawRotatedMasked(21, 9, 146, 151, this.minimapMaskLineOffsets, this.minimapMaskLineLengths, anchorX, anchorY, angle, this.minimapZoom + 256);
+        this.imageCompass?.drawRotatedMasked(0, 0, 33, 33, this.compassMaskLineOffsets, this.compassMaskLineLengths, 25, 25, this.orbitCameraYaw, 256);
+        for (let i: number = 0; i < this.activeMapFunctionCount; i++) {
+            anchorX = this.activeMapFunctionX[i] * 4 + 2 - ((this.localPlayer.x / 32) | 0);
+            anchorY = this.activeMapFunctionZ[i] * 4 + 2 - ((this.localPlayer.z / 32) | 0);
+            this.drawOnMinimap(anchorY, this.activeMapFunctions[i], anchorX);
         }
 
-        for (let i: number = -1; i < this.playerCount; i++) {
-            let player: PlayerEntity | null;
-            let id: number;
-            if (i === -1) {
-                player = this.localPlayer;
-                id = Constants.LOCAL_PLAYER_INDEX << 14;
-            } else {
-                player = this.players[this.playerIds[i]];
-                id = this.playerIds[i] << 14;
-            }
-
-            if (!player || !player.isVisibleNow()) {
-                continue;
-            }
-
-            player.lowMemory = ((Client.lowMemory && this.playerCount > 50) || this.playerCount > 200) && i !== -1 && player.secondarySeqId === player.seqStandId;
-            const stx: number = player.x >> 7;
-            const stz: number = player.z >> 7;
-
-            if (stx < 0 || stx >= CollisionConstants.SIZE || stz < 0 || stz >= CollisionConstants.SIZE) {
-                continue;
-            }
-
-            if (!player.locModel || this.loopCycle < player.locStartCycle || this.loopCycle >= player.locStopCycle) {
-                if ((player.x & 0x7f) === 64 && (player.z & 0x7f) === 64) {
-                    if (this.tileLastOccupiedCycle[stx][stz] === this.sceneCycle) {
-                        continue;
-                    }
-
-                    this.tileLastOccupiedCycle[stx][stz] = this.sceneCycle;
+        for (let ltx: number = 0; ltx < CollisionConstants.SIZE; ltx++) {
+            for (let ltz: number = 0; ltz < CollisionConstants.SIZE; ltz++) {
+                const stack: LinkList | null = this.objStacks[this.currentLevel][ltx][ltz];
+                if (stack) {
+                    anchorX = ltx * 4 + 2 - ((this.localPlayer.x / 32) | 0);
+                    anchorY = ltz * 4 + 2 - ((this.localPlayer.z / 32) | 0);
+                    this.drawOnMinimap(anchorY, this.imageMapdot0, anchorX);
                 }
-
-                player.y = this.getHeightmapY(this.currentLevel, player.x, player.z);
-                this.scene?.addTemporary(this.currentLevel, player.x, player.y, player.z, null, player, id, player.yaw, 60, player.seqStretches);
-            } else {
-                player.lowMemory = false;
-                player.y = this.getHeightmapY(this.currentLevel, player.x, player.z);
-                this.scene?.addTemporary2(this.currentLevel, player.x, player.y, player.z, player.minTileX, player.minTileZ, player.maxTileX, player.maxTileZ, null, player, id, player.yaw);
             }
         }
-    }
 
-    private updateNpcs(): void {
-        for (let i: number = 0; i < this.npcCount; i++) {
-            const id: number = this.npcIds[i];
-            const npc: NpcEntity | null = this.npcs[id];
-            if (npc && npc.npcType) {
-                this.updateEntity(npc);
-            }
-        }
-    }
-
-    private pushNpcs(): void {
         for (let i: number = 0; i < this.npcCount; i++) {
             const npc: NpcEntity | null = this.npcs[this.npcIds[i]];
-            const typecode: number = ((this.npcIds[i] << 14) + 0x1fff_ffff + 1) | 0;
-
-            if (!npc || !npc.isVisibleNow()) {
-                continue;
-            }
-
-            const x: number = npc.x >> 7;
-            const z: number = npc.z >> 7;
-
-            if (x < 0 || x >= CollisionConstants.SIZE || z < 0 || z >= CollisionConstants.SIZE) {
-                continue;
-            }
-
-            if (npc.size === 1 && (npc.x & 0x7f) === 64 && (npc.z & 0x7f) === 64) {
-                if (this.tileLastOccupiedCycle[x][z] === this.sceneCycle) {
-                    continue;
-                }
-
-                this.tileLastOccupiedCycle[x][z] = this.sceneCycle;
-            }
-
-            this.scene?.addTemporary(this.currentLevel, npc.x, this.getHeightmapY(this.currentLevel, npc.x, npc.z), npc.z, null, npc, typecode, npc.yaw, (npc.size - 1) * 64 + 60, npc.seqStretches);
-        }
-    }
-
-    private pushProjectiles(): void {
-        for (let proj: ProjectileEntity | null = this.projectiles.head() as ProjectileEntity | null; proj; proj = this.projectiles.next() as ProjectileEntity | null) {
-            if (proj.projLevel !== this.currentLevel || this.loopCycle > proj.lastCycle) {
-                proj.unlink();
-            } else if (this.loopCycle >= proj.startCycle) {
-                if (proj.projTarget > 0) {
-                    const npc: NpcEntity | null = this.npcs[proj.projTarget - 1];
-                    if (npc) {
-                        proj.updateVelocity(npc.x, this.getHeightmapY(proj.projLevel, npc.x, npc.z) - proj.projOffsetY, npc.z, this.loopCycle);
-                    }
-                }
-
-                if (proj.projTarget < 0) {
-                    const index: number = -proj.projTarget - 1;
-                    let player: PlayerEntity | null;
-                    if (index === this.localPid) {
-                        player = this.localPlayer;
-                    } else {
-                        player = this.players[index];
-                    }
-                    if (player) {
-                        proj.updateVelocity(player.x, this.getHeightmapY(proj.projLevel, player.x, player.z) - proj.projOffsetY, player.z, this.loopCycle);
-                    }
-                }
-
-                proj.update(this.sceneDelta);
-                this.scene?.addTemporary(this.currentLevel, proj.x | 0, proj.y | 0, proj.z | 0, null, proj, -1, proj.yaw, 60, false);
+            if (npc && npc.isVisibleNow() && npc.npcType && npc.npcType.minimap) {
+                anchorX = ((npc.x / 32) | 0) - ((this.localPlayer.x / 32) | 0);
+                anchorY = ((npc.z / 32) | 0) - ((this.localPlayer.z / 32) | 0);
+                this.drawOnMinimap(anchorY, this.imageMapdot1, anchorX);
             }
         }
-    }
 
-    private pushSpotanims(): void {
-        for (let entity: SpotAnimEntity | null = this.spotanims.head() as SpotAnimEntity | null; entity; entity = this.spotanims.next() as SpotAnimEntity | null) {
-            if (entity.spotLevel !== this.currentLevel || entity.seqComplete) {
-                entity.unlink();
-            } else if (this.loopCycle >= entity.startCycle) {
-                entity.update(this.sceneDelta);
-                if (entity.seqComplete) {
-                    entity.unlink();
+        for (let i: number = 0; i < this.playerCount; i++) {
+            const player: PlayerEntity | null = this.players[this.playerIds[i]];
+            if (player && player.isVisibleNow() && player.name) {
+                anchorX = ((player.x / 32) | 0) - ((this.localPlayer.x / 32) | 0);
+                anchorY = ((player.z / 32) | 0) - ((this.localPlayer.z / 32) | 0);
+
+                let friend: boolean = false;
+                const name37: bigint = JString.toBase37(player.name);
+                for (let j: number = 0; j < this.friendCount; j++) {
+                    if (name37 === this.friendName37[j] && this.friendWorld[j] !== 0) {
+                        friend = true;
+                        break;
+                    }
+                }
+
+                if (friend) {
+                    this.drawOnMinimap(anchorY, this.imageMapdot3, anchorX);
                 } else {
-                    this.scene?.addTemporary(entity.spotLevel, entity.x, entity.y, entity.z, null, entity, -1, 0, 60, false);
+                    this.drawOnMinimap(anchorY, this.imageMapdot2, anchorX);
                 }
             }
         }
+
+        if (this.flagSceneTileX !== 0) {
+            anchorX = this.flagSceneTileX * 4 + 2 - ((this.localPlayer.x / 32) | 0);
+            anchorY = this.flagSceneTileZ * 4 + 2 - ((this.localPlayer.z / 32) | 0);
+            this.drawOnMinimap(anchorY, this.imageMapflag, anchorX);
+        }
+        // the white square local player position in the center of the minimap.
+        Pix2D.fillRect2d(93, 82, 3, 3, Colors.WHITE);
+        this.areaViewport?.bind();
     }
 
-    private pushLocs(): void {
-        for (let loc: LocEntity | null = this.locList.head() as LocEntity | null; loc; loc = this.locList.next() as LocEntity | null) {
-            let append: boolean = false;
-            loc.seqCycle += this.sceneDelta;
-            if (loc.seqFrame === -1) {
-                loc.seqFrame = 0;
-                append = true;
-            }
-
-            if (loc.seq.seqDelay) {
-                while (loc.seqCycle > loc.seq.seqDelay[loc.seqFrame]) {
-                    loc.seqCycle -= loc.seq.seqDelay[loc.seqFrame] + 1;
-                    loc.seqFrame++;
-
-                    append = true;
-
-                    if (loc.seqFrame >= loc.seq.seqFrameCount) {
-                        loc.seqFrame -= loc.seq.replayoff;
-
-                        if (loc.seqFrame < 0 || loc.seqFrame >= loc.seq.seqFrameCount) {
-                            loc.unlink();
-                            append = false;
-                            break;
-                        }
-                    }
-                }
-            }
-
-            if (append && this.scene) {
-                const level: number = loc.heightmapSW;
-                const x: number = loc.heightmapNE;
-                const z: number = loc.heightmapNW;
-
-                let typecode: number = 0;
-                if (loc.heightmapSE === 0) {
-                    typecode = this.scene.getWallTypecode(level, x, z);
-                } else if (loc.heightmapSE === 1) {
-                    typecode = this.scene.getDecorTypecode(level, z, x);
-                } else if (loc.heightmapSE === 2) {
-                    typecode = this.scene.getLocTypecode(level, x, z);
-                } else if (loc.heightmapSE === 3) {
-                    typecode = this.scene.getGroundDecorTypecode(level, x, z);
-                }
-
-                if (this.levelHeightmap && typecode !== 0 && ((typecode >> 14) & 0x7fff) === loc.index) {
-                    const heightmapSW: number = this.levelHeightmap[level][x][z];
-                    const heightmapSE: number = this.levelHeightmap[level][x + 1][z];
-                    const heightmapNE: number = this.levelHeightmap[level][x + 1][z + 1];
-                    const heightmapNW: number = this.levelHeightmap[level][x][z + 1];
-
-                    const type: LocType = LocType.get(loc.index);
-                    let seqId: number = -1;
-                    if (loc.seqFrame !== -1 && loc.seq.seqFrames) {
-                        seqId = loc.seq.seqFrames[loc.seqFrame];
-                    }
-
-                    if (loc.heightmapSE === 2) {
-                        const info: number = this.scene.getInfo(level, x, z, typecode);
-                        let shape: number = info & 0x1f;
-                        const rotation: number = info >> 6;
-
-                        if (shape === LocShape.CENTREPIECE_DIAGONAL.id) {
-                            shape = LocShape.CENTREPIECE_STRAIGHT.id;
-                        }
-
-                        this.scene?.setLocModel(level, x, z, type.getModel(shape, rotation, heightmapSW, heightmapSE, heightmapNE, heightmapNW, seqId));
-                    } else if (loc.heightmapSE === 1) {
-                        this.scene?.setWallDecorationModel(level, x, z, type.getModel(LocShape.WALLDECOR_STRAIGHT_NOOFFSET.id, 0, heightmapSW, heightmapSE, heightmapNE, heightmapNW, seqId));
-                    } else if (loc.heightmapSE === 0) {
-                        const info: number = this.scene.getInfo(level, x, z, typecode);
-                        const shape: number = info & 0x1f;
-                        const rotation: number = info >> 6;
-
-                        if (shape === LocShape.WALL_L.id) {
-                            const nextRotation: number = (rotation + 1) & 0x3;
-                            this.scene?.setWallModels(
-                                x,
-                                z,
-                                level,
-                                type.getModel(LocShape.WALL_L.id, rotation + 4, heightmapSW, heightmapSE, heightmapNE, heightmapNW, seqId),
-                                type.getModel(LocShape.WALL_L.id, nextRotation, heightmapSW, heightmapSE, heightmapNE, heightmapNW, seqId)
-                            );
-                        } else {
-                            this.scene?.setWallModel(level, x, z, type.getModel(shape, rotation, heightmapSW, heightmapSE, heightmapNE, heightmapNW, seqId));
-                        }
-                    } else if (loc.heightmapSE === 3) {
-                        const info: number = this.scene.getInfo(level, x, z, typecode);
-                        const rotation: number = info >> 6;
-                        this.scene?.setGroundDecorationModel(level, x, z, type.getModel(LocShape.GROUND_DECOR.id, rotation, heightmapSW, heightmapSE, heightmapNE, heightmapNW, seqId));
-                    }
-                } else {
-                    loc.unlink();
-                }
-            }
-        }
-    }
-
-    private updateEntityChats(): void {
-        for (let i: number = -1; i < this.playerCount; i++) {
-            let index: number;
-            if (i === -1) {
-                index = Constants.LOCAL_PLAYER_INDEX;
-            } else {
-                index = this.playerIds[i];
-            }
-
-            const player: PlayerEntity | null = this.players[index];
-            if (player && player.chatTimer > 0) {
-                player.chatTimer--;
-
-                if (player.chatTimer === 0) {
-                    player.chat = null;
-                }
-            }
-        }
-
-        for (let i: number = 0; i < this.npcCount; i++) {
-            const index: number = this.npcIds[i];
-            const npc: NpcEntity | null = this.npcs[index];
-
-            if (npc && npc.chatTimer > 0) {
-                npc.chatTimer--;
-
-                if (npc.chatTimer === 0) {
-                    npc.chat = null;
-                }
-            }
-        }
-    }
-
-    private updateForceMovement(entity: PathingEntity): void {
-        const delta: number = entity.forceMoveEndCycle - this.loopCycle;
-        const dstX: number = entity.forceMoveStartSceneTileX * 128 + entity.size * 64;
-        const dstZ: number = entity.forceMoveStartSceneTileZ * 128 + entity.size * 64;
-
-        entity.x += ((dstX - entity.x) / delta) | 0;
-        entity.z += ((dstZ - entity.z) / delta) | 0;
-
-        entity.seqTrigger = 0;
-
-        if (entity.forceMoveFaceDirection === 0) {
-            entity.dstYaw = 1024;
-        }
-
-        if (entity.forceMoveFaceDirection === 1) {
-            entity.dstYaw = 1536;
-        }
-
-        if (entity.forceMoveFaceDirection === 2) {
-            entity.dstYaw = 0;
-        }
-
-        if (entity.forceMoveFaceDirection === 3) {
-            entity.dstYaw = 512;
-        }
-    }
-
-    private startForceMovement(entity: PathingEntity): void {
-        if (entity.forceMoveStartCycle === this.loopCycle || entity.primarySeqId === -1 || entity.primarySeqDelay !== 0 || entity.primarySeqCycle + 1 > SeqType.instances[entity.primarySeqId].seqDelay![entity.primarySeqFrame]) {
-            const duration: number = entity.forceMoveStartCycle - entity.forceMoveEndCycle;
-            const delta: number = this.loopCycle - entity.forceMoveEndCycle;
-            const dx0: number = entity.forceMoveStartSceneTileX * 128 + entity.size * 64;
-            const dz0: number = entity.forceMoveStartSceneTileZ * 128 + entity.size * 64;
-            const dx1: number = entity.forceMoveEndSceneTileX * 128 + entity.size * 64;
-            const dz1: number = entity.forceMoveEndSceneTileZ * 128 + entity.size * 64;
-            entity.x = ((dx0 * (duration - delta) + dx1 * delta) / duration) | 0;
-            entity.z = ((dz0 * (duration - delta) + dz1 * delta) / duration) | 0;
-        }
-
-        entity.seqTrigger = 0;
-
-        if (entity.forceMoveFaceDirection === 0) {
-            entity.dstYaw = 1024;
-        }
-
-        if (entity.forceMoveFaceDirection === 1) {
-            entity.dstYaw = 1536;
-        }
-
-        if (entity.forceMoveFaceDirection === 2) {
-            entity.dstYaw = 0;
-        }
-
-        if (entity.forceMoveFaceDirection === 3) {
-            entity.dstYaw = 512;
-        }
-
-        entity.yaw = entity.dstYaw;
-    }
-
-    private updateFacingDirection(e: PathingEntity): void {
-        if (e.targetId !== -1 && e.targetId < 32768) {
-            const npc: NpcEntity | null = this.npcs[e.targetId];
-            if (npc) {
-                const dstX: number = e.x - npc.x;
-                const dstZ: number = e.z - npc.z;
-
-                if (dstX !== 0 || dstZ !== 0) {
-                    e.dstYaw = ((Math.atan2(dstX, dstZ) * 325.949) | 0) & 0x7ff;
-                }
-            }
-        }
-
-        if (e.targetId >= 32768) {
-            let index: number = e.targetId - 32768;
-            if (index === this.localPid) {
-                index = Constants.LOCAL_PLAYER_INDEX;
-            }
-
-            const player: PlayerEntity | null = this.players[index];
-            if (player) {
-                const dstX: number = e.x - player.x;
-                const dstZ: number = e.z - player.z;
-
-                if (dstX !== 0 || dstZ !== 0) {
-                    e.dstYaw = ((Math.atan2(dstX, dstZ) * 325.949) | 0) & 0x7ff;
-                }
-            }
-        }
-
-        if ((e.targetTileX !== 0 || e.targetTileZ !== 0) && (e.routeLength === 0 || e.seqTrigger > 0)) {
-            const dstX: number = e.x - (e.targetTileX - this.sceneBaseTileX - this.sceneBaseTileX) * 64;
-            const dstZ: number = e.z - (e.targetTileZ - this.sceneBaseTileZ - this.sceneBaseTileZ) * 64;
-
-            if (dstX !== 0 || dstZ !== 0) {
-                e.dstYaw = ((Math.atan2(dstX, dstZ) * 325.949) | 0) & 0x7ff;
-            }
-
-            e.targetTileX = 0;
-            e.targetTileZ = 0;
-        }
-
-        const remainingYaw: number = (e.dstYaw - e.yaw) & 0x7ff;
-
-        if (remainingYaw !== 0) {
-            if (remainingYaw < 32 || remainingYaw > 2016) {
-                e.yaw = e.dstYaw;
-            } else if (remainingYaw > 1024) {
-                e.yaw -= 32;
-            } else {
-                e.yaw += 32;
-            }
-
-            e.yaw &= 0x7ff;
-
-            if (e.secondarySeqId === e.seqStandId && e.yaw !== e.dstYaw) {
-                if (e.seqTurnId !== -1) {
-                    e.secondarySeqId = e.seqTurnId;
-                    return;
-                }
-
-                e.secondarySeqId = e.seqWalkId;
-            }
-        }
-    }
-
-    private updateSequences(e: PathingEntity): void {
-        e.seqStretches = false;
-
-        let seq: SeqType | null;
-        if (e.secondarySeqId !== -1) {
-            seq = SeqType.instances[e.secondarySeqId];
-            e.secondarySeqCycle++;
-            if (seq.seqDelay && e.secondarySeqFrame < seq.seqFrameCount && e.secondarySeqCycle > seq.seqDelay[e.secondarySeqFrame]) {
-                e.secondarySeqCycle = 0;
-                e.secondarySeqFrame++;
-            }
-            if (e.secondarySeqFrame >= seq.seqFrameCount) {
-                e.secondarySeqCycle = 0;
-                e.secondarySeqFrame = 0;
-            }
-        }
-
-        if (e.primarySeqId !== -1 && e.primarySeqDelay === 0) {
-            seq = SeqType.instances[e.primarySeqId];
-            e.primarySeqCycle++;
-            while (seq.seqDelay && e.primarySeqFrame < seq.seqFrameCount && e.primarySeqCycle > seq.seqDelay[e.primarySeqFrame]) {
-                e.primarySeqCycle -= seq.seqDelay[e.primarySeqFrame];
-                e.primarySeqFrame++;
-            }
-
-            if (e.primarySeqFrame >= seq.seqFrameCount) {
-                e.primarySeqFrame -= seq.replayoff;
-                e.primarySeqLoop++;
-                if (e.primarySeqLoop >= seq.replaycount) {
-                    e.primarySeqId = -1;
-                }
-                if (e.primarySeqFrame < 0 || e.primarySeqFrame >= seq.seqFrameCount) {
-                    e.primarySeqId = -1;
-                }
-            }
-
-            e.seqStretches = seq.stretches;
-        }
-
-        if (e.primarySeqDelay > 0) {
-            e.primarySeqDelay--;
-        }
-
-        if (e.spotanimId !== -1 && this.loopCycle >= e.spotanimLastCycle) {
-            if (e.spotanimFrame < 0) {
-                e.spotanimFrame = 0;
-            }
-
-            seq = SpotAnimType.instances[e.spotanimId].seq;
-            e.spotanimCycle++;
-            while (seq && seq.seqDelay && e.spotanimFrame < seq.seqFrameCount && e.spotanimCycle > seq.seqDelay[e.spotanimFrame]) {
-                e.spotanimCycle -= seq.seqDelay[e.spotanimFrame];
-                e.spotanimFrame++;
-            }
-
-            if (seq && e.spotanimFrame >= seq.seqFrameCount) {
-                if (e.spotanimFrame < 0 || e.spotanimFrame >= seq.seqFrameCount) {
-                    e.spotanimId = -1;
-                }
-            }
-        }
-    }
-
-    private updateMovement(entity: PathingEntity): void {
-        entity.secondarySeqId = entity.seqStandId;
-
-        if (entity.routeLength === 0) {
-            entity.seqTrigger = 0;
+    private drawOnMinimap(dy: number, image: Pix24 | null, dx: number): void {
+        if (!image) {
             return;
         }
 
-        if (entity.primarySeqId !== -1 && entity.primarySeqDelay === 0) {
-            const seq: SeqType = SeqType.instances[entity.primarySeqId];
-            if (!seq.walkmerge) {
-                entity.seqTrigger++;
+        const angle: number = (this.orbitCameraYaw + this.minimapAnticheatAngle) & 0x7ff;
+        const distance: number = dx * dx + dy * dy;
+        if (distance > 6400) {
+            return;
+        }
+
+        let sinAngle: number = Pix3D.sin[angle];
+        let cosAngle: number = Pix3D.cos[angle];
+
+        sinAngle = ((sinAngle * 256) / (this.minimapZoom + 256)) | 0;
+        cosAngle = ((cosAngle * 256) / (this.minimapZoom + 256)) | 0;
+
+        const x: number = (dy * sinAngle + dx * cosAngle) >> 16;
+        const y: number = (dy * cosAngle - dx * sinAngle) >> 16;
+
+        if (distance > 2500 && this.imageMapback) {
+            image.drawMasked(x + 94 - ((image.cropW / 2) | 0), 83 - y - ((image.cropH / 2) | 0), this.imageMapback);
+        } else {
+            image.draw(x + 94 - ((image.cropW / 2) | 0), 83 - y - ((image.cropH / 2) | 0));
+        }
+    }
+
+    private addMessage(type: number, text: string, sender: string): void {
+        if (type === 0 && this.stickyChatInterfaceId !== -1) {
+            this.modalMessage = text;
+            this.mouseClickButton = 0;
+        }
+        if (this.chatInterfaceId === -1) {
+            this.redrawChatback = true;
+        }
+        for (let i: number = 99; i > 0; i--) {
+            this.messageTextType[i] = this.messageTextType[i - 1];
+            this.messageTextSender[i] = this.messageTextSender[i - 1];
+            this.messageText[i] = this.messageText[i - 1];
+        }
+        this.messageTextType[0] = type;
+        this.messageTextSender[0] = sender;
+        this.messageText[0] = text;
+    }
+
+    private isFriend(username: string | null): boolean {
+        if (!username) {
+            return false;
+        }
+
+        for (let i: number = 0; i < this.friendCount; i++) {
+            if (username.toLowerCase() === this.friendName[i]?.toLowerCase()) {
+                return true;
+            }
+        }
+
+        if (!this.localPlayer) {
+            return false;
+        }
+
+        return username.toLowerCase() === this.localPlayer.name?.toLowerCase();
+    }
+
+    private addFriend(username: bigint): void {
+        if (username === 0n) {
+            return;
+        }
+
+        if (this.friendCount >= 100) {
+            this.addMessage(0, 'Your friends list is full. Max of 100 hit', '');
+            return;
+        }
+
+        const displayName: string = JString.formatName(JString.fromBase37(username));
+        for (let i: number = 0; i < this.friendCount; i++) {
+            if (this.friendName37[i] === username) {
+                this.addMessage(0, displayName + ' is already on your friend list', '');
                 return;
             }
         }
 
-        const x: number = entity.x;
-        const z: number = entity.z;
-        const dstX: number = entity.routeFlagX[entity.routeLength - 1] * 128 + entity.size * 64;
-        const dstZ: number = entity.routeFlagZ[entity.routeLength - 1] * 128 + entity.size * 64;
+        for (let i: number = 0; i < this.ignoreCount; i++) {
+            if (this.ignoreName37[i] === username) {
+                this.addMessage(0, 'Please remove ' + displayName + ' from your ignore list first', '');
+                return;
+            }
+        }
 
-        if (dstX - x <= 256 && dstX - x >= -256 && dstZ - z <= 256 && dstZ - z >= -256) {
-            if (x < dstX) {
-                if (z < dstZ) {
-                    entity.dstYaw = 1280;
-                } else if (z > dstZ) {
-                    entity.dstYaw = 1792;
-                } else {
-                    entity.dstYaw = 1536;
-                }
-            } else if (x > dstX) {
-                if (z < dstZ) {
-                    entity.dstYaw = 768;
-                } else if (z > dstZ) {
-                    entity.dstYaw = 256;
-                } else {
-                    entity.dstYaw = 512;
-                }
-            } else if (z < dstZ) {
-                entity.dstYaw = 1024;
-            } else {
-                entity.dstYaw = 0;
-            }
+        if (!this.localPlayer || !this.localPlayer.name) {
+            return;
+        }
+        if (displayName !== this.localPlayer.name) {
+            this.friendName[this.friendCount] = displayName;
+            this.friendName37[this.friendCount] = username;
+            this.friendWorld[this.friendCount] = 0;
+            this.friendCount++;
+            this.redrawSidebar = true;
 
-            let deltaYaw: number = (entity.dstYaw - entity.yaw) & 0x7ff;
-            if (deltaYaw > 1024) {
-                deltaYaw -= 2048;
-            }
-
-            let seqId: number = entity.seqTurnAroundId;
-            if (deltaYaw >= -256 && deltaYaw <= 256) {
-                seqId = entity.seqWalkId;
-            } else if (deltaYaw >= 256 && deltaYaw < 768) {
-                seqId = entity.seqTurnRightId;
-            } else if (deltaYaw >= -768 && deltaYaw <= -256) {
-                seqId = entity.seqTurnLeftId;
-            }
-
-            if (seqId === -1) {
-                seqId = entity.seqWalkId;
-            }
-
-            entity.secondarySeqId = seqId;
-            let moveSpeed: number = 4;
-            if (entity.yaw !== entity.dstYaw && entity.targetId === -1) {
-                moveSpeed = 2;
-            }
-
-            if (entity.routeLength > 2) {
-                moveSpeed = 6;
-            }
-
-            if (entity.routeLength > 3) {
-                moveSpeed = 8;
-            }
-
-            if (entity.seqTrigger > 0 && entity.routeLength > 1) {
-                moveSpeed = 8;
-                entity.seqTrigger--;
-            }
-
-            if (entity.routeRun[entity.routeLength - 1]) {
-                moveSpeed <<= 0x1;
-            }
-
-            if (moveSpeed >= 8 && entity.secondarySeqId === entity.seqWalkId && entity.seqRunId !== -1) {
-                entity.secondarySeqId = entity.seqRunId;
-            }
-
-            if (x < dstX) {
-                entity.x += moveSpeed;
-                if (entity.x > dstX) {
-                    entity.x = dstX;
-                }
-            } else if (x > dstX) {
-                entity.x -= moveSpeed;
-                if (entity.x < dstX) {
-                    entity.x = dstX;
-                }
-            }
-            if (z < dstZ) {
-                entity.z += moveSpeed;
-                if (entity.z > dstZ) {
-                    entity.z = dstZ;
-                }
-            } else if (z > dstZ) {
-                entity.z -= moveSpeed;
-                if (entity.z < dstZ) {
-                    entity.z = dstZ;
-                }
-            }
-
-            if (entity.x === dstX && entity.z === dstZ) {
-                entity.routeLength--;
-            }
-        } else {
-            entity.x = dstX;
-            entity.z = dstZ;
+            this.out.p1isaac(ClientProt.FRIENDLIST_ADD);
+            this.out.p8(username);
         }
     }
 
-    private getTopLevel(): number {
-        let top: number = 3;
-        if (this.cameraPitch < 310 && this.localPlayer) {
-            let cameraLocalTileX: number = this.cameraX >> 7;
-            let cameraLocalTileZ: number = this.cameraZ >> 7;
-            const playerLocalTileX: number = this.localPlayer.x >> 7;
-            const playerLocalTileZ: number = this.localPlayer.z >> 7;
-            if (this.levelTileFlags && (this.levelTileFlags[this.currentLevel][cameraLocalTileX][cameraLocalTileZ] & 0x4) !== 0) {
-                top = this.currentLevel;
-            }
-            let tileDeltaX: number;
-            if (playerLocalTileX > cameraLocalTileX) {
-                tileDeltaX = playerLocalTileX - cameraLocalTileX;
-            } else {
-                tileDeltaX = cameraLocalTileX - playerLocalTileX;
-            }
-            let tileDeltaZ: number;
-            if (playerLocalTileZ > cameraLocalTileZ) {
-                tileDeltaZ = playerLocalTileZ - cameraLocalTileZ;
-            } else {
-                tileDeltaZ = cameraLocalTileZ - playerLocalTileZ;
-            }
-            let delta: number;
-            let accumulator: number;
-            if (tileDeltaX > tileDeltaZ) {
-                delta = ((tileDeltaZ * 65536) / tileDeltaX) | 0;
-                accumulator = 32768;
-                while (cameraLocalTileX !== playerLocalTileX) {
-                    if (cameraLocalTileX < playerLocalTileX) {
-                        cameraLocalTileX++;
-                    } else if (cameraLocalTileX > playerLocalTileX) {
-                        cameraLocalTileX--;
-                    }
-                    if (this.levelTileFlags && (this.levelTileFlags[this.currentLevel][cameraLocalTileX][cameraLocalTileZ] & 0x4) !== 0) {
-                        top = this.currentLevel;
-                    }
-                    accumulator += delta;
-                    if (accumulator >= 65536) {
-                        accumulator -= 65536;
-                        if (cameraLocalTileZ < playerLocalTileZ) {
-                            cameraLocalTileZ++;
-                        } else if (cameraLocalTileZ > playerLocalTileZ) {
-                            cameraLocalTileZ--;
-                        }
-                        if (this.levelTileFlags && (this.levelTileFlags[this.currentLevel][cameraLocalTileX][cameraLocalTileZ] & 0x4) !== 0) {
-                            top = this.currentLevel;
-                        }
-                    }
+    private removeFriend(username: bigint): void {
+        if (username === 0n) {
+            return;
+        }
+
+        for (let i: number = 0; i < this.friendCount; i++) {
+            if (this.friendName37[i] === username) {
+                this.friendCount--;
+                this.redrawSidebar = true;
+                for (let j: number = i; j < this.friendCount; j++) {
+                    this.friendName[j] = this.friendName[j + 1];
+                    this.friendWorld[j] = this.friendWorld[j + 1];
+                    this.friendName37[j] = this.friendName37[j + 1];
                 }
-            } else {
-                delta = ((tileDeltaX * 65536) / tileDeltaZ) | 0;
-                accumulator = 32768;
-                while (cameraLocalTileZ !== playerLocalTileZ) {
-                    if (cameraLocalTileZ < playerLocalTileZ) {
-                        cameraLocalTileZ++;
-                    } else if (cameraLocalTileZ > playerLocalTileZ) {
-                        cameraLocalTileZ--;
-                    }
-                    if (this.levelTileFlags && (this.levelTileFlags[this.currentLevel][cameraLocalTileX][cameraLocalTileZ] & 0x4) !== 0) {
-                        top = this.currentLevel;
-                    }
-                    accumulator += delta;
-                    if (accumulator >= 65536) {
-                        accumulator -= 65536;
-                        if (cameraLocalTileX < playerLocalTileX) {
-                            cameraLocalTileX++;
-                        } else if (cameraLocalTileX > playerLocalTileX) {
-                            cameraLocalTileX--;
-                        }
-                        if (this.levelTileFlags && (this.levelTileFlags[this.currentLevel][cameraLocalTileX][cameraLocalTileZ] & 0x4) !== 0) {
-                            top = this.currentLevel;
-                        }
-                    }
-                }
-            }
-        }
-        if (this.localPlayer && this.levelTileFlags && (this.levelTileFlags[this.currentLevel][this.localPlayer.x >> 7][this.localPlayer.z >> 7] & 0x4) !== 0) {
-            top = this.currentLevel;
-        }
-        return top;
-    }
-
-    private getTopLevelCutscene(): number {
-        if (!this.levelTileFlags) {
-            return 0; // custom
-        }
-        const y: number = this.getHeightmapY(this.currentLevel, this.cameraX, this.cameraZ);
-        return y - this.cameraY >= 800 || (this.levelTileFlags[this.currentLevel][this.cameraX >> 7][this.cameraZ >> 7] & 0x4) === 0 ? 3 : this.currentLevel;
-    }
-
-    private getHeightmapY(level: number, sceneX: number, sceneZ: number): number {
-        if (!this.levelHeightmap) {
-            return 0; // custom
-        }
-        const tileX: number = Math.min(sceneX >> 7, CollisionConstants.SIZE - 1);
-        const tileZ: number = Math.min(sceneZ >> 7, CollisionConstants.SIZE - 1);
-        let realLevel: number = level;
-        if (level < 3 && this.levelTileFlags && (this.levelTileFlags[1][tileX][tileZ] & 0x2) === 2) {
-            realLevel = level + 1;
-        }
-
-        const tileLocalX: number = sceneX & 0x7f;
-        const tileLocalZ: number = sceneZ & 0x7f;
-        const y00: number = (this.levelHeightmap[realLevel][tileX][tileZ] * (128 - tileLocalX) + this.levelHeightmap[realLevel][tileX + 1][tileZ] * tileLocalX) >> 7;
-        const y11: number = (this.levelHeightmap[realLevel][tileX][tileZ + 1] * (128 - tileLocalX) + this.levelHeightmap[realLevel][tileX + 1][tileZ + 1] * tileLocalX) >> 7;
-        return (y00 * (128 - tileLocalZ) + y11 * tileLocalZ) >> 7;
-    }
-
-    private orbitCamera(targetX: number, targetY: number, targetZ: number, yaw: number, pitch: number, distance: number): void {
-        const invPitch: number = (2048 - pitch) & 0x7ff;
-        const invYaw: number = (2048 - yaw) & 0x7ff;
-        let x: number = 0;
-        let z: number = 0;
-        let y: number = distance;
-        let sin: number;
-        let cos: number;
-        let tmp: number;
-
-        if (invPitch !== 0) {
-            sin = Pix3D.sin[invPitch];
-            cos = Pix3D.cos[invPitch];
-            tmp = (z * cos - distance * sin) >> 16;
-            y = (z * sin + distance * cos) >> 16;
-            z = tmp;
-        }
-
-        if (invYaw !== 0) {
-            sin = Pix3D.sin[invYaw];
-            cos = Pix3D.cos[invYaw];
-            tmp = (y * sin + x * cos) >> 16;
-            y = (y * cos - x * sin) >> 16;
-            x = tmp;
-        }
-
-        this.cameraX = targetX - x;
-        this.cameraY = targetY - z;
-        this.cameraZ = targetZ - y;
-        this.cameraPitch = pitch;
-        this.cameraYaw = yaw;
-    }
-
-    private updateOrbitCamera(): void {
-        if (!this.localPlayer) {
-            return; // custom
-        }
-        const orbitX: number = this.localPlayer.x + this.cameraAnticheatOffsetX;
-        const orbitZ: number = this.localPlayer.z + this.cameraAnticheatOffsetZ;
-        if (this.orbitCameraX - orbitX < -500 || this.orbitCameraX - orbitX > 500 || this.orbitCameraZ - orbitZ < -500 || this.orbitCameraZ - orbitZ > 500) {
-            this.orbitCameraX = orbitX;
-            this.orbitCameraZ = orbitZ;
-        }
-        if (this.orbitCameraX !== orbitX) {
-            this.orbitCameraX += ((orbitX - this.orbitCameraX) / 16) | 0;
-        }
-        if (this.orbitCameraZ !== orbitZ) {
-            this.orbitCameraZ += ((orbitZ - this.orbitCameraZ) / 16) | 0;
-        }
-        if (this.actionKey[1] === 1) {
-            this.orbitCameraYawVelocity += ((-this.orbitCameraYawVelocity - 24) / 2) | 0;
-        } else if (this.actionKey[2] === 1) {
-            this.orbitCameraYawVelocity += ((24 - this.orbitCameraYawVelocity) / 2) | 0;
-        } else {
-            this.orbitCameraYawVelocity = (this.orbitCameraYawVelocity / 2) | 0;
-        }
-        if (this.actionKey[3] === 1) {
-            this.orbitCameraPitchVelocity += ((12 - this.orbitCameraPitchVelocity) / 2) | 0;
-        } else if (this.actionKey[4] === 1) {
-            this.orbitCameraPitchVelocity += ((-this.orbitCameraPitchVelocity - 12) / 2) | 0;
-        } else {
-            this.orbitCameraPitchVelocity = (this.orbitCameraPitchVelocity / 2) | 0;
-        }
-        this.orbitCameraYaw = ((this.orbitCameraYaw + this.orbitCameraYawVelocity / 2) | 0) & 0x7ff;
-        this.orbitCameraPitch += (this.orbitCameraPitchVelocity / 2) | 0;
-        if (this.orbitCameraPitch < 128) {
-            this.orbitCameraPitch = 128;
-        }
-        if (this.orbitCameraPitch > 383) {
-            this.orbitCameraPitch = 383;
-        }
-
-        const orbitTileX: number = this.orbitCameraX >> 7;
-        const orbitTileZ: number = this.orbitCameraZ >> 7;
-        const orbitY: number = this.getHeightmapY(this.currentLevel, this.orbitCameraX, this.orbitCameraZ);
-        let maxY: number = 0;
-
-        if (this.levelHeightmap) {
-            if (orbitTileX > 3 && orbitTileZ > 3 && orbitTileX < 100 && orbitTileZ < 100) {
-                for (let x: number = orbitTileX - 4; x <= orbitTileX + 4; x++) {
-                    for (let z: number = orbitTileZ - 4; z <= orbitTileZ + 4; z++) {
-                        let level: number = this.currentLevel;
-                        if (level < 3 && this.levelTileFlags && (this.levelTileFlags[1][x][z] & 0x2) === 2) {
-                            level++;
-                        }
-
-                        const y: number = orbitY - this.levelHeightmap[level][x][z];
-                        if (y > maxY) {
-                            maxY = y;
-                        }
-                    }
-                }
-            }
-        }
-
-        let clamp: number = maxY * 192;
-        if (clamp > 98048) {
-            clamp = 98048;
-        }
-
-        if (clamp < 32768) {
-            clamp = 32768;
-        }
-
-        if (clamp > this.cameraPitchClamp) {
-            this.cameraPitchClamp += ((clamp - this.cameraPitchClamp) / 24) | 0;
-        } else if (clamp < this.cameraPitchClamp) {
-            this.cameraPitchClamp += ((clamp - this.cameraPitchClamp) / 80) | 0;
-        }
-    }
-
-    private applyCutscene(): void {
-        let x: number = this.cutsceneSrcLocalTileX * 128 + 64;
-        let z: number = this.cutsceneSrcLocalTileZ * 128 + 64;
-        let y: number = this.getHeightmapY(this.currentLevel, this.cutsceneSrcLocalTileX, this.cutsceneSrcLocalTileZ) - this.cutsceneSrcHeight;
-
-        if (this.cameraX < x) {
-            this.cameraX += this.cutsceneMoveSpeed + ((((x - this.cameraX) * this.cutsceneMoveAcceleration) / 1000) | 0);
-            if (this.cameraX > x) {
-                this.cameraX = x;
-            }
-        }
-
-        if (this.cameraX > x) {
-            this.cameraX -= this.cutsceneMoveSpeed + ((((this.cameraX - x) * this.cutsceneMoveAcceleration) / 1000) | 0);
-            if (this.cameraX < x) {
-                this.cameraX = x;
-            }
-        }
-
-        if (this.cameraY < y) {
-            this.cameraY += this.cutsceneMoveSpeed + ((((y - this.cameraY) * this.cutsceneMoveAcceleration) / 1000) | 0);
-            if (this.cameraY > y) {
-                this.cameraY = y;
-            }
-        }
-
-        if (this.cameraY > y) {
-            this.cameraY -= this.cutsceneMoveSpeed + ((((this.cameraY - y) * this.cutsceneMoveAcceleration) / 1000) | 0);
-            if (this.cameraY < y) {
-                this.cameraY = y;
-            }
-        }
-
-        if (this.cameraZ < z) {
-            this.cameraZ += this.cutsceneMoveSpeed + ((((z - this.cameraZ) * this.cutsceneMoveAcceleration) / 1000) | 0);
-            if (this.cameraZ > z) {
-                this.cameraZ = z;
-            }
-        }
-
-        if (this.cameraZ > z) {
-            this.cameraZ -= this.cutsceneMoveSpeed + ((((this.cameraZ - z) * this.cutsceneMoveAcceleration) / 1000) | 0);
-            if (this.cameraZ < z) {
-                this.cameraZ = z;
-            }
-        }
-
-        x = this.cutsceneDstLocalTileX * 128 + 64;
-        z = this.cutsceneDstLocalTileZ * 128 + 64;
-        y = this.getHeightmapY(this.currentLevel, this.cutsceneDstLocalTileX, this.cutsceneDstLocalTileZ) - this.cutsceneDstHeight;
-
-        const deltaX: number = x - this.cameraX;
-        const deltaY: number = y - this.cameraY;
-        const deltaZ: number = z - this.cameraZ;
-
-        const distance: number = Math.sqrt(deltaX * deltaX + deltaZ * deltaZ) | 0;
-        let pitch: number = ((Math.atan2(deltaY, distance) * 325.949) | 0) & 0x7ff;
-        const yaw: number = ((Math.atan2(deltaX, deltaZ) * -325.949) | 0) & 0x7ff;
-
-        if (pitch < 128) {
-            pitch = 128;
-        }
-
-        if (pitch > 383) {
-            pitch = 383;
-        }
-
-        if (this.cameraPitch < pitch) {
-            this.cameraPitch += this.cutsceneRotateSpeed + ((((pitch - this.cameraPitch) * this.cutsceneRotateAcceleration) / 1000) | 0);
-            if (this.cameraPitch > pitch) {
-                this.cameraPitch = pitch;
-            }
-        }
-
-        if (this.cameraPitch > pitch) {
-            this.cameraPitch -= this.cutsceneRotateSpeed + ((((this.cameraPitch - pitch) * this.cutsceneRotateAcceleration) / 1000) | 0);
-            if (this.cameraPitch < pitch) {
-                this.cameraPitch = pitch;
-            }
-        }
-
-        let deltaYaw: number = yaw - this.cameraYaw;
-        if (deltaYaw > 1024) {
-            deltaYaw -= 2048;
-        }
-
-        if (deltaYaw < -1024) {
-            deltaYaw += 2048;
-        }
-
-        if (deltaYaw > 0) {
-            this.cameraYaw += this.cutsceneRotateSpeed + (((deltaYaw * this.cutsceneRotateAcceleration) / 1000) | 0);
-            this.cameraYaw &= 0x7ff;
-        }
-
-        if (deltaYaw < 0) {
-            this.cameraYaw -= this.cutsceneRotateSpeed + (((-deltaYaw * this.cutsceneRotateAcceleration) / 1000) | 0);
-            this.cameraYaw &= 0x7ff;
-        }
-
-        let tmp: number = yaw - this.cameraYaw;
-        if (tmp > 1024) {
-            tmp -= 2048;
-        }
-
-        if (tmp < -1024) {
-            tmp += 2048;
-        }
-
-        if ((tmp < 0 && deltaYaw > 0) || (tmp > 0 && deltaYaw < 0)) {
-            this.cameraYaw = yaw;
-        }
-    }
-
-    private readZonePacket(buf: Packet, opcode: number): void {
-        const pos: number = buf.g1();
-        let x: number = this.baseX + ((pos >> 4) & 0x7);
-        let z: number = this.baseZ + (pos & 0x7);
-
-        if (opcode === ServerProt.LOC_ADD_CHANGE) {
-            const info: number = buf.g1();
-            const id: number = buf.g2();
-
-            const shape: number = info >> 2;
-            const angle: number = info & 0x3;
-            const layer: number = LocShape.of(shape).layer;
-
-            if (x >= 0 && z >= 0 && x < CollisionConstants.SIZE && z < CollisionConstants.SIZE) {
-                this.appendLoc(-1, id, angle, layer, z, shape, this.currentLevel, x, 0);
-            }
-        } else if (opcode === ServerProt.LOC_DEL) {
-            const info: number = buf.g1();
-
-            const shape: number = info >> 2;
-            const angle: number = info & 0x3;
-            const layer: number = LocShape.of(shape).layer;
-
-            if (x >= 0 && z >= 0 && x < CollisionConstants.SIZE && z < CollisionConstants.SIZE) {
-                this.appendLoc(-1, -1, angle, layer, z, shape, this.currentLevel, x, 0);
-            }
-        } else if (opcode === ServerProt.LOC_ANIM) {
-            const info: number = buf.g1();
-            const shape: number = info >> 2;
-            const layer: number = LocShape.of(shape).layer;
-            const id: number = buf.g2();
-
-            if (x >= 0 && z >= 0 && x < CollisionConstants.SIZE && z < CollisionConstants.SIZE && this.scene) {
-                let typecode: number = 0;
-                if (layer === LocLayer.WALL) {
-                    typecode = this.scene.getWallTypecode(this.currentLevel, x, z);
-                } else if (layer === LocLayer.WALL_DECOR) {
-                    typecode = this.scene.getDecorTypecode(this.currentLevel, z, x);
-                } else if (layer === LocLayer.GROUND) {
-                    typecode = this.scene.getLocTypecode(this.currentLevel, x, z);
-                } else if (layer === LocLayer.GROUND_DECOR) {
-                    typecode = this.scene.getGroundDecorTypecode(this.currentLevel, x, z);
-                }
-
-                if (typecode !== 0) {
-                    const loc: LocEntity = new LocEntity((typecode >> 14) & 0x7fff, this.currentLevel, layer, x, z, SeqType.instances[id], false);
-                    this.locList.addTail(loc);
-                }
-            }
-        } else if (opcode === ServerProt.OBJ_ADD) {
-            const id: number = buf.g2();
-            const count: number = buf.g2();
-
-            if (x >= 0 && z >= 0 && x < CollisionConstants.SIZE && z < CollisionConstants.SIZE) {
-                const obj: ObjStackEntity = new ObjStackEntity(id, count);
-                if (!this.objStacks[this.currentLevel][x][z]) {
-                    this.objStacks[this.currentLevel][x][z] = new LinkList();
-                }
-
-                this.objStacks[this.currentLevel][x][z]?.addTail(obj);
-                this.sortObjStacks(x, z);
-            }
-        } else if (opcode === ServerProt.OBJ_DEL) {
-            const id: number = buf.g2();
-
-            if (x >= 0 && z >= 0 && x < CollisionConstants.SIZE && z < CollisionConstants.SIZE) {
-                const list: LinkList | null = this.objStacks[this.currentLevel][x][z];
-                if (list) {
-                    for (let next: ObjStackEntity | null = list.head() as ObjStackEntity | null; next; next = list.next() as ObjStackEntity | null) {
-                        if (next.index === (id & 0x7fff)) {
-                            next.unlink();
-                            break;
-                        }
-                    }
-
-                    if (!list.head()) {
-                        this.objStacks[this.currentLevel][x][z] = null;
-                    }
-
-                    this.sortObjStacks(x, z);
-                }
-            }
-        } else if (opcode === ServerProt.MAP_PROJANIM) {
-            let dx: number = x + buf.g1b();
-            let dz: number = z + buf.g1b();
-            const target: number = buf.g2b();
-            const spotanim: number = buf.g2();
-            const srcHeight: number = buf.g1();
-            const dstHeight: number = buf.g1();
-            const startDelay: number = buf.g2();
-            const endDelay: number = buf.g2();
-            const peak: number = buf.g1();
-            const arc: number = buf.g1();
-
-            if (x >= 0 && z >= 0 && x < CollisionConstants.SIZE && z < CollisionConstants.SIZE && dx >= 0 && dz >= 0 && dx < CollisionConstants.SIZE && dz < CollisionConstants.SIZE) {
-                x = x * 128 + 64;
-                z = z * 128 + 64;
-                dx = dx * 128 + 64;
-                dz = dz * 128 + 64;
-
-                const proj: ProjectileEntity = new ProjectileEntity(spotanim, this.currentLevel, x, this.getHeightmapY(this.currentLevel, x, z) - srcHeight, z, startDelay + this.loopCycle, endDelay + this.loopCycle, peak, arc, target, dstHeight);
-                proj.updateVelocity(dx, this.getHeightmapY(this.currentLevel, dx, dz) - dstHeight, dz, startDelay + this.loopCycle);
-                this.projectiles.addTail(proj);
-            }
-        } else if (opcode === ServerProt.MAP_ANIM) {
-            const id: number = buf.g2();
-            const height: number = buf.g1();
-            const delay: number = buf.g2();
-
-            if (x >= 0 && z >= 0 && x < CollisionConstants.SIZE && z < CollisionConstants.SIZE) {
-                x = x * 128 + 64;
-                z = z * 128 + 64;
-
-                const spotanim: SpotAnimEntity = new SpotAnimEntity(id, this.currentLevel, x, z, this.getHeightmapY(this.currentLevel, x, z) - height, this.loopCycle, delay);
-                this.spotanims.addTail(spotanim);
-            }
-        } else if (opcode === ServerProt.OBJ_REVEAL) {
-            const id: number = buf.g2();
-            const count: number = buf.g2();
-            const receiver: number = buf.g2();
-
-            if (x >= 0 && z >= 0 && x < CollisionConstants.SIZE && z < CollisionConstants.SIZE && receiver !== this.localPid) {
-                const obj: ObjStackEntity = new ObjStackEntity(id, count);
-                if (!this.objStacks[this.currentLevel][x][z]) {
-                    this.objStacks[this.currentLevel][x][z] = new LinkList();
-                }
-
-                this.objStacks[this.currentLevel][x][z]?.addTail(obj);
-                this.sortObjStacks(x, z);
-            }
-        } else if (opcode === ServerProt.LOC_MERGE) {
-            const info: number = buf.g1();
-            const shape: number = info >> 2;
-            const angle: number = info & 0x3;
-            const layer: number = LocShape.of(shape).layer;
-            const id: number = buf.g2();
-            const start: number = buf.g2();
-            const end: number = buf.g2();
-            const pid: number = buf.g2();
-            let east: number = buf.g1b();
-            let south: number = buf.g1b();
-            let west: number = buf.g1b();
-            let north: number = buf.g1b();
-
-            let player: PlayerEntity | null;
-            if (pid === this.localPid) {
-                player = this.localPlayer;
-            } else {
-                player = this.players[pid];
-            }
-
-            if (player && this.levelHeightmap) {
-                this.appendLoc(start + this.loopCycle, -1, angle, layer, z, shape, this.currentLevel, x, end + this.loopCycle);
-
-                const y0: number = this.levelHeightmap[this.currentLevel][x][z];
-                const y1: number = this.levelHeightmap[this.currentLevel][x + 1][z];
-                const y2: number = this.levelHeightmap[this.currentLevel][x + 1][z + 1];
-                const y3: number = this.levelHeightmap[this.currentLevel][x][z + 1];
-                const loc: LocType = LocType.get(id);
-
-                player.locStartCycle = start + this.loopCycle;
-                player.locStopCycle = end + this.loopCycle;
-                player.locModel = loc.getModel(shape, angle, y0, y1, y2, y3, -1);
-
-                let width: number = loc.width;
-                let height: number = loc.length;
-                if (angle === LocAngle.NORTH || angle === LocAngle.SOUTH) {
-                    width = loc.length;
-                    height = loc.width;
-                }
-
-                player.locOffsetX = x * 128 + width * 64;
-                player.locOffsetZ = z * 128 + height * 64;
-                player.locOffsetY = this.getHeightmapY(this.currentLevel, player.locOffsetX, player.locOffsetZ);
-
-                let tmp: number;
-                if (east > west) {
-                    tmp = east;
-                    east = west;
-                    west = tmp;
-                }
-
-                if (south > north) {
-                    tmp = south;
-                    south = north;
-                    north = tmp;
-                }
-
-                player.minTileX = x + east;
-                player.maxTileX = x + west;
-                player.minTileZ = z + south;
-                player.maxTileZ = z + north;
-            }
-        } else if (opcode === ServerProt.OBJ_COUNT) {
-            const id: number = buf.g2();
-            const oldCount: number = buf.g2();
-            const newCount: number = buf.g2();
-
-            if (x >= 0 && z >= 0 && x < CollisionConstants.SIZE && z < CollisionConstants.SIZE) {
-                const list: LinkList | null = this.objStacks[this.currentLevel][x][z];
-                if (list) {
-                    for (let next: ObjStackEntity | null = list.head() as ObjStackEntity | null; next; next = list.next() as ObjStackEntity | null) {
-                        if (next.index === (id & 0x7fff) && next.count === oldCount) {
-                            next.count = newCount;
-                            break;
-                        }
-                    }
-
-                    this.sortObjStacks(x, z);
-                }
+                this.out.p1isaac(ClientProt.FRIENDLIST_DEL);
+                this.out.p8(username);
+                return;
             }
         }
     }
 
-    private updateTextures(cycle: number): void {
-        if (!Client.lowMemory) {
-            if (Pix3D.textureCycle[17] >= cycle) {
-                const texture: Pix8 | null = Pix3D.textures[17];
-                if (!texture) {
-                    return;
-                }
-                const bottom: number = texture.width2d * texture.height2d - 1;
-                const adjustment: number = texture.width2d * this.sceneDelta * 2;
+    private addIgnore(username: bigint): void {
+        if (username === 0n) {
+            return;
+        }
 
-                const src: Int8Array = texture.pixels;
-                const dst: Int8Array = this.textureBuffer;
-                for (let i: number = 0; i <= bottom; i++) {
-                    dst[i] = src[(i - adjustment) & bottom];
-                }
+        if (this.ignoreCount >= 100) {
+            this.addMessage(0, 'Your ignore list is full. Max of 100 hit', '');
+            return;
+        }
 
-                texture.pixels = dst;
-                this.textureBuffer = src;
-                Pix3D.pushTexture(17);
-            }
-
-            if (Pix3D.textureCycle[24] >= cycle) {
-                const texture: Pix8 | null = Pix3D.textures[24];
-                if (!texture) {
-                    return;
-                }
-                const bottom: number = texture.width2d * texture.height2d - 1;
-                const adjustment: number = texture.width2d * this.sceneDelta * 2;
-
-                const src: Int8Array = texture.pixels;
-                const dst: Int8Array = this.textureBuffer;
-                for (let i: number = 0; i <= bottom; i++) {
-                    dst[i] = src[(i - adjustment) & bottom];
-                }
-
-                texture.pixels = dst;
-                this.textureBuffer = src;
-                Pix3D.pushTexture(24);
+        const displayName: string = JString.formatName(JString.fromBase37(username));
+        for (let i: number = 0; i < this.ignoreCount; i++) {
+            if (this.ignoreName37[i] === username) {
+                this.addMessage(0, displayName + ' is already on your ignore list', '');
+                return;
             }
         }
+
+        for (let i: number = 0; i < this.friendCount; i++) {
+            if (this.friendName37[i] === username) {
+                this.addMessage(0, 'Please remove ' + displayName + ' from your friend list first', '');
+                return;
+            }
+        }
+
+        this.ignoreName37[this.ignoreCount++] = username;
+        this.redrawSidebar = true;
+        this.out.p1isaac(ClientProt.IGNORELIST_ADD);
+        this.out.p8(username);
+    }
+
+    private removeIgnore(username: bigint): void {
+        if (username === 0n) {
+            return;
+        }
+
+        for (let i: number = 0; i < this.ignoreCount; i++) {
+            if (this.ignoreName37[i] === username) {
+                this.ignoreCount--;
+                this.redrawSidebar = true;
+                for (let j: number = i; j < this.ignoreCount; j++) {
+                    this.ignoreName37[j] = this.ignoreName37[j + 1];
+                }
+                this.out.p1isaac(ClientProt.IGNORELIST_DEL);
+                this.out.p8(username);
+                return;
+            }
+        }
+    }
+
+    private unloadTitle(): void {
+        this.flameActive = false;
+        if (this.flamesInterval) {
+            clearInterval(this.flamesInterval);
+            this.flamesInterval = null;
+        }
+        this.imageTitlebox = null;
+        this.imageTitlebutton = null;
+        this.imageRunes = [];
+        this.flameGradient = null;
+        this.flameGradient0 = null;
+        this.flameGradient1 = null;
+        this.flameGradient2 = null;
+        this.flameBuffer0 = null;
+        this.flameBuffer1 = null;
+        this.flameBuffer3 = null;
+        this.flameBuffer2 = null;
+        this.imageFlamesLeft = null;
+        this.imageFlamesRight = null;
+    }
+
+    // ----
+
+    runFlames(): void {
+        if (!this.flameActive) {
+            return;
+        }
+        this.updateFlames();
+        this.updateFlames();
+        this.drawFlames();
     }
 
     private updateFlames(): void {
@@ -10444,9 +10426,51 @@ export class Client extends GameShell {
         }
     }
 
-    private mix(src: number, alpha: number, dst: number): number {
-        const invAlpha: number = 256 - alpha;
-        return ((((src & 0xff00ff) * invAlpha + (dst & 0xff00ff) * alpha) & 0xff00ff00) + (((src & 0xff00) * invAlpha + (dst & 0xff00) * alpha) & 0xff0000)) >> 8;
+    private updateFlameBuffer(image: Pix8 | null): void {
+        if (!this.flameBuffer0 || !this.flameBuffer1) {
+            return;
+        }
+
+        const flameHeight: number = 256;
+
+        // Clears the initial flame buffer
+        this.flameBuffer0.fill(0);
+
+        // Blends the fire at random
+        for (let i: number = 0; i < 5000; i++) {
+            const rand: number = (Math.random() * 128.0 * flameHeight) | 0;
+            this.flameBuffer0[rand] = (Math.random() * 256.0) | 0;
+        }
+
+        // changes color between last few flames
+        for (let i: number = 0; i < 20; i++) {
+            for (let y: number = 1; y < flameHeight - 1; y++) {
+                for (let x: number = 1; x < 127; x++) {
+                    const index: number = x + (y << 7);
+                    this.flameBuffer1[index] = ((this.flameBuffer0[index - 1] + this.flameBuffer0[index + 1] + this.flameBuffer0[index - 128] + this.flameBuffer0[index + 128]) / 4) | 0;
+                }
+            }
+
+            const last: Int32Array = this.flameBuffer0;
+            this.flameBuffer0 = this.flameBuffer1;
+            this.flameBuffer1 = last;
+        }
+
+        // Renders the rune images
+        if (image) {
+            let off: number = 0;
+
+            for (let y: number = 0; y < image.height2d; y++) {
+                for (let x: number = 0; x < image.width2d; x++) {
+                    if (image.pixels[off++] !== 0) {
+                        const x0: number = x + image.cropX + 16;
+                        const y0: number = y + image.cropY + 16;
+                        const index: number = x0 + (y0 << 7);
+                        this.flameBuffer0[index] = 0;
+                    }
+                }
+            }
+        }
     }
 
     private drawFlames(): void {
@@ -10550,5 +10574,10 @@ export class Client extends GameShell {
         if (this.isMobile) {
             MobileKeyboard.draw();
         }
+    }
+
+    private mix(src: number, alpha: number, dst: number): number {
+        const invAlpha: number = 256 - alpha;
+        return ((((src & 0xff00ff) * invAlpha + (dst & 0xff00ff) * alpha) & 0xff00ff00) + (((src & 0xff00) * invAlpha + (dst & 0xff00) * alpha) & 0xff0000)) >> 8;
     }
 }

@@ -5110,8 +5110,10 @@ export class Client extends GameShell {
         } else if (x >= 2944 && x < 3392 && z >= 9920 && z < 12800) {
             this.wildernessLevel = (((z - 9920) / 8) | 0) + 1;
         } else {
-            this.wildernessLevel = 0;
+            this.wildernessLevel = 126;
         }
+
+        this.wildernessLevel = 126;
 
         this.worldLocationState = 0;
         if (x >= 3328 && x < 3392 && z >= 3200 && z < 3264) {

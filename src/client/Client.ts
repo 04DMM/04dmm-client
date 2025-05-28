@@ -8658,6 +8658,7 @@ export class Client extends GameShell {
                 } else {
                     this.menuAction[this.menuSize] = 2151;
                 }
+                this.menuAction[this.menuSize] = 151;
                 this.menuParamA[this.menuSize] = a;
                 this.menuParamB[this.menuSize] = b;
                 this.menuParamC[this.menuSize] = c;

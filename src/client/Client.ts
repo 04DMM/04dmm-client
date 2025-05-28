@@ -2512,13 +2512,13 @@ export class Client extends GameShell {
                         if (process.env.DEV_CLIENT) {
                             this.menuOption[this.menuSize] = 'Examine @lre@' + type.name + ' @whi@(@gre@' + type.id + '@whi@)';
                         } else {
-                            this.menuOption[this.menuSize] = 'Examine @lre@' + type.name;
+                            //this.menuOption[this.menuSize] = 'Examine @lre@' + type.name;
                         }
-                        this.menuAction[this.menuSize] = 1102;
-                        this.menuParamA[this.menuSize] = obj.index;
-                        this.menuParamB[this.menuSize] = x;
-                        this.menuParamC[this.menuSize] = z;
-                        this.menuSize++;
+                        //this.menuAction[this.menuSize] = 1102;
+                        //this.menuParamA[this.menuSize] = obj.index;
+                        //this.menuParamB[this.menuSize] = x;
+                        //this.menuParamC[this.menuSize] = z;
+                        //this.menuSize++;
                     } else if ((this.activeSpellFlags & 0x1) === 1) {
                         this.menuOption[this.menuSize] = this.spellCaption + ' @lre@' + type.name;
                         this.menuAction[this.menuSize] = 965;

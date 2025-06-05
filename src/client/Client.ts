@@ -8545,7 +8545,8 @@ export class Client extends GameShell {
             let type: number;
             if (npc.op) {
                 for (type = 4; type >= 0; type--) {
-                    if (npc.op[type] && npc.op[type]?.toLowerCase() !== 'attack') {
+                    if (npc.op[type] && npc.op[type]?.toLowerCase() !== 'attack'
+                        && npc.op[type]?.toLowerCase() !== 'pickpocket') {
                         this.menuOption[this.menuSize] = npc.op[type] + ' @yel@' + tooltip;
 
                         if (type === 0) {
@@ -8572,9 +8573,39 @@ export class Client extends GameShell {
                 for (type = 4; type >= 0; type--) {
                     if (npc.op[type] && npc.op[type]?.toLowerCase() === 'attack') {
                         let action: number = 0;
-                        if (this.localPlayer && npc.vislevel > this.localPlayer.combatLevel) {
-                            action = 2000;
+                        //if (this.localPlayer && npc.vislevel > this.localPlayer.combatLevel) {
+                        //    action = 2000;
+                        //}
+
+                        this.menuOption[this.menuSize] = npc.op[type] + ' @yel@' + tooltip;
+
+                        if (type === 0) {
+                            this.menuAction[this.menuSize] = action + 728;
+                        } else if (type === 1) {
+                            this.menuAction[this.menuSize] = action + 542;
+                        } else if (type === 2) {
+                            this.menuAction[this.menuSize] = action + 6;
+                        } else if (type === 3) {
+                            this.menuAction[this.menuSize] = action + 963;
+                        } else if (type === 4) {
+                            this.menuAction[this.menuSize] = action + 245;
                         }
+
+                        this.menuParamA[this.menuSize] = a;
+                        this.menuParamB[this.menuSize] = b;
+                        this.menuParamC[this.menuSize] = c;
+                        this.menuSize++;
+                    }
+                }
+            }
+
+            if (npc.op) {
+                for (type = 4; type >= 0; type--) {
+                    if (npc.op[type] && npc.op[type]?.toLowerCase() === 'pickpocket') {
+                        let action: number = 0;
+                        //if (this.localPlayer && npc.vislevel > this.localPlayer.combatLevel) {
+                        //    action = 2000;
+                        //}
 
                         this.menuOption[this.menuSize] = npc.op[type] + ' @yel@' + tooltip;
 

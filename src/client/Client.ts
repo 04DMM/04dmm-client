@@ -6650,7 +6650,7 @@ export class Client extends GameShell {
                         this.addMessage(8, 'wishes to duel with you.', player);
                     }
                 } else {
-                    this.addMessage(0, message, '');
+                    this.addMessage(5, message, '');
                 }
                 this.inPacketType = -1;
                 return true;

@@ -9347,12 +9347,27 @@ export class Client extends GameShell {
                                         this.menuParamC[this.menuSize] = child.id;
                                         this.menuSize++;
                                     } else if (op === 4) {
+
+
+               //////////////////////////////////////////////////////////////////////////
                                         this.menuOption[this.menuSize] = 'Drop @lre@' + obj.name;
                                         this.menuAction[this.menuSize] = 347;
                                         this.menuParamA[this.menuSize] = obj.id;
                                         this.menuParamB[this.menuSize] = slot;
                                         this.menuParamC[this.menuSize] = child.id;
                                         this.menuSize++;
+
+
+
+
+
+
+
+
+
+
+
+               /////////////////////////////////////////////////////////////////////////////
                                     }
                                 }
                             }
@@ -9419,6 +9434,54 @@ export class Client extends GameShell {
                                 this.menuParamC[this.menuSize] = child.invSlotObjCount[slot];
                             }
                             this.menuSize++;
+                        /////////////////////////
+                   if (this.actionKey[6] === 1) {
+
+                            let prefer = -1;
+                            for (let i = this.menuSize - 1, checked = 0; i >= 0 && checked < 5; i--, checked++) {
+                                const txt = this.menuOption[i].toLowerCase();
+                                if (txt.startsWith('drop')) {
+                                    prefer = i;
+                                    break;
+                                }
+                            }
+                            if (prefer !== -1) {
+                                [
+                                    this.menuOption[prefer], this.menuOption[this.menuSize - 1]
+                                ] = [
+                                    this.menuOption[this.menuSize - 1], this.menuOption[prefer]
+                                ];
+                                [
+                                    this.menuAction[prefer], this.menuAction[this.menuSize - 1]
+                                ] = [
+                                    this.menuAction[this.menuSize - 1], this.menuAction[prefer]
+                                ];
+                                [
+                                    this.menuParamA[prefer], this.menuParamA[this.menuSize - 1]
+                                ] = [
+                                    this.menuParamA[this.menuSize - 1], this.menuParamA[prefer]
+                                ];
+                                [
+                                    this.menuParamB[prefer], this.menuParamB[this.menuSize - 1]
+                                ] = [
+                                    this.menuParamB[this.menuSize - 1], this.menuParamB[prefer]
+                                ];
+                                [
+                                    this.menuParamC[prefer], this.menuParamC[this.menuSize - 1]
+                                ] = [
+                                    this.menuParamC[this.menuSize - 1], this.menuParamC[prefer]
+                                ];
+                            } else {
+                                this.menuOption[this.menuSize] = 'Drop @lre@' + obj.name;
+                                this.menuAction[this.menuSize] = 347;          // OPHELD5
+                                this.menuParamA[this.menuSize] = obj.id;
+                                this.menuParamB[this.menuSize] = slot;
+                                this.menuParamC[this.menuSize] = child.id;
+                                this.menuSize++;
+                            }
+                        }
+
+                       /////////////////////////////
                         }
 
                         slot++;
@@ -9470,7 +9533,7 @@ export class Client extends GameShell {
                 }
             }
         }
-    }
+}
 
     private handleSocialMenuOption(component: Component): boolean {
         let type: number = component.clientCode;

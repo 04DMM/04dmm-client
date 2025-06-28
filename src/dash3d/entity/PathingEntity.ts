@@ -24,6 +24,9 @@ export default abstract class PathingEntity extends Entity {
     damage: number = 0;
     damageType: number = 0;
     combatCycle: number = -1000;
+    damageValues: Int32Array = new Int32Array(4);
+    damageTypes: Int32Array = new Int32Array(4);
+    damageCycles: Int32Array = new Int32Array(4);
     health: number = 0;
     totalHealth: number = 0;
     targetId: number = -1;
@@ -143,5 +146,16 @@ export default abstract class PathingEntity extends Entity {
         this.routeFlagX[0] = nextX;
         this.routeFlagZ[0] = nextZ;
         this.routeRun[0] = running;
+    }
+
+    pushDamage(loopCycle: number, type: number, value: number) {
+        for (let i = 0; i < 4; i++) {
+            if (this.damageCycles[i] <= loopCycle) {
+                this.damageValues[i] = value;
+                this.damageTypes[i] = type;
+                this.damageCycles[i] = loopCycle + 70;
+                return;
+            }
+        }
     }
 }
